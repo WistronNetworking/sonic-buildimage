@@ -73,6 +73,7 @@ def generate_t1_sample_config(data):
                 'keepalive': '60'
                 }
         port_count += 1
+    data['NTP'] = {"global" : {"src_intf" : "eth0"}}
     return data
 
 def generate_empty_config(data):
@@ -118,7 +119,7 @@ def generate_l2_config(data):
     if 'uplinks' in data:
         uplinks = data['uplinks']
         data.pop('uplinks')
-    
+
     if 'downlinks' in data:
         downlinks = data['downlinks']
         data.pop('downlinks')
