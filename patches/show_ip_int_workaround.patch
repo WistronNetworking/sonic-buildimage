@@ -1,0 +1,26 @@
+diff --git a/src/sonic-utilities/scripts/ipintutil b/src/sonic-utilities/scripts/ipintutil
+index c61c622a..59533fe6 100755
+--- a/src/sonic-utilities/scripts/ipintutil
++++ b/src/sonic-utilities/scripts/ipintutil
+@@ -106,6 +106,10 @@ def get_if_oper_state(iface, namespace):
+     Given an interface name, return its oper state reported by the kernel.
+     """
+     cmd = "cat /sys/class/net/{0}/carrier".format(iface)
++
++    if "Ethernet" in iface:
++        cmd = "cat /sys/class/net/{0}/operstate".format(iface)
++
+     if namespace != constants.DEFAULT_NAMESPACE:
+         cmd = "sudo ip netns exec {} {}".format(namespace, cmd)
+     try:
+@@ -123,7 +127,9 @@ def get_if_oper_state(iface, namespace):
+         return "error"
+
+     oper_state = state_file.rstrip()
+-    if oper_state == "1":
++    if oper_state == "up" and "Ethernet" in iface:
++        return "up"
++    elif oper_state == "1" and "Ethernet" not in iface:
+         return "up"
+     else:
+         return "down"

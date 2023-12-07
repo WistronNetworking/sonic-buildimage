@@ -12,3 +12,11 @@ patch -p1 < patches/0001-SAI-switch-create-timeout-WA.patch
 #sonic-utilities
 patch -p1 < patches/0001-Marvell-generate_dump-utility.patch
 patch -p1 < patches/0002-Use-kexec_load-syscall-for-stability.patch
+
+#wistron
+patch -p1 < patches/wistron_dts.patch
+patch -p1 < patches/sonic-platform-common-sff-8472.patch
+patch -p1 < patches/sfputil_sort_order.patch
+patch -p1 < patches/show_ip_int_workaround.patch
+patch -p1 < patches/wistron_poe.patch
+patch -p1 < patches/wistron_add_xmc_spi.patch

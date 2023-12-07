@@ -1,0 +1,31 @@
+diff --git a/src/sonic-linux-kernel/patch/add_xmc_spi_device.patch b/src/sonic-linux-kernel/patch/add_xmc_spi_device.patch
+new file mode 100644
+index 0000000..d3cdee6
+--- /dev/null
++++ b/src/sonic-linux-kernel/patch/add_xmc_spi_device.patch
+@@ -0,0 +1,13 @@
++diff --git a/drivers/mtd/spi-nor/xmc.c b/drivers/mtd/spi-nor/xmc.c
++index 2c7773b68..36d5b2928 100644
++--- a/drivers/mtd/spi-nor/xmc.c
+++++ b/drivers/mtd/spi-nor/xmc.c
++@@ -14,6 +14,8 @@ static const struct flash_info xmc_parts[] = {
++ 			    SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++ 	{ "XM25QH128A", INFO(0x207018, 0, 64 * 1024, 256,
++ 			     SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+++	{ "XM25QH256C", INFO(0x204019, 0, 64 * 1024, 512,
+++			     SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
++ };
++
++ const struct spi_nor_manufacturer spi_nor_xmc = {
+diff --git a/src/sonic-linux-kernel/patch/series b/src/sonic-linux-kernel/patch/series
+index 0464444..9058e21 100755
+--- a/src/sonic-linux-kernel/patch/series
++++ b/src/sonic-linux-kernel/patch/series
+@@ -211,6 +211,7 @@ armhf_secondary_boot_online.patch
+
+ # wistron device tree
+ wistron_es1227_dts.patch
++add_xmc_spi_device.patch
+
+ #
+ #

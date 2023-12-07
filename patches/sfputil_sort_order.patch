@@ -1,0 +1,20 @@
+diff --git a/src/sonic-utilities/sfputil/main.py b/src/sonic-utilities/sfputil/main.py
+index 8992e923..cea394e3 100644
+--- a/src/sonic-utilities/sfputil/main.py
++++ b/src/sonic-utilities/sfputil/main.py
+@@ -618,6 +618,7 @@ def eeprom(port, dump_dom, namespace):
+
+         logical_port_list = [port]
+
++    logical_port_list = natsort.natsorted(logical_port_list)
+     for logical_port_name in logical_port_list:
+         ganged = False
+         i = 1
+@@ -1027,6 +1028,7 @@ def lpmode(port):
+
+         logical_port_list = [port]
+
++    logical_port_list = natsort.natsorted(logical_port_list)
+     for logical_port_name in logical_port_list:
+         ganged = False
+         i = 1
