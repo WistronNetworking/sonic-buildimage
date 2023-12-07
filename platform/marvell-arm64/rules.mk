@@ -7,6 +7,9 @@ include $(PLATFORM_PATH)/libsaithrift-dev.mk
 include $(PLATFORM_PATH)/one-image.mk
 include $(PLATFORM_PATH)/mrvl-prestera.mk
 include $(PLATFORM_PATH)/platform-marvell.mk
+include $(PLATFORM_PATH)/platform-es2227-54ts.mk
+include $(PLATFORM_PATH)/platform-es2227-54ts-p.mk
+include $(PLATFORM_PATH)/platform-es1227-54ts.mk
 
 SONIC_ALL += $(SONIC_ONE_IMAGE) \
              $(DOCKER_FPM) 	\
