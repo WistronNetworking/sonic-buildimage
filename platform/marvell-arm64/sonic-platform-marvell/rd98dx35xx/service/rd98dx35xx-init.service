@@ -1,0 +1,11 @@
+[Unit]
+Description=Platform rd98DX35xx Service
+After=sysinit.target
+Before=pmon.service
+
+[Service]
+ExecStart=/usr/local/bin/rd98dx35xx-init.sh
+StandardOutput=tty
+
+[Install]
+WantedBy=multi-user.target
