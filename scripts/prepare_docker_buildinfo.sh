@@ -21,6 +21,9 @@ if [ -z "$DISTRO" ]; then
     DOCKER_BASE_IMAGE=$(grep "^FROM" $DOCKERFILE | head -n 1 | awk '{print $2}')
     DISTRO=$(docker run --rm --entrypoint "" $DOCKER_BASE_IMAGE cat /etc/os-release | grep VERSION_CODENAME | cut -d= -f2)
     [ -z "$DISTRO" ] && DISTRO=jessie
+	if [ "$DOCKER_BASE_IMAGE" == "multiarch/debian-debootstrap:arm64-bullseye" ]; then
+		DISTRO=bullseye
+	fi
 fi
 
 if [[ "$IMAGENAME" == sonic-slave-* ]] || [[ "$IMAGENAME" == docker-base-* ]] || [[ "$IMAGENAME" == docker-ptf ]]; then

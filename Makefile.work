@@ -353,7 +353,8 @@ ifeq ($(DOCKER_DATA_ROOT_FOR_MULTIARCH),)
 endif
     # Multiarch docker cannot start dockerd service due to iptables cannot run over different arch kernel
     SONIC_SERVICE_DOCKERD_FOR_MULTIARCH=y
-    SONIC_NATIVE_DOCKERD_FOR_MUTLIARCH := dockerd  --experimental=true --storage-driver=vfs \
+    #SONIC_NATIVE_DOCKERD_FOR_MUTLIARCH := dockerd  --experimental=true --storage-driver=vfs
+    SONIC_NATIVE_DOCKERD_FOR_MUTLIARCH := dockerd --storage-driver=vfs \
         --data-root=$(DOCKER_DATA_ROOT_FOR_MULTIARCH) --exec-root=/var/run/march/docker/ \
         -H unix:///var/run/march/docker.sock -p /var/run/march/docker.pid
 
@@ -400,7 +401,8 @@ DOCKER_SLAVE_BASE_BUILD = docker build --no-cache \
 		    --build-arg https_proxy=$(https_proxy) \
 		    --build-arg no_proxy=$(no_proxy) \
 		    $(SLAVE_DIR) \
-		    $(SPLIT_LOG) $(DOCKER_BASE_LOG)
+		    &> $(DOCKER_BASE_LOG)
+		    #$(SPLIT_LOG) $(DOCKER_BASE_LOG)
 
 DOCKER_BASE_PULL = docker pull \
 			$(REGISTRY_SERVER):$(REGISTRY_PORT)$(REGISTRY_SERVER_PATH)/$(SLAVE_BASE_IMAGE):$(SLAVE_BASE_TAG)
@@ -570,7 +572,7 @@ endif
 
 	$(Q)$(DOCKER_RUN) \
 		$(SLAVE_IMAGE):$(SLAVE_TAG) \
-		bash -c "$(SONIC_BUILD_INSTRUCTION) $@; $(COLLECT_BUILD_VERSION); $(SLAVE_SHELL)" 
+		bash -c "$(SONIC_BUILD_INSTRUCTION) $@; $(COLLECT_BUILD_VERSION); $(SLAVE_SHELL)"
 	$(Q)$(docker-image-cleanup)
 
 docker-cleanup:
