@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2023-01-23-1.03" profile="Askl1" dsig="md5">
+<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2023-05-05-1.04" profile="Askl1" sid="2acdabbe-ea4c-4162-a82d-8c161676ac3a">
   <ASKL1plt:ASK-L1 xmlns:ASKL1plt="urn:marvell:ASKL1:yang">
     <ASKL1plt:typedefs>
       <ASKL1plt:typedef>
@@ -828,20 +828,6 @@
         </ASKL1plt:APIfModeSpeedList-list>
       </ASKL1plt:ifModeNameList>
       <ASKL1plt:ifModeNameList>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
-        <ASKL1plt:IfModeSpeedList-list>
-          <ASKL1plt:ifMode ASKL1plt:type="interface-mode-type">USX_20G_OXGMII</ASKL1plt:ifMode>
-          <ASKL1plt:speed ASKL1plt:type="port-speed-type">1G</ASKL1plt:speed>
-          <ASKL1plt:fec ASKL1plt:type="fec-type">rs_enabled</ASKL1plt:fec>
-        </ASKL1plt:IfModeSpeedList-list>
-        <ASKL1plt:APIfModeSpeedList-list>
-          <ASKL1plt:APifMode ASKL1plt:type="interface-mode-type">USX_20G_OXGMII</ASKL1plt:APifMode>
-          <ASKL1plt:APspeed ASKL1plt:type="port-speed-type">1G</ASKL1plt:APspeed>
-          <ASKL1plt:APfecSupport ASKL1plt:type="fec-type">rs_enabled</ASKL1plt:APfecSupport>
-          <ASKL1plt:APfecRequest ASKL1plt:type="fec-type">rs_enabled</ASKL1plt:APfecRequest>
-        </ASKL1plt:APIfModeSpeedList-list>
-      </ASKL1plt:ifModeNameList>
-      <ASKL1plt:ifModeNameList>
         <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:IfModeSpeedList-list>
           <ASKL1plt:ifMode ASKL1plt:type="interface-mode-type">USX_20G_OXGMII</ASKL1plt:ifMode>
@@ -1052,7 +1038,7 @@
       </ASKL1plt:port-list>
       <ASKL1plt:port-list>
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">14</ASKL1plt:portNumber>
-        <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
+        <ASKL1plt:Serdes ASKL1plt:type="serdes-type">AVAGO</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
         <ASKL1plt:ifModeName ASKL1plt:type="string">1000MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
@@ -1216,7 +1202,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">32</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">4</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1225,7 +1211,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">33</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">4</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1234,7 +1220,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">34</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">4</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1243,7 +1229,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">35</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">4</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1252,7 +1238,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">36</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">4</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1261,7 +1247,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">37</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">4</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1270,7 +1256,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">38</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">4</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1279,7 +1265,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">39</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">4</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1288,7 +1274,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">40</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">5</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1297,7 +1283,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">41</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">5</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1306,7 +1292,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">42</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">5</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1315,7 +1301,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">43</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">5</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1324,7 +1310,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">44</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">5</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1333,7 +1319,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">45</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">5</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1342,7 +1328,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">46</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">5</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>
@@ -1351,7 +1337,7 @@
         <ASKL1plt:portNumber ASKL1plt:type="physical-port-num-type">47</ASKL1plt:portNumber>
         <ASKL1plt:Serdes ASKL1plt:type="serdes-type">COMPHY_C28G</ASKL1plt:Serdes>
         <ASKL1plt:interconnectProfile ASKL1plt:type="port-interconnect-profile-type">profile_default</ASKL1plt:interconnectProfile>
-        <ASKL1plt:ifModeName ASKL1plt:type="string">1000MRG1</ASKL1plt:ifModeName>
+        <ASKL1plt:ifModeName ASKL1plt:type="string">2500MR1</ASKL1plt:ifModeName>
         <ASKL1plt:laneList-list>
           <ASKL1plt:laneNumber ASKL1plt:type="uint32">5</ASKL1plt:laneNumber>
         </ASKL1plt:laneList-list>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2023-01-23-1.03" profile="Askboard" dsig="md5">
+<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2023-05-05-1.04" profile="Askboard" sid="3d41ec3a-8aa3-40c2-8129-e3f465d37313">
   <askboardplt:ASK-Board xmlns:askboardplt="urn:marvell:askboard:yang">
     <askboardplt:typedefs>
       <askboardplt:typedef>
@@ -1885,6 +1885,7 @@ lowercase characters.</askboardplt:description>
           <askboardplt:pulseStretch askboardplt:type="led-stream-pulse-stretch-type">PULSE_STRETCH_1</askboardplt:pulseStretch>
           <askboardplt:invertEnable askboardplt:type="boolean-type">false</askboardplt:invertEnable>
           <askboardplt:SIP6ledClockFrequency askboardplt:type="led-stream-clock-frequency-type">1627</askboardplt:SIP6ledClockFrequency>
+          <askboardplt:ledClockPosEdgeModeEnable askboardplt:type="boolean-type">false</askboardplt:ledClockPosEdgeModeEnable>
           <askboardplt:ledUnit-List>
             <askboardplt:ledUnit askboardplt:type="led-unit-type">1</askboardplt:ledUnit>
             <askboardplt:ledStart askboardplt:type="uint32">0</askboardplt:ledStart>
@@ -1919,51 +1920,6 @@ lowercase characters.</askboardplt:description>
         <askboardplt:ledstream-class-manipulation-list>
           <askboardplt:classNum askboardplt:type="led-class-num-type">0</askboardplt:classNum>
           <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">1</askboardplt:ledUnit>
-          <askboardplt:blinkEnable askboardplt:type="boolean-type">false</askboardplt:blinkEnable>
-          <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
-          <askboardplt:forceEnable askboardplt:type="boolean-type">true</askboardplt:forceEnable>
-          <askboardplt:forceData askboardplt:type="led-stream-force-data-type">0xFFFFFFFF</askboardplt:forceData>
-          <askboardplt:pulseStretchEnable askboardplt:type="boolean-type">false</askboardplt:pulseStretchEnable>
-          <askboardplt:disableOnLinkDown askboardplt:type="boolean-type">false</askboardplt:disableOnLinkDown>
-        </askboardplt:ledstream-class-manipulation-list>
-        <askboardplt:ledstream-class-manipulation-list>
-          <askboardplt:classNum askboardplt:type="led-class-num-type">0</askboardplt:classNum>
-          <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">2</askboardplt:ledUnit>
-          <askboardplt:blinkEnable askboardplt:type="boolean-type">false</askboardplt:blinkEnable>
-          <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
-          <askboardplt:forceEnable askboardplt:type="boolean-type">true</askboardplt:forceEnable>
-          <askboardplt:forceData askboardplt:type="led-stream-force-data-type">0xFFFFFFFF</askboardplt:forceData>
-          <askboardplt:pulseStretchEnable askboardplt:type="boolean-type">false</askboardplt:pulseStretchEnable>
-          <askboardplt:disableOnLinkDown askboardplt:type="boolean-type">false</askboardplt:disableOnLinkDown>
-        </askboardplt:ledstream-class-manipulation-list>
-        <askboardplt:ledstream-class-manipulation-list>
-          <askboardplt:classNum askboardplt:type="led-class-num-type">0</askboardplt:classNum>
-          <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">3</askboardplt:ledUnit>
-          <askboardplt:blinkEnable askboardplt:type="boolean-type">false</askboardplt:blinkEnable>
-          <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
-          <askboardplt:forceEnable askboardplt:type="boolean-type">true</askboardplt:forceEnable>
-          <askboardplt:forceData askboardplt:type="led-stream-force-data-type">0xFFFFFFFF</askboardplt:forceData>
-          <askboardplt:pulseStretchEnable askboardplt:type="boolean-type">false</askboardplt:pulseStretchEnable>
-          <askboardplt:disableOnLinkDown askboardplt:type="boolean-type">false</askboardplt:disableOnLinkDown>
-        </askboardplt:ledstream-class-manipulation-list>
-        <askboardplt:ledstream-class-manipulation-list>
-          <askboardplt:classNum askboardplt:type="led-class-num-type">0</askboardplt:classNum>
-          <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">4</askboardplt:ledUnit>
-          <askboardplt:blinkEnable askboardplt:type="boolean-type">false</askboardplt:blinkEnable>
-          <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
-          <askboardplt:forceEnable askboardplt:type="boolean-type">true</askboardplt:forceEnable>
-          <askboardplt:forceData askboardplt:type="led-stream-force-data-type">0xFFFFFFFF</askboardplt:forceData>
-          <askboardplt:pulseStretchEnable askboardplt:type="boolean-type">false</askboardplt:pulseStretchEnable>
-          <askboardplt:disableOnLinkDown askboardplt:type="boolean-type">false</askboardplt:disableOnLinkDown>
-        </askboardplt:ledstream-class-manipulation-list>
-        <askboardplt:ledstream-class-manipulation-list>
-          <askboardplt:classNum askboardplt:type="led-class-num-type">0</askboardplt:classNum>
-          <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">5</askboardplt:ledUnit>
           <askboardplt:blinkEnable askboardplt:type="boolean-type">false</askboardplt:blinkEnable>
           <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
           <askboardplt:forceEnable askboardplt:type="boolean-type">true</askboardplt:forceEnable>
@@ -1974,47 +1930,6 @@ lowercase characters.</askboardplt:description>
         <askboardplt:ledstream-class-manipulation-list>
           <askboardplt:classNum askboardplt:type="led-class-num-type">1</askboardplt:classNum>
           <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">1</askboardplt:ledUnit>
-          <askboardplt:blinkEnable askboardplt:type="boolean-type">false</askboardplt:blinkEnable>
-          <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
-          <askboardplt:forceEnable askboardplt:type="boolean-type">false</askboardplt:forceEnable>
-          <askboardplt:pulseStretchEnable askboardplt:type="boolean-type">false</askboardplt:pulseStretchEnable>
-          <askboardplt:disableOnLinkDown askboardplt:type="boolean-type">true</askboardplt:disableOnLinkDown>
-        </askboardplt:ledstream-class-manipulation-list>
-        <askboardplt:ledstream-class-manipulation-list>
-          <askboardplt:classNum askboardplt:type="led-class-num-type">1</askboardplt:classNum>
-          <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">2</askboardplt:ledUnit>
-          <askboardplt:blinkEnable askboardplt:type="boolean-type">false</askboardplt:blinkEnable>
-          <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
-          <askboardplt:forceEnable askboardplt:type="boolean-type">false</askboardplt:forceEnable>
-          <askboardplt:pulseStretchEnable askboardplt:type="boolean-type">false</askboardplt:pulseStretchEnable>
-          <askboardplt:disableOnLinkDown askboardplt:type="boolean-type">true</askboardplt:disableOnLinkDown>
-        </askboardplt:ledstream-class-manipulation-list>
-        <askboardplt:ledstream-class-manipulation-list>
-          <askboardplt:classNum askboardplt:type="led-class-num-type">1</askboardplt:classNum>
-          <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">3</askboardplt:ledUnit>
-          <askboardplt:blinkEnable askboardplt:type="boolean-type">false</askboardplt:blinkEnable>
-          <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
-          <askboardplt:forceEnable askboardplt:type="boolean-type">false</askboardplt:forceEnable>
-          <askboardplt:pulseStretchEnable askboardplt:type="boolean-type">false</askboardplt:pulseStretchEnable>
-          <askboardplt:disableOnLinkDown askboardplt:type="boolean-type">true</askboardplt:disableOnLinkDown>
-        </askboardplt:ledstream-class-manipulation-list>
-        <askboardplt:ledstream-class-manipulation-list>
-          <askboardplt:classNum askboardplt:type="led-class-num-type">1</askboardplt:classNum>
-          <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">4</askboardplt:ledUnit>
-          <askboardplt:blinkEnable askboardplt:type="boolean-type">false</askboardplt:blinkEnable>
-          <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
-          <askboardplt:forceEnable askboardplt:type="boolean-type">false</askboardplt:forceEnable>
-          <askboardplt:pulseStretchEnable askboardplt:type="boolean-type">false</askboardplt:pulseStretchEnable>
-          <askboardplt:disableOnLinkDown askboardplt:type="boolean-type">true</askboardplt:disableOnLinkDown>
-        </askboardplt:ledstream-class-manipulation-list>
-        <askboardplt:ledstream-class-manipulation-list>
-          <askboardplt:classNum askboardplt:type="led-class-num-type">1</askboardplt:classNum>
-          <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">5</askboardplt:ledUnit>
           <askboardplt:blinkEnable askboardplt:type="boolean-type">false</askboardplt:blinkEnable>
           <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
           <askboardplt:forceEnable askboardplt:type="boolean-type">false</askboardplt:forceEnable>
@@ -2024,47 +1939,6 @@ lowercase characters.</askboardplt:description>
         <askboardplt:ledstream-class-manipulation-list>
           <askboardplt:classNum askboardplt:type="led-class-num-type">2</askboardplt:classNum>
           <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">1</askboardplt:ledUnit>
-          <askboardplt:blinkEnable askboardplt:type="boolean-type">true</askboardplt:blinkEnable>
-          <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
-          <askboardplt:forceEnable askboardplt:type="boolean-type">false</askboardplt:forceEnable>
-          <askboardplt:pulseStretchEnable askboardplt:type="boolean-type">true</askboardplt:pulseStretchEnable>
-          <askboardplt:disableOnLinkDown askboardplt:type="boolean-type">true</askboardplt:disableOnLinkDown>
-        </askboardplt:ledstream-class-manipulation-list>
-        <askboardplt:ledstream-class-manipulation-list>
-          <askboardplt:classNum askboardplt:type="led-class-num-type">2</askboardplt:classNum>
-          <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">2</askboardplt:ledUnit>
-          <askboardplt:blinkEnable askboardplt:type="boolean-type">true</askboardplt:blinkEnable>
-          <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
-          <askboardplt:forceEnable askboardplt:type="boolean-type">false</askboardplt:forceEnable>
-          <askboardplt:pulseStretchEnable askboardplt:type="boolean-type">true</askboardplt:pulseStretchEnable>
-          <askboardplt:disableOnLinkDown askboardplt:type="boolean-type">true</askboardplt:disableOnLinkDown>
-        </askboardplt:ledstream-class-manipulation-list>
-        <askboardplt:ledstream-class-manipulation-list>
-          <askboardplt:classNum askboardplt:type="led-class-num-type">2</askboardplt:classNum>
-          <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">3</askboardplt:ledUnit>
-          <askboardplt:blinkEnable askboardplt:type="boolean-type">true</askboardplt:blinkEnable>
-          <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
-          <askboardplt:forceEnable askboardplt:type="boolean-type">false</askboardplt:forceEnable>
-          <askboardplt:pulseStretchEnable askboardplt:type="boolean-type">true</askboardplt:pulseStretchEnable>
-          <askboardplt:disableOnLinkDown askboardplt:type="boolean-type">true</askboardplt:disableOnLinkDown>
-        </askboardplt:ledstream-class-manipulation-list>
-        <askboardplt:ledstream-class-manipulation-list>
-          <askboardplt:classNum askboardplt:type="led-class-num-type">2</askboardplt:classNum>
-          <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">4</askboardplt:ledUnit>
-          <askboardplt:blinkEnable askboardplt:type="boolean-type">true</askboardplt:blinkEnable>
-          <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
-          <askboardplt:forceEnable askboardplt:type="boolean-type">false</askboardplt:forceEnable>
-          <askboardplt:pulseStretchEnable askboardplt:type="boolean-type">true</askboardplt:pulseStretchEnable>
-          <askboardplt:disableOnLinkDown askboardplt:type="boolean-type">true</askboardplt:disableOnLinkDown>
-        </askboardplt:ledstream-class-manipulation-list>
-        <askboardplt:ledstream-class-manipulation-list>
-          <askboardplt:classNum askboardplt:type="led-class-num-type">2</askboardplt:classNum>
-          <askboardplt:portType askboardplt:type="led-stream-port-type">PORT_TYPE_XG</askboardplt:portType>
-          <askboardplt:ledUnit askboardplt:type="led-unit-or-no-unit-type">5</askboardplt:ledUnit>
           <askboardplt:blinkEnable askboardplt:type="boolean-type">true</askboardplt:blinkEnable>
           <askboardplt:blinkSelect askboardplt:type="led-stream-blink-select-type">BLINK_SELECT_0</askboardplt:blinkSelect>
           <askboardplt:forceEnable askboardplt:type="boolean-type">false</askboardplt:forceEnable>
