@@ -1,0 +1,4 @@
+rd98dx35xx/scripts/rd98dx35xx-init.sh usr/local/bin
+rd98dx35xx/service/rd98dx35xx-init.service etc/systemd/system
+rd98dx35xx/sonic_platform-1.0-py3-none-any.whl usr/share/sonic/device/arm64-marvell_rd98DX35xx-r0
+../mrvl-prestera/platform/arm64/ac5x/* /

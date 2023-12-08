@@ -1,0 +1,5 @@
+sonic-platform-marvell (1.0) unstable; urgency=low
+
+  * Initial release with support for rd98dx35xx, rd98dx35xx_cn9131.
+
+ -- Marvell <pnaregundi@marvell.com>  Wed, 30 Aug 2023 09:35:58 +0800
