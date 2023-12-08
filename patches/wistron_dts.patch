@@ -50,12 +50,19 @@ index 94572ad..490154b 100644
 +CONFIG_SENSORS_ZL6100=n
 +CONFIG_SENSORS_DPS1900=n
 diff --git a/src/sonic-linux-kernel/patch/series b/src/sonic-linux-kernel/patch/series
-index 6e2e7a0..0464444 100755
+index 91a61a0..1ae5fa9 100755
 --- a/src/sonic-linux-kernel/patch/series
 +++ b/src/sonic-linux-kernel/patch/series
-@@ -209,6 +209,9 @@ armhf_secondary_boot_online.patch
- 0019-dt-bindings-marvell-Add-ARMADA-7K-properties.patch
- 0020-dts-marvell-Add-support-for-7020-comexpress.patch
+@@ -1,5 +1,5 @@
+ # This series applies on GIT commit 18c5597832fcf6988111b05a9a1607ae148723c
+-# Note: Markers should start with "###->".
++# Note: Markers should start with "###->".
+ #       Header should end with .*-start eg: any_description-start
+ #       Footer must end with .*-end eg: any_description-end
+ #       Markers should not be nested
+@@ -227,6 +227,9 @@ armhf_secondary_boot_online.patch
+ 0022-usb-ac5-Support-board-with-more-than-4G-DDR.patch
+ 0023-mvneta-ac5x-Support-board-with-more-than-4G-DDR.patch
 
 +# wistron device tree
 +wistron_es1227_dts.patch
@@ -65,7 +72,7 @@ index 6e2e7a0..0464444 100755
  ############################################################
 diff --git a/src/sonic-linux-kernel/patch/wistron_es1227_dts.patch b/src/sonic-linux-kernel/patch/wistron_es1227_dts.patch
 new file mode 100644
-index 0000000..e425bfc
+index 0000000..9d72fa1
 --- /dev/null
 +++ b/src/sonic-linux-kernel/patch/wistron_es1227_dts.patch
 @@ -0,0 +1,407 @@

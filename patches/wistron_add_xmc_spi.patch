@@ -1,6 +1,6 @@
 diff --git a/src/sonic-linux-kernel/patch/add_xmc_spi_device.patch b/src/sonic-linux-kernel/patch/add_xmc_spi_device.patch
 new file mode 100644
-index 0000000..d3cdee6
+index 0000000..bb98b88
 --- /dev/null
 +++ b/src/sonic-linux-kernel/patch/add_xmc_spi_device.patch
 @@ -0,0 +1,13 @@
@@ -18,10 +18,10 @@ index 0000000..d3cdee6
 +
 + const struct spi_nor_manufacturer spi_nor_xmc = {
 diff --git a/src/sonic-linux-kernel/patch/series b/src/sonic-linux-kernel/patch/series
-index 0464444..9058e21 100755
+index 1ae5fa9..3de71cd 100755
 --- a/src/sonic-linux-kernel/patch/series
 +++ b/src/sonic-linux-kernel/patch/series
-@@ -211,6 +211,7 @@ armhf_secondary_boot_online.patch
+@@ -229,6 +229,7 @@ armhf_secondary_boot_online.patch
 
  # wistron device tree
  wistron_es1227_dts.patch
