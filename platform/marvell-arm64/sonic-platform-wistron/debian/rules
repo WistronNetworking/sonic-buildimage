@@ -16,7 +16,6 @@ MODULE_DIRS:= es1227_54ts es2227_54ts es2227_54ts_p
 MODULE_DIR := modules
 UTILS_DIR := utils
 SERVICE_DIR := service
-MRVL_MODULE_DIR:= mrvl-modules
 PRESTERA_MODULE_SRC := mrvl-prestera/drivers/generic/cpssEnabler/linuxNoKernelModule/drivers
 
 %:
@@ -33,10 +32,11 @@ build:
 		cd $(MOD_SRC_DIR)/../$(PRESTERA_MODULE_SRC)/; \
 		make clean; \
 		make modules -C $(KERNEL_SRC)/build M=`pwd` CONFIG_KM_MVPCI=y CONFIG_KM_MVINT=y || exit 1; \
-		mkdir $(MOD_SRC_DIR)/$${mod}/$(MRVL_MODULE_DIR); \
-                cp *.ko $(MOD_SRC_DIR)/$${mod}/$(MRVL_MODULE_DIR)/; \
+                cp *.ko $(MOD_SRC_DIR)/$${mod}/$(MODULE_DIR)/; \
+        cd $(MOD_SRC_DIR)/$${mod}; \
+		python3 setup.py bdist_wheel -d $(MOD_SRC_DIR)/$${mod}; \
+        echo "Finished making whl package for $$mod"; \
 		cd $(MOD_SRC_DIR); \
-		python3 $${mod}/setup.py bdist_wheel -d $(MOD_SRC_DIR)/$${mod}; \
 	done)
 
 binary: binary-arch binary-indep
@@ -51,14 +51,19 @@ binary-indep:
 
 	# Custom package commands
 	(for mod in $(MODULE_DIRS); do \
-		pkg=$$mod; \
+		if [ $$mod = "es1227_54ts" ]; then \
+			pkg="es1227-54ts"; \
+		elif [ $$mod = "es2227_54ts" ]; then \
+			pkg="es2227-54ts"; \
+		else \
+			pkg="es2227-54ts-p"; \
+		fi; \
 		dh_installdirs -psonic-platform-$${pkg} /$(KERNEL_SRC)/$(INSTALL_MOD_DIR); \
 		dh_installdirs -psonic-platform-$${pkg} /usr/local/bin; \
-		dh_installdirs -p$(PACKAGE_PRE_NAME) lib/systemd/system; \
+		dh_installdirs -psonic-platform-$${pkg} lib/systemd/system; \
 		cp $(MOD_SRC_DIR)/$${mod}/$(UTILS_DIR)/* debian/sonic-platform-$${pkg}/usr/local/bin/; \
-		cp $(MOD_SRC_DIR)/$${mod}/$(MRVL_MODULE_DIR)/mvcpss.ko debian/sonic-platform-$${pkg}/$(KERNEL_SRC)/$(INSTALL_MOD_DIR); \
 		cp $(MOD_SRC_DIR)/$${mod}/$(MODULE_DIR)/*.ko debian/sonic-platform-$${pkg}/$(KERNEL_SRC)/$(INSTALL_MOD_DIR); \
-		cp $(MOD_SRC_DIR)/$${mod}/$(SERVICE_DIR)/*.service debian/$(PACKAGE_PRE_NAME)/lib/systemd/system/; \
+		cp $(MOD_SRC_DIR)/$${mod}/$(SERVICE_DIR)/*.service debian/sonic-platform-$${pkg}/lib/systemd/system/; \
 		#python3 $${mod}/setup.py install --root=$(MOD_SRC_DIR)/debian/sonic-platform-$${pkg} --install-layout=deb; \
 	done)
 

@@ -1,4 +1,4 @@
-sonic-platform-wistron (1.0) unstable; urgency=low
+sonic-platform-wistron (0.1) unstable; urgency=low
 
   * Initial release with support for es1227-54ts, es2227-54ts, es2227-54ts-p.
 
