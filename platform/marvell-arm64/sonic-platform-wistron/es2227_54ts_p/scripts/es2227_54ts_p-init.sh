@@ -12,10 +12,10 @@ load_kernel_drivers() {
     # Carefully control the load order here to ensure consistent i2c bus numbering
     modprobe i2c_mv64xxx
     modprobe i2c_dev
-	insmod /usr/lib/modules/5.10.0-18-2-arm64/wistron_cpld.ko
-    insmod /usr/lib/modules/5.10.0-18-2-arm64/wistron_max31790.ko
-    insmod /usr/lib/modules/5.10.0-18-2-arm64/wistron_eeprom.ko
-    modprobe mvMbusDrv
+	insmod /usr/lib/modules/5.10.0-18-2-arm64/kernel/extra/wistron_cpld.ko
+    insmod /usr/lib/modules/5.10.0-18-2-arm64/kernel/extra/wistron_max31790.ko
+    insmod /usr/lib/modules/5.10.0-18-2-arm64/kernel/extra/wistron_eeprom.ko
+    insmod /usr/lib/modules/5.10.0-18-2-arm64/kernel/extra/mvcpss.ko
 	modprobe optoe
 	modprobe jc42
 }

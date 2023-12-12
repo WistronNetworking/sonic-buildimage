@@ -23,7 +23,7 @@ class rst_button_monitor(object):
         if val is not None:
             return int(val, 10)==1
         else:
-            return False
+            return True
 
     def restore_default(self):
         version_info = device_info.get_sonic_version_info()
