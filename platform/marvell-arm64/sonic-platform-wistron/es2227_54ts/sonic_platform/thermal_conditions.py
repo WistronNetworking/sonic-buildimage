@@ -94,6 +94,7 @@ class AllFanPresenceCondition(FanCondition):
             return False
         elif not self.old_presence and len(fan_info_obj.get_absence_fans()) != 0:
             self.old_presence = False
+            return False
         else:
             if len(fan_info_obj.get_absence_fans()) != 0:
                 self.old_presence = False
