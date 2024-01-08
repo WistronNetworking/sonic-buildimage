@@ -64,6 +64,9 @@ load_kernel_drivers
         echo 80000 > /sys/class/hwmon/hwmon$i/temp1_max_hyst
     done
 
+	echo 80000 > /sys/class/hwmon/hwmon6/temp1_max
+	echo 85000 > /sys/class/hwmon/hwmon6/temp1_crit
+
     echo 1 > /sys/bus/i2c/devices/0-0033/port_led_auto
 
     # init oob port led
