@@ -29,9 +29,9 @@ load_kernel_drivers
     echo wistron_cpld 0x33 > /sys/bus/i2c/devices/i2c-0/new_device
     echo 1227_max31790 0x2f > /sys/bus/i2c/devices/i2c-2/new_device
 
+	echo jc42 0x1b > /sys/bus/i2c/devices/i2c-0/new_device
     echo wistron_psu 0x58 > /sys/bus/i2c/devices/i2c-3/new_device
     echo wistron_psu 0x59 > /sys/bus/i2c/devices/i2c-3/new_device
-	echo jc42 0x1b > /sys/bus/i2c/devices/i2c-0/new_device
 
     tca_detect=$(i2cget -f -y 5 0x22 0x40 1>/dev/null 2>/dev/null; echo $?)
     if [ $tca_detect -eq 0 ]; then
@@ -64,8 +64,8 @@ load_kernel_drivers
         echo 80000 > /sys/class/hwmon/hwmon$i/temp1_max_hyst
     done
 
-	echo 80000 > /sys/class/hwmon/hwmon6/temp1_max
-	echo 85000 > /sys/class/hwmon/hwmon6/temp1_crit
+	echo 80000 > /sys/class/hwmon/hwmon4/temp1_max
+	echo 85000 > /sys/class/hwmon/hwmon4/temp1_crit
 
     echo 1 > /sys/bus/i2c/devices/0-0033/port_led_auto
 
