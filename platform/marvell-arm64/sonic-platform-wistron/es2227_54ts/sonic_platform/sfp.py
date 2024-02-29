@@ -76,69 +76,201 @@ class Sfp(SfpOptoeBase):
 
     PORT_SFP_EA_VALUE = {
         'fiber': {
-            49: {
-                'pre': 2,
-                'attn': 0,
-                'post': 8,
+            '1000': {
+                49: {
+                    'pre': 0,
+                    'attn': 10,
+                    'post': 0,
+                    },
+                50: {
+                    'pre': 0,
+                    'attn': 10,
+                    'post': 0,
+                    },
+                51: {
+                    'pre': 0,
+                    'attn': 10,
+                    'post': 0,
+                    },
+                52: {
+                    'pre': 0,
+                    'attn': 10,
+                    'post': 0,
+                    },
+                53: {
+                    'pre': 0,
+                    'attn': 10,
+                    'post': 0,
+                    },
+                54: {
+                    'pre': 0,
+                    'attn': 10,
+                    'post': 0,
+                    },
             },
-            50: {
-                'pre': 2,
-                'attn': 0,
-                'post': 8,
+            '10000': {
+                49: {
+                    'pre': 1,
+                    'attn': 8,
+                    'post': 4,
+                    },
+                50: {
+                    'pre': 1,
+                    'attn': 8,
+                    'post': 4,
+                    },
+                51: {
+                    'pre': 1,
+                    'attn': 8,
+                    'post': 4,
+                    },
+                52: {
+                    'pre': 1,
+                    'attn': 8,
+                    'post': 4,
+                    },
+                53: {
+                    'pre': 1,
+                    'attn': 8,
+                    'post': 4,
+                    },
+                54: {
+                    'pre': 1,
+                    'attn': 8,
+                    'post': 4,
+                    },
             },
-            51: {
-                'pre': 2,
-                'attn': 0,
-                'post': 8,
-            },
-            52: {
-                'pre': 2,
-                'attn': 0,
-                'post': 8,
-            },
-            53: {
-                'pre': 2,
-                'attn': 0,
-                'post': 8,
-            },
-            54: {
-                'pre': 2,
-                'attn': 0,
-                'post': 8,
+            '25000': {
+                49: {
+                    'pre': 2,
+                    'attn': 0,
+                    'post': 8,
+                    },
+                50: {
+                    'pre': 2,
+                    'attn': 0,
+                    'post': 8,
+                    },
+                51: {
+                    'pre': 2,
+                    'attn': 0,
+                    'post': 8,
+                    },
+                52: {
+                    'pre': 2,
+                    'attn': 0,
+                    'post': 8,
+                    },
+                53: {
+                    'pre': 2,
+                    'attn': 0,
+                    'post': 8,
+                    },
+                54: {
+                    'pre': 2,
+                    'attn': 0,
+                    'post': 8,
+                    },
             },
         },
 
         'copper': {
-            49: {
-                'pre': 8,
-                'attn': 8,
-                'post': 2,
+            '1000': {
+                49: {
+                    'pre': 0,
+                    'attn': 0,
+                    'post': 0,
+                    },
+                50: {
+                    'pre': 0,
+                    'attn': 0,
+                    'post': 0,
+                    },
+                51: {
+                    'pre': 0,
+                    'attn': 0,
+                    'post': 0,
+                    },
+                52: {
+                    'pre': 0,
+                    'attn': 0,
+                    'post': 0,
+                    },
+                53: {
+                    'pre': 0,
+                    'attn': 0,
+                    'post': 0,
+                    },
+                54: {
+                    'pre': 0,
+                    'attn': 0,
+                    'post': 0,
+                    },
             },
-            50: {
-                'pre': 8,
-                'attn': 8,
-                'post': 2,
+            '10000': {
+                49: {
+                    'pre': 1,
+                    'attn': 8,
+                    'post': 4,
+                    },
+                50: {
+                    'pre': 1,
+                    'attn': 8,
+                    'post': 4,
+                    },
+                51: {
+                    'pre': 1,
+                    'attn': 8,
+                    'post': 4,
+                    },
+                52: {
+                    'pre': 1,
+                    'attn': 8,
+                    'post': 4,
+                    },
+                53: {
+                    'pre': 1,
+                    'attn': 8,
+                    'post': 4,
+                    },
+                54: {
+                    'pre': 1,
+                    'attn': 8,
+                    'post': 4,
+                    },
             },
-            51: {
-                'pre': 8,
-                'attn': 8,
-                'post': 2,
-            },
-            52: {
-                'pre': 8,
-                'attn': 8,
-                'post': 2,
-            },
-            53: {
-                'pre': 8,
-                'attn': 8,
-                'post': 2,
-            },
-            54: {
-                'pre': 8,
-                'attn': 8,
-                'post': 2,
-            },
+            '25000': {
+                49: {
+                    'pre': 8,
+                    'attn': 8,
+                    'post': 2,
+                    },
+                50: {
+                    'pre': 8,
+                    'attn': 8,
+                    'post': 2,
+                    },
+                51: {
+                    'pre': 8,
+                    'attn': 8,
+                    'post': 2,
+                    },
+                52: {
+                    'pre': 8,
+                    'attn': 8,
+                    'post': 2,
+                    },
+                53: {
+                    'pre': 8,
+                    'attn': 8,
+                    'post': 2,
+                    },
+                54: {
+                    'pre': 8,
+                    'attn': 8,
+                    'post': 2,
+                    },
+                },
         },
     }
     port_to_i2c_mapping = 0
@@ -444,16 +576,31 @@ class Sfp(SfpOptoeBase):
         import telnetlib
         tn = telnetlib.Telnet('localhost', '12345', 5)
         is_copper = self.is_copper_cable()
-        ea = self.PORT_SFP_EA_VALUE['copper' if is_copper else 'fiber'][self.index]
+        port_name = self.get_name()
+        speed_cmd = 'redis-cli -n 4 hget "PORT|{}"  "speed"'.format(port_name)
+        fec_cmd = 'redis-cli -n 4 hget "PORT|{}"  "fec"'.format(port_name)
 
+        cmdstatus, speed = cmd.getstatusoutput(speed_cmd)
+        cmdstatus, fec_r = cmd.getstatusoutput(fec_cmd)
+
+        if fec_r == 'none':
+            fec = 'disabled'
+        elif fec_r == 'fc':
+            fec = 'fc_fec'
+        else:
+            fec = 'rs_fec'
+
+        ea = self.PORT_SFP_EA_VALUE['copper' if is_copper else 'fiber'][speed][self.index]
         port_cmd = "interface range ethernet 0/{}".format(self.index - 1)
-        intf_cmd = "speed 25000 mode {}".format('KR' if is_copper else 'SR_LR')
+        intf_cmd = "speed {} mode {}".format(speed, '1000Base_X' if speed == '1000' else 'KR' if is_copper else 'SR_LR')
+        fec_cmd = "fec {}".format(fec)
         ea_cmd = "serdes tx amplitude {} emph {} {} 0 0".format(ea['attn'], ea['post'], ea['pre'])
 
         tn.write("config".encode('ascii') + b"\r\n")
         tn.write(port_cmd.encode('ascii') + b"\r\n")
         tn.write("no speed".encode('ascii') + b"\r\n")
         tn.write(intf_cmd.encode('ascii') + b"\r\n")
+        tn.write(fec_cmd.encode('ascii') + b"\r\n")
         tn.write(ea_cmd.encode('ascii') + b"\r\n")
         tn.write("no shutdown".encode('ascii') + b"\r\n")
         tn.write("CLIexit".encode('ascii') + b"\r\n")
