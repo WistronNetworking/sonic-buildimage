@@ -579,6 +579,11 @@ class Sfp(SfpOptoeBase):
         port_name = self.get_name()
         speed_cmd = 'redis-cli -n 4 hget "PORT|{}"  "speed"'.format(port_name)
         fec_cmd = 'redis-cli -n 4 hget "PORT|{}"  "fec"'.format(port_name)
+        sta_cmd = 'redis-cli -n 4 hget "PORT|{}"  "admin_status"'.format(port_name)
+
+        cmdstatus, admin_sta = cmd.getstatusoutput(sta_cmd)
+        if admin_sta == 'down':
+            return
 
         cmdstatus, speed = cmd.getstatusoutput(speed_cmd)
         cmdstatus, fec_r = cmd.getstatusoutput(fec_cmd)
