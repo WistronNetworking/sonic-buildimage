@@ -26,21 +26,21 @@ SENSOR_INDEX = {
 }
 
 COFF_KA = {
-    0: 2.62,
-    1: 2.15,
-    2: 2.23,
-    3: 2.51,
-    4: 1.6,
-    5: 2.74
+    0: 1.8,
+    1: 1.4,
+    2: 1.5,
+    3: 1.7,
+    4: 1.5,
+    5: 1.8
 }
 
 COFF_KB = {
-    0: 110,
-    1: 72,
-    2: 78,
-    3: 126,
-    4: 60,
-    5: 188
+    0: 87,
+    1: 55,
+    2: 59,
+    3: 90,
+    4: 63,
+    5: 126
 }
 
 
@@ -55,8 +55,8 @@ class SetFanSpeedAction(ThermalPolicyActionBase):
         """
         Constructor of SetFanSpeedAction
         """
-        self.default_speed = 50
-        self.high_temp_speed = 100
+        self.default_speed = 30
+        self.high_temp_speed = 60
         self.speed = self.default_speed
         self.chassis = sonic_platform.platform.Platform().get_chassis()
 
@@ -97,10 +97,10 @@ class SetFanSpeedAction(ThermalPolicyActionBase):
     def calc_fan_speed(cls, index, temp):
         fan_speed = int((temp * COFF_KA[index] - COFF_KB[index]))
 
-        if fan_speed < 30:
-            fan_speed = 30
-        elif fan_speed > 100:
-            fan_speed = 100
+        if fan_speed < 10:
+            fan_speed = 10
+        elif fan_speed > 60:
+            fan_speed = 60
 
         return fan_speed
 
