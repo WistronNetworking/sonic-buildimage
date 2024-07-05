@@ -35,12 +35,12 @@ COFF_KA = {
         5: 1.8
     },
     'intake': {
-        0: 1.8,
-        1: 1.4,
-        2: 1.5,
-        3: 1.7,
-        4: 1.5,
-        5: 1.8
+        0: 2.5,
+        1: 1.8,
+        2: 1.9,
+        3: 1.5,
+        4: 1.1,
+        5: 1.1
     }
 }
 
@@ -54,12 +54,12 @@ COFF_KB = {
         5: 126
     },
     'intake': {
-        0: 87,
-        1: 55,
-        2: 59,
-        3: 90,
-        4: 63,
-        5: 126
+        0: 100,
+        1: 44,
+        2: 52,
+        3: 35,
+        4: 10,
+        5: 16
     }
 }
 
@@ -79,6 +79,10 @@ class SetFanSpeedAction(ThermalPolicyActionBase):
         self.speed = self.default_speed
         self.chassis = sonic_platform.platform.Platform().get_chassis()
         self.direction = self.chassis.get_fan(0).get_direction()
+        if self.direction == 'intake':
+            self.default_speed = 50
+            self.high_temp_speed = 100
+
 
 
     def load_from_json(self, json_obj):
@@ -121,10 +125,16 @@ class SetFanSpeedAction(ThermalPolicyActionBase):
         direction = cls().get_direction()
         fan_speed = int((temp * COFF_KA[direction][index] - COFF_KB[direction][index]))
 
-        if fan_speed < 10:
-            fan_speed = 10
-        elif fan_speed > 60:
-            fan_speed = 60
+        if direction == 'intake':
+            if fan_speed < 30:
+                fan_speed = 30
+            elif fan_speed > 100:
+                fan_speed = 100
+        else:
+            if fan_speed < 10:
+                fan_speed = 10
+            elif fan_speed > 60:
+                fan_speed = 60
 
         return fan_speed
 
