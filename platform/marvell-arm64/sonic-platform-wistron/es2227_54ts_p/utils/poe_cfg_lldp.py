@@ -16,68 +16,6 @@ allocated_values = {}
 requested_values = {}
 lldp_power_sm = {}
 
-# PoE configuration  - Customziation
-# key is logical interface name
-# value 1 is the PoE physical port
-# value 2 is the PoE type(NA/AT/BT)
-poe_config_dict = {
-    "Ethernet0": ["0", "AT"],
-    "Ethernet1": ["1", "AT"],
-    "Ethernet2": ["2", "AT"],
-    "Ethernet3": ["3", "AT"],
-    "Ethernet4": ["4", "AT"],
-    "Ethernet5": ["5", "AT"],
-    "Ethernet6": ["6", "AT"],
-    "Ethernet7": ["7", "AT"],
-    "Ethernet8": ["8", "AT"],
-    "Ethernet9": ["9", "AT"],
-    "Ethernet10": ["10", "AT"],
-    "Ethernet11": ["11", "AT"],
-    "Ethernet12": ["12", "AT"],
-    "Ethernet13": ["13", "AT"],
-    "Ethernet14": ["14", "AT"],
-    "Ethernet15": ["15", "AT"],
-    "Ethernet16": ["16", "AT"],
-    "Ethernet17": ["17", "AT"],
-    "Ethernet18": ["18", "AT"],
-    "Ethernet19": ["19", "AT"],
-    "Ethernet20": ["20", "AT"],
-    "Ethernet21": ["21", "AT"],
-    "Ethernet22": ["22", "AT"],
-    "Ethernet23": ["23", "AT"],
-    "Ethernet24": ["24", "AT"],
-    "Ethernet25": ["25", "AT"],
-    "Ethernet26": ["26", "AT"],
-    "Ethernet27": ["27", "AT"],
-    "Ethernet28": ["28", "AT"],
-    "Ethernet29": ["29", "AT"],
-    "Ethernet30": ["30", "AT"],
-    "Ethernet31": ["31", "AT"],
-    "Ethernet32": ["32", "BT"],
-    "Ethernet33": ["33", "BT"],
-    "Ethernet34": ["34", "BT"],
-    "Ethernet35": ["35", "BT"],
-    "Ethernet36": ["36", "BT"],
-    "Ethernet37": ["37", "BT"],
-    "Ethernet38": ["38", "BT"],
-    "Ethernet39": ["39", "BT"],
-    "Ethernet40": ["40", "BT"],
-    "Ethernet41": ["41", "BT"],
-    "Ethernet42": ["42", "BT"],
-    "Ethernet43": ["43", "BT"],
-    "Ethernet44": ["44", "BT"],
-    "Ethernet45": ["45", "BT"],
-    "Ethernet46": ["46", "BT"],
-    "Ethernet47": ["47", "BT"],
-    "Ethernet48": ["48", "NA"],
-    "Ethernet49": ["49", "NA"],
-    "Ethernet50": ["50", "NA"],
-    "Ethernet51": ["51", "NA"],
-    "Ethernet52": ["52", "NA"],
-    "Ethernet53": ["53", "NA"],
-}
-
-
 def run_lldpcli_neighbor_command():
     try:
         result = subprocess.run(['lldpcli', '-f', 'json', 'show',
@@ -130,12 +68,10 @@ def run_command(command):
     return result, output.strip()
 
 
-def run_port_lldp_pd_req_cmd(port_name, single, dual_a, dual_b, auto_class, cable_len, l2cfg):
+def run_port_lldp_pd_req_cmd(port_num, single, dual_a, dual_b, auto_class, cable_len, l2cfg):
 
     # Here is the command to set port params
     # poetool port set_lldp_pd_req <PortNum> <PDReqPowerSingle> <PDReqPowerDualA> <PDReqPowerDualB> <Autoclass> <CableLength> <L2CFG>
-
-    port_num = poe_config_dict[port_name][0]
 
     cmd = "sudo poetool port set_lldp_pd_req %s %s %s %s %s %s %s" % (
         port_num, single, dual_a, dual_b, auto_class, cable_len, l2cfg)
@@ -145,7 +81,7 @@ def run_port_lldp_pd_req_cmd(port_name, single, dual_a, dual_b, auto_class, cabl
     return result, output_str
 
 
-def run_port_port_status_cmd(port_name):
+def run_port_port_status_cmd(port_num):
 
     # Here is the command to get port poe status
     # admin@sonic:/usr/local/bin$ sudo poetool port get_lldp_pse_data 2
@@ -161,8 +97,6 @@ def run_port_port_status_cmd(port_name):
     # ieeeBTPwrBitsExt1110  1
     # cableLength  10
     # layer2_cfg  1
-
-    port_num = poe_config_dict[port_name][0]
 
     cmd = "sudo poetool port get_lldp_pse_data %s" % (port_num)
     # print(cmd)
@@ -227,46 +161,17 @@ def run_lldpcli_init_port_command(interface, enabled):
         log.log_error("Error running run_lldpcli_neighbor_command command:", e)
         return None
 
-def poe_cfg():
-    # PoE global configuration
-    # preemptive priority
-    tmp_file = "/etc/sonic/poe_preemptive_priority_tmp"
-    cfg_file = "/etc/sonic/poe_preemptive_priority"
-
-    if os.path.exists(cfg_file):
-        value = 0
-        if not os.path.exists(tmp_file):
-            with open(tmp_file, 'w') as new_file:
-                new_file.write("poe_preemptive_priority_tmp")
-    else:
-        value = 1
-        if os.path.exists(tmp_file):
-            # Delete the the file if it exists
-            os.remove(tmp_file)
-
+def set_preemptive(enabled):
     IGNORANCE_MASK = '0'
+    value = 0 if enabled else 1
     cmd = "sudo poetool system set_idv_mask %s %s" % (IGNORANCE_MASK, value)
-    # print(cmd)
     result, output_str = run_command(cmd)
     if (result == None or int(result) != 0):
         result, output_str = run_command(cmd)
         log.log_error("try it again: " + result)
 
-    # redundant mode
-    tmp_file = "/etc/sonic/poe_redundant_tmp"
-    cfg_file = "/etc/sonic/poe_redundant"
-
-    if os.path.exists(cfg_file):
-        value = 0
-        if not os.path.exists(tmp_file):
-            with open(tmp_file, 'w') as new_file:
-                new_file.write("poe_redundant_tmp")
-    else:
-        value = 1
-        if os.path.exists(tmp_file):
-            # Delete the the file if it exists
-            os.remove(tmp_file)
-
+def set_redundant(enabled):
+    value = 0 if enabled else 1
     FILE_PATH = "/sys/bus/i2c/devices/0-0033/psu_budget_mode"
     if not os.path.exists(FILE_PATH):
         log.log_error("FILE_PATH is not exsiting " + FILE_PATH)
@@ -279,6 +184,7 @@ def poe_cfg():
     except subprocess.CalledProcessError as e:
         log.log_error("Error running run_power_redundant_cmd command:" + e)
 
+def poe_cfg():
     # PoE port configuration# Wait for the file to be ready
     CONFIG_DB_FILE = '/etc/sonic/config_db.json'
     while not os.path.exists(CONFIG_DB_FILE):
@@ -289,22 +195,9 @@ def poe_cfg():
         # Load the contents of the file
         data = json.load(json_file)
 
-    port_dict = data['PORT']
-    # config_db = ConfigDBConnector()
-    # config_db.connect()
-    # port_dict = config_db.get_table('PORT')
-    # print(port_dict)
-    # command = "poeutil port-priority Ethernet0 low"
+    poe_in_config_db = True if 'POE' in data else False
 
     # Check if poe cfg not in the config_db
-    poe_in_config_db = False
-    for key in port_dict:
-        if "poe_pri" in port_dict[key]:
-            poe_in_config_db = True
-            break
-        else:
-            break
-
     if poe_in_config_db == False:
         # If poe cfg not in the config_db yet
         # 1. Use the default poe cfg json file
@@ -315,19 +208,34 @@ def poe_cfg():
         with open(CONFIG_POE_DB_FILE) as json_file:
             # Load the contents of the file
             data = json.load(json_file)
-        port_dict = data['PORT']
+        poe_dict = data['POE']
 
         # Add the default poe cfg to redis DB
         config_db = ConfigDBConnector()
         config_db.connect()
-        for key in port_dict:
-            config_db.mod_entry("PORT", key, {'poe_pri': port_dict[key]["poe_pri"]})
-            config_db.mod_entry("PORT", key, {'poe_tlv': port_dict[key]["poe_tlv"]})
-            config_db.mod_entry("PORT", key, {'poe_status': port_dict[key]["poe_status"]})
-            config_db.mod_entry("PORT", key, {'poe_maxpower': port_dict[key]["poe_maxpower"]})
+        for key in poe_dict:
+            if key == 'Global':
+                config_db.set_entry("POE", key, {'preemptive_priority': poe_dict[key]["preemptive_priority"]})
+                config_db.set_entry("POE", key, {'power_redundant': poe_dict[key]["power_redundant"]})
+            else:
+                config_db.set_entry("POE", key, {'lanes': poe_dict[key]["lanes"]})
+                config_db.set_entry("POE", key, {'priority': poe_dict[key]["priority"]})
+                config_db.set_entry("POE", key, {'power_mode': poe_dict[key]["power_mode"]})
+                config_db.set_entry("POE", key, {'maxpower': poe_dict[key]["maxpower"]})
+                config_db.set_entry("POE", key, {'class': poe_dict[key]["maxpower"]})
+                config_db.set_entry("POE", key, {'lldp': poe_dict[key]["lldp"]})
+    else:
+        poe_dict = data['POE']
 
-    for key in port_dict:
-        if port_dict[key]["poe_pri"] == "NA":
+    for key in poe_dict:
+        if key == 'Global': #Global setting
+            preemptive = False if poe_dict[key]["preemptive_priority"] == 'disable' else True
+            set_preemptive(preemptive)
+
+            redundant = False if poe_dict[key]["power_redundant"] == 'disable' else True
+            set_redundant(redundant)
+
+        if poe_dict[key]["priority"] == "NA":
             continue  # Skips the non-poe ports
 
         # command = "poeutil port-priority %s %s" % (
@@ -337,9 +245,10 @@ def poe_cfg():
         #    key, port_dict[key]["poe_status"], port_dict[key]["poe_maxpower"])
         # clicommon.run_command(command)
 
-        port_num = port_dict[key]["lanes"]
-        power_mode = port_dict[key]["poe_status"]
-        max_power = int(float(port_dict[key]["poe_maxpower"]) * 10)
+        port_num = poe_dict[key]["lanes"]
+        power_mode = poe_dict[key]["power_mode"]
+        max_power = int(float(poe_dict[key]["maxpower"]) * 10)
+        poe_class = poe_dict[key]["class"]
 
         pure_power_mode = "enable" if (power_mode == "enableDynamic" or
                                        power_mode == "enableStatic" or
@@ -348,15 +257,9 @@ def poe_cfg():
         pure_power_calculation = "static" if (power_mode == "enableStatic" or
                                               power_mode == "disableStatic") else "disable"
 
-        if pure_power_calculation == "static":
-            cfg2 = 1
-        else:
-            cfg2 = 0
+        cfg2 = 1 if pure_power_calculation == "static" else 0
 
-        if (int(port_num) <= 31):  # AT port, oper_mode is 9
-            oper_mode = "9"
-        else:
-            oper_mode = "0"  # BT port, oper_mode is 0
+        oper_mode = "9" if poe_class == 'AT' else "0"
         add_power = 0
 
         if (pure_power_mode == "enable" and int(max_power) != 0):
@@ -367,7 +270,7 @@ def poe_cfg():
         elif (pure_power_mode == "disable"):
             cfg1 = 0
 
-        pri = get_priority_value(port_dict[key]["poe_pri"])
+        pri = get_priority_value(poe_dict[key]["priority"])
 
         cmd = "poetool port set_port_params %s %s %s %s %s %s" % (
             port_num, cfg1, cfg2, oper_mode, add_power, pri)
@@ -421,16 +324,15 @@ def poe_cfg():
             # print("Function returned None. Retrying in 5 seconds...")
             time.sleep(5)
 
-    for key in port_dict:
-        if port_dict[key]["poe_pri"] == "NA":
+    for key in poe_dict:
+        if key == 'Global': #Global setting
+            continue  # Skips
+        if poe_dict[key]["priority"] == "NA":
             continue  # Skips the non-poe ports
 
-        state = port_dict[key]["poe_tlv"]
+        state = poe_dict[key]["lldp"]
         # print(state)
-        if (state == 'enable'):
-            enabled = 'enabled'
-        else:
-            enabled = ''
+        enabled = 'enabled' if (state == 'enable') else ''
 
         while True:
             result = run_lldpcli_init_port_command(key, enabled)
@@ -447,7 +349,7 @@ def parse_lldpcli_output(output):
         # open DB
         config_db = ConfigDBConnector()
         config_db.connect()
-        port_dict = config_db.get_table('PORT')
+        poe_dict = config_db.get_table('POE')
 
         lldp_data = json.loads(output)
         interfaces = lldp_data['lldp']['interface']
@@ -484,25 +386,25 @@ def parse_lldpcli_output(output):
             for intf in interface:
                 if (lldp_debug != "0"):
                     print(intf)
-                if intf not in poe_config_dict:
+                if intf not in poe_dict:
                     if (lldp_debug != "0"):
-                        print("intf not in poe_config_dict")
+                        print("intf not in poe intf")
                     pass
                 elif intf == "eth0":
                     if (lldp_debug != "0"):
                         print("intf == eth0")
                     pass
-                elif port_dict[intf]["poe_status"] != "enableDynamic" and port_dict[intf]["poe_status"] != "enableStatic":
+                elif poe_dict[intf]["power_mode"] != "enableDynamic" and poe_dict[intf]["power_mode"] != "enableStatic":
                     if (lldp_debug != "0"):
-                        print("port_dict[intf][poe_status] is noe eanble")
+                        print("poe_dict[intf][power_mode] is not eanble")
                     pass  # Skip the poe-disabled ports
-                elif port_dict[intf]["poe_tlv"] != "enable":
+                elif poe_dict[intf]["lldp"] != "enable":
                     if (lldp_debug != "0"):
-                        print("port_dict[intf][poe_tlv] is noe eanble")
+                        print("poe_dict[intf][lldp] is not eanble")
                     pass  # Skip the poe_tlv-disabled ports
-                elif port_dict[intf]["poe_maxpower"] != "0" and port_dict[intf]["poe_maxpower"] != "0.0":
+                elif poe_dict[intf]["maxpower"] != "0" and poe_dict[intf]["maxpower"] != "0.0":
                     if (lldp_debug != "0"):
-                        print("port_dict[intf][poe_maxpower] is noe zero")
+                        print("poe_dict[intf][poe_maxpower] is not zero")
                     pass  # Skip the static-power ports
                 else:
                     if 'port' not in interface[intf]:
@@ -615,7 +517,7 @@ def parse_lldpcli_output(output):
                             l2cfg = 0xff
 
                             result, output_str = run_port_lldp_pd_req_cmd(
-                                port_name, single, dual_a, dual_b, auto_class, cable_len, l2cfg)
+                                poe_dict[intf]["lanes"], single, dual_a, dual_b, auto_class, cable_len, l2cfg)
 
                             if result is None or int(result) != 0:
                                 print("run_port_lldp_pd_req_cmd fails")
@@ -629,13 +531,13 @@ def parse_lldpcli_output(output):
                             pass
                         else:
                             result, output_str = run_port_port_status_cmd(
-                                port_name)
+                                poe_dict[intf]["lanes"])
                             # print(result)
                             # print(output_str)
                             if (result == None):
                                 print(port_name)
                                 result, output_str = run_port_port_status_cmd(
-                                    port_name)
+                                    poe_dict[intf]["lanes"])
                                 print("try again: ")
                                 print(result)
                                 continue
@@ -657,7 +559,7 @@ def parse_lldpcli_output(output):
                             if (layer2Usage == '1' or layer2Usage == '2' or layer2Usage == '3' or layer2Usage == '4'):
                                 # print("xxx")
                                 # 3. update allocated power to lldpd
-                                port_pri = port_dict[intf]["poe_pri"]
+                                port_pri = poe_dict[intf]["priority"]
                                 run_lldpcli_config_port_command(
                                     intf, port_pri, int(single) * 100, int(allocated_power) * 100)
                                 # 4. Save allocated value to the global variable
