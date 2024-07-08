@@ -18,5 +18,5 @@ patch -p1 < patches/wistron_dts.patch
 patch -p1 < patches/sonic-platform-common-sff-8472.patch
 patch -p1 < patches/sfputil_sort_order.patch
 patch -p1 < patches/show_ip_int_workaround.patch
-patch -p1 < patches/wistron_poe.patch
+patch -p1 < patches/rg_poe_test.patch
 patch -p1 < patches/wistron_add_xmc_spi.patch
