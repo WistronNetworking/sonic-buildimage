@@ -38,7 +38,7 @@ def run_lldpcli_config_port_command(interface, pri, req, alloc):
         # print(result.strip())
         return result.strip()
     except subprocess.CalledProcessError as e:
-        print("Error running run_lldpcli_neighbor_command command:", e)
+        print("Error running run_lldpcli_config_port_command command:", e)
         return None
 
 
@@ -143,7 +143,7 @@ def run_lldpcli_show_port_command(interface):
         # print(result.strip())
         return result.strip()
     except subprocess.CalledProcessError as e:
-        log.log_error("Error running run_lldpcli_neighbor_command command:", e)
+        log.log_error("Error running run_lldpcli_show_port_command command:", e)
         return None
 
 def run_lldpcli_init_port_command(interface, enabled):
@@ -158,7 +158,7 @@ def run_lldpcli_init_port_command(interface, enabled):
         # print(result.strip())
         return result.strip()
     except subprocess.CalledProcessError as e:
-        log.log_error("Error running run_lldpcli_neighbor_command command:", e)
+        log.log_error("Error running run_lldpcli_init_port_command command:", e)
         return None
 
 def set_preemptive(enabled):
@@ -215,15 +215,21 @@ def poe_cfg():
         config_db.connect()
         for key in poe_dict:
             if key == 'Global':
-                config_db.set_entry("POE", key, {'preemptive_priority': poe_dict[key]["preemptive_priority"]})
-                config_db.set_entry("POE", key, {'power_redundant': poe_dict[key]["power_redundant"]})
+                poe_global_data = {
+                    'preemptive_priority': poe_dict[key]["preemptive_priority"],
+                    'power_redundant': poe_dict[key]["power_redundant"]
+                }
+                config_db.set_entry("POE", key, poe_global_data)
             else:
-                config_db.set_entry("POE", key, {'lanes': poe_dict[key]["lanes"]})
-                config_db.set_entry("POE", key, {'priority': poe_dict[key]["priority"]})
-                config_db.set_entry("POE", key, {'power_mode': poe_dict[key]["power_mode"]})
-                config_db.set_entry("POE", key, {'maxpower': poe_dict[key]["maxpower"]})
-                config_db.set_entry("POE", key, {'class': poe_dict[key]["maxpower"]})
-                config_db.set_entry("POE", key, {'lldp': poe_dict[key]["lldp"]})
+                poe_intf_data = {
+                    'lanes': poe_dict[key]["lanes"],
+                    'priority': poe_dict[key]["priority"],
+                    'power_mode': poe_dict[key]["power_mode"],
+                    'maxpower': poe_dict[key]["maxpower"],
+                    'class': poe_dict[key]["class"],
+                    'lldp': poe_dict[key]["lldp"]
+                }
+                config_db.set_entry("POE", key, poe_intf_data)
     else:
         poe_dict = data['POE']
 
@@ -234,6 +240,7 @@ def poe_cfg():
 
             redundant = False if poe_dict[key]["power_redundant"] == 'disable' else True
             set_redundant(redundant)
+            continue
 
         if poe_dict[key]["priority"] == "NA":
             continue  # Skips the non-poe ports

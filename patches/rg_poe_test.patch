@@ -1,7 +1,7 @@
 diff --git a/src/sonic-utilities/config/main.py b/src/sonic-utilities/config/main.py
 old mode 100644
 new mode 100755
-index a5f7ca94..1a7fff9e
+index a5f7ca94..142484e4
 --- a/src/sonic-utilities/config/main.py
 +++ b/src/sonic-utilities/config/main.py
 @@ -1285,6 +1285,10 @@ def save(filename):
@@ -118,7 +118,7 @@ index a5f7ca94..1a7fff9e
 +    """Config interface PoE power"""
 +    # Get the config_db connector
 +    config_db = ctx.obj['config_db']
-+    port_dict = config_db.get_table('PORT')
++    poe_dict = config_db.get_table('POE')
 +
 +    if clicommon.get_interface_naming_mode() == "alias":
 +        interface_name = interface_alias_to_name(config_db, interface_name)
@@ -141,9 +141,9 @@ index a5f7ca94..1a7fff9e
 +    # bit 2 is power_calculation mode
 +    # dynamic mode : bit2 is 0
 +    # static mode : bit 2 is 1
-+    power_calculation = "static" if (port_dict[interface_name]["poe_status"] == "disableStatic" or
-+                         port_dict[interface_name]["poe_status"] == "enableStatic" or
-+                         port_dict[interface_name]["poe_status"] == "disable") else "dynamic"
++    power_calculation = "static" if (poe_dict[interface_name]["power_mode"] == "disableStatic" or
++                         poe_dict[interface_name]["power_mode"] == "enableStatic" or
++                         poe_dict[interface_name]["power_mode"] == "disable") else "dynamic"
 +
 +    if power_calculation == "static": # static
 +        if power_mode == "enable":
@@ -166,7 +166,7 @@ index a5f7ca94..1a7fff9e
 +    """Config interface PoE power"""
 +    # Get the config_db connector
 +    config_db = ctx.obj['config_db']
-+    port_dict = config_db.get_table('PORT')
++    poe_dict = config_db.get_table('POE')
 +
 +    if clicommon.get_interface_naming_mode() == "alias":
 +        interface_name = interface_alias_to_name(config_db, interface_name)
@@ -189,9 +189,9 @@ index a5f7ca94..1a7fff9e
 +    # bit 1 is power_status mode
 +    # disable mode : bit 1 is 0
 +    # enable mode : bit 1  is 1
-+    power_status = "enable" if (port_dict[interface_name]["poe_status"] == "enableDynamic" or
-+                         port_dict[interface_name]["poe_status"] == "enableStatic" or
-+                         port_dict[interface_name]["poe_status"] == "enable") else "disable"
++    power_status = "enable" if (poe_dict[interface_name]["power_mode"] == "enableDynamic" or
++                         poe_dict[interface_name]["power_mode"] == "enableStatic" or
++                         poe_dict[interface_name]["power_mode"] == "enable") else "disable"
 +    #print(port_dict[interface_name]["poe_status"])
 +    #print("power_status:", power_status)
 +    if power_status == "enable": # enable
@@ -201,11 +201,11 @@ index a5f7ca94..1a7fff9e
 +            power_mode_p = "enableDynamic"
 +    else:
 +        if power_calculation == "dynamic":
-+            power_mode_p = "disabledynamic"
++            power_mode_p = "disableDynamic"
 +        else:
 +            power_mode_p = "disableStatic"
 +
-+    max_power = port_dict[interface_name]["poe_maxpower"]
++    max_power = poe_dict[interface_name]["maxpower"]
 +
 +    power_inline_p(ctx, interface_name, power_mode_p, max_power)
 +
@@ -254,10 +254,10 @@ new file mode 100644
 index 00000000..e69de29b
 diff --git a/src/sonic-utilities/poeutil/main.py b/src/sonic-utilities/poeutil/main.py
 new file mode 100755
-index 00000000..bbc92b34
+index 00000000..493fe6ec
 --- /dev/null
 +++ b/src/sonic-utilities/poeutil/main.py
-@@ -0,0 +1,978 @@
+@@ -0,0 +1,986 @@
 +#!/usr/bin/env python3:
 +
 +import os
@@ -707,9 +707,9 @@ index 00000000..bbc92b34
 +        # print("try again: ")
 +        # print(result)
 +    if result:
-+        configdb = ConfigDBConnector()
-+        configdb.connect()
-+        configdb.mod_entry("POE", 'Global', {'preemptive_priority': state})
++        config_db = ConfigDBConnector()
++        config_db.connect()
++        config_db.mod_entry("POE", 'Global', {'preemptive_priority': state})
 +        click.echo("OK")
 +    else:
 +        click.echo("Failed")
@@ -721,7 +721,7 @@ index 00000000..bbc92b34
 +    """Configure the PoE power redundant"""
 +
 +    click.echo("{} PoE power redundance  ... ".format(
-+        "Enabling" if state == 'enable' else "Disabling", nl=False))
++        "Enabling" if state == 'enable' else "Disabling"), nl=False)
 +    result = run_power_redundant_cmd(state)
 +
 +    if (result == None):
@@ -730,9 +730,9 @@ index 00000000..bbc92b34
 +        # print(result)
 +
 +    if (result != None):
-+        configdb = ConfigDBConnector()
-+        configdb.connect()
-+        configdb.mod_entry("POE", 'Global', {'power_redundant': state})
++        config_db = ConfigDBConnector()
++        config_db.connect()
++        config_db.mod_entry("POE", 'Global', {'power_redundant': state})
 +        click.echo("OK")
 +    else:
 +        click.echo("Failed")
@@ -757,8 +757,8 @@ index 00000000..bbc92b34
 +            "Error: No physical ports found for logical port '{}'".format(port_name))
 +        return
 +
-+    configdb = ConfigDBConnector()
-+    configdb.connect()
++    config_db = ConfigDBConnector()
++    config_db.connect()
 +    poe_port = config_db.get_entry('POE', port_name)
 +
 +    if not is_port_type_poe(poe_port['class']):
@@ -781,7 +781,7 @@ index 00000000..bbc92b34
 +        run_lldpcli_config_port_command(port_name, enabled)
 +
 +        # Save to DB
-+        configdb.mod_entry("POE", port_name, {'lldp': state})
++        config_db.mod_entry("POE", port_name, {'lldp': state})
 +        click.echo("OK")
 +
 +        i += 1
@@ -807,8 +807,8 @@ index 00000000..bbc92b34
 +            "Error: No physical ports found for logical port '{}'".format(port_name))
 +        return
 +
-+    configdb = ConfigDBConnector()
-+    configdb.connect()
++    config_db = ConfigDBConnector()
++    config_db.connect()
 +    poe_port = config_db.get_entry('POE', port_name)
 +
 +    if not is_port_type_poe(poe_port['class']):
@@ -839,7 +839,7 @@ index 00000000..bbc92b34
 +            # print(result)
 +
 +        if result:
-+            configdb.mod_entry("POE", port_name, {'priority': priority})
++            config_db.mod_entry("POE", port_name, {'priority': priority})
 +            click.echo("OK")
 +        else:
 +            click.echo("Failed")
@@ -869,8 +869,8 @@ index 00000000..bbc92b34
 +            "Error: No physical ports found for logical port '{}'".format(port_name))
 +        return
 +
-+    configdb = ConfigDBConnector()
-+    configdb.connect()
++    config_db = ConfigDBConnector()
++    config_db.connect()
 +    poe_port = config_db.get_entry('POE', port_name)
 +
 +    if not is_port_type_poe(poe_port['class']):
@@ -941,8 +941,8 @@ index 00000000..bbc92b34
 +        if result == None:
 +            click.echo("Failed")
 +        else:
-+            configdb.mod_entry("POE", port_name, {'power_mode': power_mode})
-+            configdb.mod_entry("POE", port_name, {
++            config_db.mod_entry("POE", port_name, {'power_mode': power_mode})
++            config_db.mod_entry("POE", port_name, {
 +                               'maxpower': float(max_power/10)})
 +            click.echo("OK")
 +
@@ -1004,6 +1004,8 @@ index 00000000..bbc92b34
 +    # print(port_dict)
 +
 +    for key in sorted(poe_dict, key=natural_keys):
++        if key == 'Global': #Global setting
++            continue  # Skips
 +        #
 +        if poe_dict[key]["priority"] == "NA":
 +            continue  # Skips the non-poe ports
@@ -1054,6 +1056,8 @@ index 00000000..bbc92b34
 +              "Class(Pri)", "Class(Sec)", "Used(W)"]
 +
 +    for key in sorted(poe_dict, key=natural_keys):
++        if key == 'Global': #Global setting
++            continue  # Skips
 +        #
 +        if poe_dict[key]["priority"] == "NA":
 +            continue  # Skips the non-poe ports
@@ -1103,6 +1107,8 @@ index 00000000..bbc92b34
 +    header = ["Interface", "Method"]
 +
 +    for key in sorted(poe_dict, key=natural_keys):
++        if key == 'Global': #Global setting
++            continue  # Skips
 +        if poe_dict[key]["priority"] == "NA":
 +            continue  # Skips the non-poe ports
 +
@@ -1156,6 +1162,8 @@ index 00000000..bbc92b34
 +              "Priority", "MDI-TLV"]
 +
 +    for key in sorted(poe_dict, key=natural_keys):
++        if key == 'Global': #Global setting
++            continue  # Skips
 +        if poe_dict[key]["priority"] == "NA":
 +            continue  # Skips the non-poe ports
 +

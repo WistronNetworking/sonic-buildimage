@@ -17,6 +17,7 @@
             "priority": "critical",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet2": {
@@ -24,6 +25,7 @@
             "priority": "critical",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet3": {
@@ -31,6 +33,7 @@
             "priority": "critical",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet4": {
@@ -38,6 +41,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet5": {
@@ -45,6 +49,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet6": {
@@ -52,6 +57,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet7": {
@@ -59,6 +65,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet8": {
@@ -66,6 +73,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet9": {
@@ -73,6 +81,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet10": {
@@ -80,6 +89,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet11": {
@@ -87,6 +97,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet12": {
@@ -94,6 +105,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet13": {
@@ -101,6 +113,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet14": {
@@ -108,6 +121,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet15": {
@@ -115,6 +129,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet16": {
@@ -122,6 +137,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet17": {
@@ -129,6 +145,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet18": {
@@ -136,6 +153,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet19": {
@@ -143,6 +161,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet20": {
@@ -150,6 +169,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet21": {
@@ -157,6 +177,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet22": {
@@ -164,6 +185,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet23": {
@@ -171,6 +193,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet24": {
@@ -178,6 +201,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet25": {
@@ -185,6 +209,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet26": {
@@ -192,6 +217,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet27": {
@@ -199,6 +225,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet28": {
@@ -206,6 +233,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet29": {
@@ -213,6 +241,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet30": {
@@ -220,6 +249,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet31": {
@@ -227,6 +257,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "AT",
             "lldp": "disable"
         },
         "Ethernet32": {
@@ -234,6 +265,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet33": {
@@ -241,6 +273,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet34": {
@@ -248,6 +281,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet35": {
@@ -255,6 +289,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet36": {
@@ -262,6 +297,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet37": {
@@ -269,6 +305,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet38": {
@@ -276,6 +313,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet39": {
@@ -283,6 +321,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet40": {
@@ -290,6 +329,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet41": {
@@ -297,6 +337,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet42": {
@@ -304,6 +345,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet43": {
@@ -311,6 +353,7 @@
             "priority": "low",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet44": {
@@ -318,6 +361,7 @@
             "priority": "critical",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet45": {
@@ -325,6 +369,7 @@
             "priority": "critical",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet46": {
@@ -332,6 +377,7 @@
             "priority": "critical",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet47": {
@@ -339,6 +385,7 @@
             "priority": "critical",
             "power_mode": "enableDynamic",
             "maxpower": "0",
+            "class": "BT",
             "lldp": "disable"
         },
         "Ethernet48": {
@@ -346,6 +393,7 @@
             "priority": "NA",
             "power_mode": "NA",
             "maxpower": "0",
+            "class": "NA",
             "lldp": "NA"
         },
         "Ethernet49": {
@@ -353,6 +401,7 @@
             "priority": "NA",
             "power_mode": "NA",
             "maxpower": "0",
+            "class": "NA",
             "lldp": "NA"
         },
         "Ethernet50": {
@@ -360,6 +409,7 @@
             "priority": "NA",
             "power_mode": "NA",
             "maxpower": "0",
+            "class": "NA",
             "lldp": "NA"
         },
         "Ethernet51": {
@@ -367,6 +417,7 @@
             "priority": "NA",
             "power_mode": "NA",
             "maxpower": "0",
+            "class": "NA",
             "lldp": "NA"
         },
         "Ethernet52": {
@@ -374,6 +425,7 @@
             "priority": "NA",
             "power_mode": "NA",
             "maxpower": "0",
+            "class": "NA",
             "lldp": "NA"
         },
         "Ethernet53": {
@@ -381,6 +433,7 @@
             "priority": "NA",
             "power_mode": "NA",
             "maxpower": "0",
+            "class": "NA",
             "lldp": "NA"
         }
     }
