@@ -1,0 +1,203 @@
+diff --git a/src/sonic-platform-common/sonic_platform_base/__init__.py b/src/sonic-platform-common/sonic_platform_base/__init__.py
+index 3d7f64b..b19f713 100644
+--- a/src/sonic-platform-common/sonic_platform_base/__init__.py
++++ b/src/sonic-platform-common/sonic_platform_base/__init__.py
+@@ -9,3 +9,4 @@ from . import psu_base
+ from . import sfp_base
+ from . import thermal_base
+ from . import watchdog_base
++from . import poe_base
+diff --git a/src/sonic-platform-common/sonic_platform_base/chassis_base.py b/src/sonic-platform-common/sonic_platform_base/chassis_base.py
+index e292cfc..aac787e 100644
+--- a/src/sonic-platform-common/sonic_platform_base/chassis_base.py
++++ b/src/sonic-platform-common/sonic_platform_base/chassis_base.py
+@@ -65,6 +65,9 @@ class ChassisBase(device_base.DeviceBase):
+         # Object derived from eeprom_tlvinfo.TlvInfoDecoder indicating the eeprom on the chassis
+         self._eeprom = None
+
++        # Object derived from PoeBase for interacting with hardware poe
++        self._poe = None
++
+         # System status LED
+         self._status_led = None
+
+@@ -603,3 +606,14 @@ class ChassisBase(device_base.DeviceBase):
+                       status='6' Bad cable.
+         """
+         raise NotImplementedError
++
++    def get_poe(self):
++        """
++        Retreives hardware poe device on this chassis
++
++        Returns:
++            An object derived from poeBase representing the hardware
++            poe device
++        """
++        return self._poe
++
+diff --git a/src/sonic-platform-common/sonic_platform_base/poe_base.py b/src/sonic-platform-common/sonic_platform_base/poe_base.py
+new file mode 100644
+index 0000000..01ce285
+--- /dev/null
++++ b/src/sonic-platform-common/sonic_platform_base/poe_base.py
+@@ -0,0 +1,159 @@
++"""
++    poe_base.py
++
++    Abstract base class for implementing a platform-specific class with which
++    to interact with a thermal module in SONiC
++"""
++
++from . import device_base
++
++
++class PoeBase(device_base.DeviceBase):
++    """
++    Abstract base class for interfacing with a thermal module
++    """
++    # Device type definition. Note, this is a constant.
++    DEVICE_TYPE = "poe"
++
++    def get_total_power(self):
++        """
++        Retrieves current total power reading from poe chip
++
++        Returns:
++            A dict which contains following keys/values :
++        ================================================================================
++        keys                       |Value Format   |Information
++        ---------------------------|---------------|----------------------------
++        powerconsumption           |1*255VCHAR     | power consumption
++        calcpower                  |1*255VCHAR     | calculate power
++        availablepower             |1*255VCHAR     | available power
++        powerlimit                 |1*255VCHAR     | power limit
++        powerbank                  |1*255VCHAR     | power bank
++        """
++        raise NotImplementedError
++
++    def save_config(self):
++        """
++        save the poe chip configuration
++
++        Returns:
++            A boolean, True if configuration saved successfully, False if not
++        """
++        raise NotImplementedError
++
++    def get_port_status(self, port_num):
++        """
++        Retrieves the port poe status like port status/port power consumption
++
++        Args :
++            port_num: A interger number for the poe port want to check
++
++        Returns:
++            A dict which contains following keys/values :
++        ================================================================================
++        keys                       |Value Format   |Information
++        ---------------------------|---------------|----------------------------
++        portstatus                 |1*255VCHAR     | status code of this port
++        assignedClassPrimary       |1*255VCHAR     | assigned class for primary
++        assignedClassSecondary     |1*255VCHAR     | assigned class for secondary
++        measuredPortPower          |1*255VCHAR     | value of the power measure
++        """
++        raise NotImplementedError
++
++    def get_port_lldp_pse_data(self, port_num):
++        """
++        Retrieves the port poe lldp pse data
++
++        Args :
++            port_num: A interger number for the poe port want to check
++
++        Returns:
++            A dict which contains following keys/values :
++        ================================================================================
++        keys                       |Value Format   |Information
++        ---------------------------|---------------|----------------------------
++        layer2Usage                |1*255VCHAR     | lldp status code of this port
++        """
++        raise NotImplementedError
++
++    def set_port_reserve_power(self, port_num, power):
++        """
++        Sets the reserved power of port
++
++        Args:
++            port_num:  A interger number for the poe port want to set
++            power: A float number for the reserve power, e.g. 29.5
++        Returns:
++            A boolean, True if configuration saved successfully, False if not
++        """
++        raise NotImplementedError
++
++    def set_port_power(self, port_num, power_class, power_mode, power):
++        """
++        Sets the power control mode and value of port
++
++        Args:
++            port_num:  A interger number for the poe port want to set
++            power_class:  A string of the power class
++            port_mode:  A string for the power mode
++            power: A float number for the reserve power, e.g. 29.5
++        Returns:
++            A boolean, True if configuration saved successfully, False if not
++        """
++        raise NotImplementedError
++
++    def set_port_priority(self, port_num, priority):
++        """
++        Sets the poe priority of port
++
++        Args:
++            port_num:  A interger number for the poe port want to set
++            priority:  A string of the priority
++        Returns:
++            A boolean, True if configuration saved successfully, False if not
++        """
++        raise NotImplementedError
++
++    def set_preemptive_priority(self, state):
++        """
++        Sets the preemptive priority of poe chip
++
++        Args:
++            state:  enable or disable for preemptive priority
++        Returns:
++            A boolean, True if configuration saved successfully, False if not
++        """
++        raise NotImplementedError
++
++    def set_power_redundant(self, state):
++        """
++        Sets the power redundant mode of system
++
++        Args:
++            state:  enable or disable for power redundant mode of system
++        Returns:
++            A boolean, True if configuration saved successfully, False if not
++        """
++        raise NotImplementedError
++
++    def set_port_lldp_pd_req(self, port_num, req_power):
++        """
++        Sets the power redundant mode of system
++
++        Args:
++            port_num:  A interger number for the poe port want to set
++            power: A int number from lldpd for power device request(unit: milliwalt)
++        Returns:
++            A boolean, True if configuration saved successfully, False if not
++        """
++        raise NotImplementedError
++
++    def chip_reset(self):
++        """
++        Sets the power redundant mode of system
++
++        Returns:
++            A boolean, True if run chip reset successfully, False if not
++        """
++        raise NotImplementedError
++

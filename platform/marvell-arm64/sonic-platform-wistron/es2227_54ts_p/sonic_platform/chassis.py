@@ -299,9 +299,19 @@ class Chassis(ChassisBase):
                 watchdog_device = "watchdog1"
                 self._watchdog = WatchdogImplBase(watchdog_device)
         except Exception as e:
-            sonic_logger.log_warning(" Fail to load watchdog {}".format(repr(e)))
+            print(" Fail to load watchdog {}".format(repr(e)))
 
         return self._watchdog
+
+    def get_poe(self):
+        try:
+            if self._poe is None:
+                from sonic_platform.poe import PoeImplBase
+                self._poe = PoeImplBase()
+        except Exception as e:
+            print(" Fail to load poe {}".format(repr(e)))
+
+        return self._poe
 
     def initizalize_system_led(self):
         self.system_led = ""
