@@ -15,9 +15,6 @@ es2227_54ts_p/utils/sysled_health.py usr/local/bin
 es2227_54ts_p/utils/poe_init.sh usr/local/bin
 es2227_54ts_p/utils/es2227_54ts_p-oob-led.sh usr/local/bin
 es2227_54ts_p/utils/phytool usr/local/bin
-es2227_54ts_p/utils/poe_cfg_init.py usr/local/bin
-es2227_54ts_p/utils/poe_lldp.py usr/local/bin
-es2227_54ts_p/utils/poe_cfg_lldp.py usr/local/bin
 es2227_54ts_p/utils/poe_power.sh usr/local/bin
 es2227_54ts_p/utils/rst_button.py usr/local/bin
 es2227_54ts_p/utils/psu_detect.py usr/local/bin

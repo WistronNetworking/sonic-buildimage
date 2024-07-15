@@ -20,4 +20,5 @@ patch -p1 < patches/sfputil_sort_order.patch
 patch -p1 < patches/show_ip_int_workaround.patch
 patch -p1 < patches/rg_poe_test.patch
 patch -p1 < patches/rg_poe_sonic_platform_base.patch
+patch -p1 < patches/rg-poe-init-service.patch
 patch -p1 < patches/wistron_add_xmc_spi.patch

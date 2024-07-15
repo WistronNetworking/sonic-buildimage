@@ -1,0 +1,12 @@
+[Unit]
+Description=PoE chip configuration initial service
+Requires=rc-local.service database.service
+After=updategraph.service database.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/poeinit
+
+[Install]
+WantedBy=multi-user.target
