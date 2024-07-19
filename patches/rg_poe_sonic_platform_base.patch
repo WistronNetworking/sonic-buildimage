@@ -38,10 +38,10 @@ index e292cfc..aac787e 100644
 +
 diff --git a/src/sonic-platform-common/sonic_platform_base/poe_base.py b/src/sonic-platform-common/sonic_platform_base/poe_base.py
 new file mode 100644
-index 0000000..01ce285
+index 0000000..b6a11ee
 --- /dev/null
 +++ b/src/sonic-platform-common/sonic_platform_base/poe_base.py
-@@ -0,0 +1,159 @@
+@@ -0,0 +1,161 @@
 +"""
 +    poe_base.py
 +
@@ -116,7 +116,9 @@ index 0000000..01ce285
 +        ================================================================================
 +        keys                       |Value Format   |Information
 +        ---------------------------|---------------|----------------------------
-+        layer2Usage                |1*255VCHAR     | lldp status code of this port
++        lldpstatus                 |1*255VCHAR     | 'OK' if ok otherwise 'NotOK'
++        layer2Usage                |1*255VCHAR     | pse status code of this port
++        alloc_power                |1*255VCHAR     | allocated power (unit: milliwalt)
 +        """
 +        raise NotImplementedError
 +

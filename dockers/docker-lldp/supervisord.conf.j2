@@ -88,3 +88,13 @@ stdout_logfile=syslog
 stderr_logfile=syslog
 dependent_startup=true
 dependent_startup_wait_for=lldp-syncd:running
+
+[program:lldppoed]
+command=/usr/bin/lldppoed
+priority=5
+autostart=false
+autorestart=false
+stdout_logfile=syslog
+stderr_logfile=syslog
+dependent_startup=true
+dependent_startup_wait_for=lldp-syncd:running

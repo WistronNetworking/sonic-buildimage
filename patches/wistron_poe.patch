@@ -1,36 +1,55 @@
-Submodule src/sonic-utilities contains untracked content
-Submodule src/sonic-utilities contains modified content
 diff --git a/src/sonic-utilities/config/main.py b/src/sonic-utilities/config/main.py
 old mode 100644
 new mode 100755
-index 368efa76..ee6b1108
+index a5f7ca94..532771e5
 --- a/src/sonic-utilities/config/main.py
 +++ b/src/sonic-utilities/config/main.py
-@@ -1306,6 +1306,10 @@ def save(filename):
+@@ -108,6 +108,7 @@ QUEUE_RANGE = click.IntRange(min=0, max=255)
+ GRE_TYPE_RANGE = click.IntRange(min=0, max=65535)
+ ADHOC_VALIDATION = True
+
++poe_support = None
+ # Load sonic-cfggen from source since /usr/local/bin/sonic-cfggen does not have .py extension.
+ sonic_cfggen = load_module_from_source('sonic_cfggen', '/usr/local/bin/sonic-cfggen')
+
+@@ -1285,6 +1286,17 @@ def save(filename):
          with open(file, 'w') as config_db_file:
              json.dump(config_db, config_db_file, indent=4)
- 
-+    command = "poeutil save-conf"
-+    clicommon.run_command(command)
+
++    global poe_support
++    import sonic_platform
++    platform_chassis_poe = sonic_platform.platform.Platform().get_chassis().get_poe()
++    if not poe_support:
++        poe_support = True if platform_chassis_poe else False
++
++    if poe_support:
++        command = "poeutil save-conf"
++        clicommon.run_command(command)
 +
 +
  @config.command()
  @click.option('-y', '--yes', is_flag=True)
  @click.argument('filename', required=False)
-@@ -3850,6 +3854,26 @@ def remove_neighbor(neighbor_ip_or_hostname):
+@@ -3825,6 +3837,34 @@ def remove_neighbor(neighbor_ip_or_hostname):
      if not removed_neighbor:
          click.get_current_context().fail("Could not locate neighbor '{}'".format(neighbor_ip_or_hostname))
- 
-+
+
 +@config.group(cls=clicommon.AbbreviationGroup)
 +def poe():
 +    """PoE-related configuration tasks"""
++    global poe_support
++    import sonic_platform
++    platform_chassis_poe = sonic_platform.platform.Platform().get_chassis().get_poe()
++    if not poe_support:
++        poe_support = True if platform_chassis_poe else False
 +    pass
 +
 +
 +@poe.command()
 +@click.argument('state', metavar='<enable|disable>', required=True, type=click.Choice(['enable', 'disable']))
 +def preemptive_priority(state):
++    if not poe_support:
++        raise click.UsageError("poe not supported in this platform!")
 +    command = "poeutil preemptive-priority %s" % (state)
 +    clicommon.run_command(command)
 +
@@ -38,13 +57,15 @@ index 368efa76..ee6b1108
 +@poe.command()
 +@click.argument('state', metavar='<enable|disable>', required=True, type=click.Choice(['enable', 'disable']))
 +def power_redundant(state):
++    if not poe_support:
++        raise click.UsageError("poe not supported in this platform!")
 +    command = "poeutil power-redundant %s" % (state)
 +    clicommon.run_command(command)
 +
  #
  # 'interface' group ('config interface ...')
  #
-@@ -3867,6 +3891,206 @@ def interface(ctx, namespace):
+@@ -3842,6 +3882,226 @@ def interface(ctx, namespace):
      config_db = ConfigDBConnector(use_unix_socket_path=True, namespace=str(namespace))
      config_db.connect()
      ctx.obj = {'config_db': config_db, 'namespace': str(namespace)}
@@ -58,6 +79,11 @@ index 368efa76..ee6b1108
 +@click.pass_context
 +def poe(ctx):
 +    """Config interface poe feature"""
++    global poe_support
++    import sonic_platform
++    platform_chassis_poe = sonic_platform.platform.Platform().get_chassis().get_poe()
++    if not poe_support:
++        poe_support = True if platform_chassis_poe else False
 +    pass
 +
 +
@@ -67,6 +93,8 @@ index 368efa76..ee6b1108
 +@click.argument('port_priority', metavar='<critical|high|low>', required=True, type=click.Choice(['critical', 'high', 'low']))
 +def priority(ctx, interface_name, port_priority):
 +    """Config interface PoE priority"""
++    if not poe_support:
++        raise click.UsageError("poe not supported in this platform!")
 +    # Get the config_db connector
 +    config_db = ctx.obj['config_db']
 +
@@ -89,6 +117,8 @@ index 368efa76..ee6b1108
 +
 +def power_inline_p(ctx, interface_name, power_mode, max_power_float):
 +    """Config interface PoE power"""
++    if not poe_support:
++        raise click.UsageError("poe not supported in this platform!")
 +    # Get the config_db connector
 +    config_db = ctx.obj['config_db']
 +
@@ -118,9 +148,11 @@ index 368efa76..ee6b1108
 +@ click.argument('max_power_float', metavar='<max_power_float>', required=True, type=click.FloatRange(0, 90))
 +def power_inline(ctx, interface_name, power_mode, max_power_float):
 +    """Config interface PoE power"""
++    if not poe_support:
++        raise click.UsageError("poe not supported in this platform!")
 +    # Get the config_db connector
 +    config_db = ctx.obj['config_db']
-+    port_dict = config_db.get_table('PORT')
++    poe_dict = config_db.get_table('POE')
 +
 +    if clicommon.get_interface_naming_mode() == "alias":
 +        interface_name = interface_alias_to_name(config_db, interface_name)
@@ -143,9 +175,9 @@ index 368efa76..ee6b1108
 +    # bit 2 is power_calculation mode
 +    # dynamic mode : bit2 is 0
 +    # static mode : bit 2 is 1
-+    power_calculation = "static" if (port_dict[interface_name]["poe_status"] == "disableStatic" or
-+                         port_dict[interface_name]["poe_status"] == "enableStatic" or
-+                         port_dict[interface_name]["poe_status"] == "disable") else "dynamic"
++    power_calculation = "static" if (poe_dict[interface_name]["power_mode"] == "disableStatic" or
++                         poe_dict[interface_name]["power_mode"] == "enableStatic" or
++                         poe_dict[interface_name]["power_mode"] == "disable") else "dynamic"
 +
 +    if power_calculation == "static": # static
 +        if power_mode == "enable":
@@ -166,9 +198,11 @@ index 368efa76..ee6b1108
 +@ click.argument('power_calculation', metavar='<static|dynamic>', required=True, type=click.Choice(['static', 'dynamic']))
 +def power_calculation(ctx, interface_name, power_calculation):
 +    """Config interface PoE power"""
++    if not poe_support:
++        raise click.UsageError("poe not supported in this platform!")
 +    # Get the config_db connector
 +    config_db = ctx.obj['config_db']
-+    port_dict = config_db.get_table('PORT')
++    poe_dict = config_db.get_table('POE')
 +
 +    if clicommon.get_interface_naming_mode() == "alias":
 +        interface_name = interface_alias_to_name(config_db, interface_name)
@@ -191,9 +225,9 @@ index 368efa76..ee6b1108
 +    # bit 1 is power_status mode
 +    # disable mode : bit 1 is 0
 +    # enable mode : bit 1  is 1
-+    power_status = "enable" if (port_dict[interface_name]["poe_status"] == "enableDynamic" or
-+                         port_dict[interface_name]["poe_status"] == "enableStatic" or
-+                         port_dict[interface_name]["poe_status"] == "enable") else "disable"     
++    power_status = "enable" if (poe_dict[interface_name]["power_mode"] == "enableDynamic" or
++                         poe_dict[interface_name]["power_mode"] == "enableStatic" or
++                         poe_dict[interface_name]["power_mode"] == "enable") else "disable"
 +    #print(port_dict[interface_name]["poe_status"])
 +    #print("power_status:", power_status)
 +    if power_status == "enable": # enable
@@ -203,11 +237,11 @@ index 368efa76..ee6b1108
 +            power_mode_p = "enableDynamic"
 +    else:
 +        if power_calculation == "dynamic":
-+            power_mode_p = "disabledynamic"
++            power_mode_p = "disableDynamic"
 +        else:
-+            power_mode_p = "disableStatic"  
++            power_mode_p = "disableStatic"
 +
-+    max_power = port_dict[interface_name]["poe_maxpower"]
++    max_power = poe_dict[interface_name]["maxpower"]
 +
 +    power_inline_p(ctx, interface_name, power_mode_p, max_power)
 +
@@ -216,6 +250,11 @@ index 368efa76..ee6b1108
 +@ click.pass_context
 +def lldp(ctx):
 +    """Configuring interface LLDP feature"""
++    global poe_support
++    import sonic_platform
++    platform_chassis_poe = sonic_platform.platform.Platform().get_chassis().get_poe()
++    if not poe_support:
++        poe_support = True if platform_chassis_poe else False
 +    pass
 +
 +
@@ -225,6 +264,8 @@ index 368efa76..ee6b1108
 +@ click.argument('state', metavar='<enable|disable>', required=True, type=click.Choice(['enable', 'disable']))
 +def mdi_tlv(ctx, interface_name, state):
 +    """Config interface LLDP mdi-tlv"""
++    if not poe_support:
++        raise click.UsageError("poe not supported in this platform!")
 +    # Get the config_db connector
 +    config_db = ctx.obj['config_db']
 +
@@ -256,16 +297,16 @@ new file mode 100644
 index 00000000..e69de29b
 diff --git a/src/sonic-utilities/poeutil/main.py b/src/sonic-utilities/poeutil/main.py
 new file mode 100755
-index 00000000..2b4ee226
+index 00000000..0c673151
 --- /dev/null
 +++ b/src/sonic-utilities/poeutil/main.py
-@@ -0,0 +1,1095 @@
+@@ -0,0 +1,549 @@
 +#!/usr/bin/env python3:
 +
 +import os
 +import sys
 +import click
-+import subprocess  # James
++import subprocess
 +import sonic_platform
 +import sonic_platform_base.sonic_sfp.sfputilhelper
 +import time
@@ -276,6 +317,8 @@ index 00000000..2b4ee226
 +from swsscommon.swsscommon import ConfigDBConnector
 +from utilities_common.netstat import ns_diff, table_as_json, format_brate, format_prate, format_util, format_number_with_comma
 +from tabulate import tabulate
++from utilities_common.intf_filter import parse_interface_in_filter
++import re
 +
 +SYSLOG_IDENTIFIER = "poeutil"
 +
@@ -295,86 +338,25 @@ index 00000000..2b4ee226
 +# Global platform-specific sfputil class instance
 +platform_sfputil = None
 +
++# Global platform poe object instance
++platform_chassis_poe = None
++
 +# Global logger instance
 +log = logger.Logger(SYSLOG_IDENTIFIER)
 +
++def atoi(text):
++    return int(text) if text.isdigit() else text
 +
-+# PoE configuration  - Customziation
-+# key is logical interface name
-+# value 1 is the PoE physical port
-+# value 2 is the PoE type(NA/AT/BT)
-+poe_config_dict = {
-+    "Ethernet0": ["0", "AT"],
-+    "Ethernet1": ["1", "AT"],
-+    "Ethernet2": ["2", "AT"],
-+    "Ethernet3": ["3", "AT"],
-+    "Ethernet4": ["4", "AT"],
-+    "Ethernet5": ["5", "AT"],
-+    "Ethernet6": ["6", "AT"],
-+    "Ethernet7": ["7", "AT"],
-+    "Ethernet8": ["8", "AT"],
-+    "Ethernet9": ["9", "AT"],
-+    "Ethernet10": ["10", "AT"],
-+    "Ethernet11": ["11", "AT"],
-+    "Ethernet12": ["12", "AT"],
-+    "Ethernet13": ["13", "AT"],
-+    "Ethernet14": ["14", "AT"],
-+    "Ethernet15": ["15", "AT"],
-+    "Ethernet16": ["16", "AT"],
-+    "Ethernet17": ["17", "AT"],
-+    "Ethernet18": ["18", "AT"],
-+    "Ethernet19": ["19", "AT"],
-+    "Ethernet20": ["20", "AT"],
-+    "Ethernet21": ["21", "AT"],
-+    "Ethernet22": ["22", "AT"],
-+    "Ethernet23": ["23", "AT"],
-+    "Ethernet24": ["24", "AT"],
-+    "Ethernet25": ["25", "AT"],
-+    "Ethernet26": ["26", "AT"],
-+    "Ethernet27": ["27", "AT"],
-+    "Ethernet28": ["28", "AT"],
-+    "Ethernet29": ["29", "AT"],
-+    "Ethernet30": ["30", "AT"],
-+    "Ethernet31": ["31", "AT"],
-+    "Ethernet32": ["32", "BT"],
-+    "Ethernet33": ["33", "BT"],
-+    "Ethernet34": ["34", "BT"],
-+    "Ethernet35": ["35", "BT"],
-+    "Ethernet36": ["36", "BT"],
-+    "Ethernet37": ["37", "BT"],
-+    "Ethernet38": ["38", "BT"],
-+    "Ethernet39": ["39", "BT"],
-+    "Ethernet40": ["40", "BT"],
-+    "Ethernet41": ["41", "BT"],
-+    "Ethernet42": ["42", "BT"],
-+    "Ethernet43": ["43", "BT"],
-+    "Ethernet44": ["44", "BT"],
-+    "Ethernet45": ["45", "BT"],
-+    "Ethernet46": ["46", "BT"],
-+    "Ethernet47": ["47", "BT"],
-+    "Ethernet48": ["48", "NA"],
-+    "Ethernet49": ["49", "NA"],
-+    "Ethernet50": ["50", "NA"],
-+    "Ethernet51": ["51", "NA"],
-+    "Ethernet52": ["52", "NA"],
-+    "Ethernet53": ["53", "NA"],
-+}
++def natural_keys(text):
++    '''
++    alist.sort(key=natural_keys) sorts in human order
++    http://nedbatchelder.com/blog/200712/human_sorting.html
++    (See Toothy's implementation in the comments)
++    '''
++    return [ atoi(c) for c in re.split(r'(\d+)', text) ]
 +
-+
-+def is_port_type_rj45(port_name):
-+    physical_port = logical_port_to_physical_port_index(port_name)
-+
-+    try:
-+        port_types = platform_chassis.get_port_or_cage_type(physical_port)
-+        return SfpBase.SFP_PORT_TYPE_BIT_RJ45 == port_types
-+    except NotImplementedError:
-+        pass
-+
-+    return False
-+
-+
-+def is_port_type_poe(port_name):
-+    if (poe_config_dict[port_name][1] == "NA"):
++def is_port_type_poe(poe_class):
++    if (poe_class == "NA"):
 +        return False
 +    else:
 +        return True
@@ -433,6 +415,20 @@ index 00000000..2b4ee226
 +
 +    return True
 +
++def load_chassis_poe():
++    global platform_chassis_poe
++
++    # Load platform poe
++    try:
++        platform_chassis_poe = platform_chassis.get_poe()
++    except Exception as e:
++        log.log_error(
++            "Failed to instantiate Chassis poe due to {}".format(repr(e)))
++
++    if not platform_chassis_poe:
++        return False
++
++    return True
 +
 +def get_physical_port_name(logical_port, physical_port, ganged):
 +    """
@@ -460,298 +456,15 @@ index 00000000..2b4ee226
 +        return [int(port_name)]
 +
 +
-+def logical_port_to_physical_port_index(port_name):
-+    if not platform_sfputil.is_logical_port(port_name):
-+        click.echo("Error: invalid port '{}'\n".format(port_name))
-+        print_all_valid_port_values()
-+        sys.exit(ERROR_INVALID_PORT)
-+
-+    physical_port = logical_port_name_to_physical_port_list(port_name)[0]
-+    if physical_port is None:
-+        click.echo(
-+            "Error: No physical port found for logical port '{}'".format(port_name))
-+        sys.exit(EXIT_FAIL)
-+
-+    return physical_port
-+
-+
 +def print_all_valid_port_values():
 +    click.echo("Valid values for port: {}\n".format(
 +        str(platform_sfputil.logical)))
 +
 +
-+def parse_keyword(keyword, string):  # James
-+    if string:
-+        # Parse the value of keyword from the string
-+        index = string.find(keyword)
-+        if index != -1:
-+            start_index = index + len(keyword)
-+            end_index = string.find("\n", start_index)
-+            result = string[start_index:end_index].strip()
-+            # click.echo("result: {}\n".format(result))
-+        else:
-+            click.echo("Unable to find the result in the output.")
-+            return None
-+
-+        # click.echo("string: {}\n".format(string.strip()))
-+        return result
-+    else:
-+        return None
-+
-+
-+def run_command(command):  # James
-+    try:
-+        output = subprocess.check_output(
-+            command, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
-+        # command, shell=True, stderr=subprocess.DEVNULL, universal_newlines=True)
-+        # return output.strip()
-+    except subprocess.CalledProcessError as e:
-+        # print("Command failed:")
-+        # print(e.output)
-+        return None, None
-+
-+    if output:
-+        # Parse the value of "result" from the output
-+        keyword = "result "
-+        index = output.find(keyword)
-+        if index != -1:
-+            start_index = index + len(keyword)
-+            end_index = output.find("\n", start_index)
-+            result = output[start_index:end_index].strip()
-+            # click.echo("result: {}\n".format(result))
-+        else:
-+            print("Unable to find the result in the output.")
-+            return None, None
-+
-+    # click.echo("output: {}\n".format(output.strip()))
-+    return result, output.strip()
-+
-+
-+def run_get_total_power_cmd():
-+    # Here is the command to get port poe status
-+    # root@sonic:/usr/local/lib/python3.9/dist-packages/poeutil# poetool mgmt get_total_power
-+    # Code 82 get_total_power, result 0
-+    # powerConsumption  200
-+    # calcPower  210
-+    # availablePower  1600
-+    # powerLim  1810
-+    # powerBank  3
-+    # vmainVoltage  547
-+
-+    cmd = "sudo poetool mgmt get_total_power"
-+    # print(cmd)
-+    result, output_str = run_command(cmd)
-+    # click.echo("result: {}\n".format(result))
-+    return result, output_str
-+
-+
-+def run_save_setting_cmd():
-+    # Here is the command to get port poe status
-+    # root@sonic:/etc/sonic# sudo poetool system save_setting
-+
-+    cmd = "sudo poetool system save_setting"
-+    # print(cmd)
-+    result, output_str = run_command(cmd)
-+    # click.echo("result: {}\n".format(result))
-+    return result, output_str
-+
-+
-+def run_port_status_cmd(port_name):
-+
-+    # Here is the command to get port poe status
-+    # root@sonic:/usr/local/lib/python3.9/dist-packages/poeutil# poetool port get_port_status 0
-+    # Code 62 get_port_status, result 0
-+    # portStatus  129
-+    # portModeCFG1  1
-+    # assignedClassPrimary  4
-+    # assignedClassSecondary  12
-+    # measuredPortPower  290
-+    # lastShutdownErrorStatus  34
-+    # portEvent  0
-+    # MSCCUse12  0
-+
-+    port_num = poe_config_dict[port_name][0]
-+
-+    cmd = "sudo poetool port get_port_status %s" % (port_num)
-+    # print(cmd)
-+    result, output_str = run_command(cmd)
-+    # click.echo("result: {}\n".format(result))
-+    return result, output_str
-+
-+
-+def run_port_lldp_pse_data_cmd(port_name):
-+
-+    # Here is the command to get port poe status
-+    # root@sonic:/usr/local/lib/python3.9/dist-packages/poeutil# poetool port get_lldp_pse_data 40
-+    # Code 69 get_lldp_pse_data, result 0
-+    # pseAllocatedPwrSingleOrAltA  713
-+    # pseAllocatedPwrAltB  0
-+    # pseMaxPwr  900
-+    # assignedClassPrimary  8
-+    # assignedClassSecondary  12
-+    # layer2Execution  0
-+    # layer2Usage  1
-+    # ieeeBTPwrBitsExt1514  2
-+    # ieeeBTPwrBitsExt1110  3
-+    # cableLength  10
-+    # layer2_cfg  3
-+
-+    port_num = poe_config_dict[port_name][0]
-+
-+    cmd = "sudo poetool port get_lldp_pse_data %s" % (port_num)
-+    # print(cmd)
-+    result, output_str = run_command(cmd)
-+    # click.echo("result: {}\n".format(result))
-+    return result, output_str
-+
-+
-+def run_port_reserve_power_cmd(port_name, reserve_power, pse_type):
-+
-+    # Here is the command to set port reserve power
-+    #  poetool set_port_reserve_power <PortNum> <PortReservePower> <PortPseType>
-+    #  The unit of PortReservePower is 0.1W
-+
-+    port_num = poe_config_dict[port_name][0]
-+
-+    cmd = "sudo poetool port set_port_reserve_power %s %s %s" % (
-+        port_num, reserve_power, pse_type)
-+    # print(cmd)
-+    result, output_str = run_command(cmd)
-+    # click.echo("result: {}\n".format(result))
-+    return result, output_str
-+
-+
-+def run_port_params_cmd(port_name, priority, cfg1, cfg2, oper_mode, add_power):
-+
-+    # Here is the command to set port params
-+    # poetool port set_port_params <PortNum> <PortModeCFG1> <PortModeCFG2> <PortOperMode> <AddPower> <Priority>
-+
-+    port_num = poe_config_dict[port_name][0]
-+    pri = get_priority_value(priority)
-+
-+    cmd = "sudo poetool port set_port_params %s %s %s %s %s %s" % (
-+        port_num, cfg1, cfg2, oper_mode, add_power, pri)
-+    # print(cmd)
-+    result, output_str = run_command(cmd)
-+    # click.echo("result: {}\n".format(result))
-+    return result, output_str
-+
-+
-+def run_preemptive_priority_cmd(state):
-+
-+    IGNORANCE_MASK = '0'
-+    if (state == 'enable'):
-+        value = 0
-+    else:
-+        value = 1
-+    cmd = "sudo poetool system set_idv_mask %s %s" % (IGNORANCE_MASK, value)
-+    # print(cmd)
-+    result, output_str = run_command(cmd)
-+    # click.echo("result: {}\n".format(result))
-+    return result, output_str
-+
-+
-+def run_power_redundant_cmd(state):
-+
-+    FILE_PATH = "/sys/bus/i2c/devices/0-0033/psu_budget_mode"
-+
-+    if not os.path.exists(FILE_PATH):
-+        click.echo("FILE_PATH is not exsiting")
-+        return None
-+    if (state == 'enable'):
-+        value = 0
-+    else:
-+        value = 1
-+    cmd = "sudo echo  %s >> %s" % (value, FILE_PATH)
-+    try:
-+        result = subprocess.check_output(
-+            cmd, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
-+        # print(result.strip())
-+        return result.strip()
-+    except subprocess.CalledProcessError as e:
-+        click.echo("Error running run_power_redundant_cmd command:", e)
-+        return None
-+
-+
-+def get_priority_value(priority):  # James
-+    priority_mapping = {
-+        "critical": "1",
-+        "high": "2",
-+        "low": "3",
-+        "0xff": "0xff"  # 0xff means don't change the setting
-+    }
-+    return priority_mapping.get(priority, None)
-+
-+
-+def run_lldpcli_config_port_command(interface, enabled):
-+    # lldpcli configure port Etherent40 dot3 power pse supported enabled powerpairs signal class class-4 type 2  source primary priority low requested 28000 allocated 15000
-+
-+    cmd = "lldpcli configure port %s dot3 power pse supported %s powerpairs signal class class-4" % (
-+        interface, enabled)
-+    # print(cmd)
-+    try:
-+        result = subprocess.check_output(
-+            cmd, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
-+        # print(result.strip())
-+        return result.strip()
-+    except subprocess.CalledProcessError as e:
-+        click.echo("Error running run_lldpcli_neighbor_command command:", e)
-+        return None
-+
-+
-+def run_preemptive_pri_conf_command(state):
-+    if (state == "enable"):
-+        cmd = "sudo touch /etc/sonic/poe_preemptive_priority_tmp"
-+    else:
-+        cmd = "rm -rf /etc/sonic/poe_preemptive_priority_tmp"
-+    # print(cmd)
-+    try:
-+        result = subprocess.check_output(
-+            cmd, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
-+        # print(result.strip())
-+        return result.strip()
-+    except subprocess.CalledProcessError as e:
-+        click.echo("Error running run_preemptive_pri_conf_command command:", e)
-+        return None
-+
-+
-+def run_redundant_conf_command(state):
-+    if (state == "enable"):
-+        cmd = "sudo touch /etc/sonic/poe_redundant_tmp"
-+    else:
-+        cmd = "rm -rf /etc/sonic/poe_redundant_tmp"
-+    # print(cmd)
-+    try:
-+        result = subprocess.check_output(
-+            cmd, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
-+        # print(result.strip())
-+        return result.strip()
-+    except subprocess.CalledProcessError as e:
-+        click.echo("Error running run_redundant_conf_command command:", e)
-+        return None
-+
-+
-+def parse_data(data):
-+    lines = data.strip().split('\n')
-+    parsed_data = {}
-+    for line in lines:
-+        parts = line.strip().split()
-+        if len(parts) >= 2:
-+            key = parts[0]
-+            value = " ".join(parts[1:])
-+            parsed_data[key] = value
-+    return parsed_data
-+
 +# This is our main entrypoint - the main 'poeutil' command
-+
-+
 +@click.group()
 +def cli():
 +    """poeutil - Command line utility for managing PoE devices"""
-+
-+    # if os.geteuid() != 0:
-+    #    click.echo("Root privileges are required for this operation")
-+    #    sys.exit(ERROR_PERMISSIONS)
 +
 +    # Load platform-specific Chassis class
 +    if not load_platform_chassis():
@@ -765,57 +478,21 @@ index 00000000..2b4ee226
 +    if not load_port_config():
 +        sys.exit(ERROR_PORT_CONFIG_LOAD)
 +
++    # Load port info
++    if not load_chassis_poe():
++        sys.exit(ERROR_NOT_IMPLEMENTED)
++
++
 +# 'save_conf' subcommand
-+
-+
 +@cli.command()
 +def save_conf():
 +    """ Save PoE Configure"""
-+
 +    # As the PoE configuration database is designed as part of port configuration
 +    # in cnfig_db.json, we just save the configuration in the PoE controller and
 +    # the PoE global configurationhere
 +
 +    # click.echo("Save PoE configuartion ... ", nl=False)
-+    result, output_str = run_save_setting_cmd()
-+    # print(result)
-+    # print(output_str)
-+    if (result == None):
-+        result, output_str = run_save_setting_cmd()
-+        # print("try again: ")
-+        # print(result)
-+
-+    # Save PoE global configuration
-+    # preemptive priority configuration
-+    tmp_file = "/etc/sonic/poe_preemptive_priority_tmp"
-+    cfg_file = "/etc/sonic/poe_preemptive_priority"
-+
-+    if os.path.exists(tmp_file):
-+        if not os.path.exists(cfg_file):
-+            with open(cfg_file, 'w') as new_file:
-+                new_file.write("poe_preemptive_priority")
-+    else:
-+        if os.path.exists(cfg_file):
-+            # Delete the the file if it exists
-+            os.remove(cfg_file)
-+
-+    # power redundant configuration
-+    tmp_file = "/etc/sonic/poe_redundant_tmp"
-+    cfg_file = "/etc/sonic/poe_redundant"
-+
-+    if os.path.exists(tmp_file):
-+        if not os.path.exists(cfg_file):
-+            with open(cfg_file, 'w') as new_file:
-+                new_file.write("poe_redundant")
-+    else:
-+        if os.path.exists(cfg_file):
-+            # Delete the the file if it exists
-+            os.remove(cfg_file)
-+
-+    # if result:
-+    #    click.echo("OK")
-+    # else:
-+    #    click.echo("Failed")
++    platform_chassis_poe.save_config()
 +
 +
 +@cli.command()
@@ -825,13 +502,13 @@ index 00000000..2b4ee226
 +
 +    click.echo("{} PoE preemptive priority  ... ".format(
 +        "Enabling" if state == 'enable' else "Disabling"), nl=False)
-+    result, output_str = run_preemptive_priority_cmd(state)
-+    if (result == None):
-+        result, output_str = run_preemptive_priority_cmd(state)
-+        # print("try again: ")
-+        # print(result)
++
++    result = platform_chassis_poe.set_preemptive_priority(state)
++
 +    if result:
-+        run_preemptive_pri_conf_command(state)
++        config_db = ConfigDBConnector()
++        config_db.connect()
++        config_db.mod_entry("POE", 'Global', {'preemptive_priority': state})
 +        click.echo("OK")
 +    else:
 +        click.echo("Failed")
@@ -843,16 +520,14 @@ index 00000000..2b4ee226
 +    """Configure the PoE power redundant"""
 +
 +    click.echo("{} PoE power redundance  ... ".format(
-+        "Enabling" if state == 'enable' else "Disabling", nl=False))
-+    result = run_power_redundant_cmd(state)
++        "Enabling" if state == 'enable' else "Disabling"), nl=False)
 +
-+    if (result == None):
-+        result = run_power_redundant_cmd(state)
-+        # print("try again: ")
-+        # print(result)
++    result = platform_chassis_poe.set_power_redundant(state)
 +
-+    if (result != None):
-+        run_redundant_conf_command(state)
++    if result:
++        config_db = ConfigDBConnector()
++        config_db.connect()
++        config_db.mod_entry("POE", 'Global', {'power_redundant': state})
 +        click.echo("OK")
 +    else:
 +        click.echo("Failed")
@@ -877,7 +552,11 @@ index 00000000..2b4ee226
 +            "Error: No physical ports found for logical port '{}'".format(port_name))
 +        return
 +
-+    if not is_port_type_poe(port_name):
++    config_db = ConfigDBConnector()
++    config_db.connect()
++    poe_port = config_db.get_entry('POE', port_name)
++
++    if not is_port_type_poe(poe_port['class']):
 +        click.echo(
 +            "LLDP MDI-TLV is not applicable for none-PoE port {}.".format(port_name))
 +        sys.exit(EXIT_FAIL)
@@ -889,17 +568,8 @@ index 00000000..2b4ee226
 +        click.echo("{} LLDP MDI-TLV for port {} ... ".format("Enabling" if state == 'enable' else "Disabling",
 +                                                             get_physical_port_name(port_name, i, ganged)), nl=False)
 +
-+        # Update lldpd dot3 status
-+        if (state == 'enable'):
-+            enabled = 'enabled'
-+        else:
-+            enabled = ''
-+        run_lldpcli_config_port_command(port_name, enabled)
-+
 +        # Save to DB
-+        configdb = ConfigDBConnector()
-+        configdb.connect()
-+        configdb.mod_entry("PORT", port_name, {'poe_tlv': state})
++        config_db.mod_entry("POE", port_name, {'lldp': state})
 +        click.echo("OK")
 +
 +        i += 1
@@ -925,7 +595,11 @@ index 00000000..2b4ee226
 +            "Error: No physical ports found for logical port '{}'".format(port_name))
 +        return
 +
-+    if not is_port_type_poe(port_name):
++    config_db = ConfigDBConnector()
++    config_db.connect()
++    poe_port = config_db.get_entry('POE', port_name)
++
++    if not is_port_type_poe(poe_port['class']):
 +        click.echo(
 +            "PoE priority is not applicable for none-PoE port {}.".format(port_name))
 +        sys.exit(EXIT_FAIL)
@@ -937,30 +611,17 @@ index 00000000..2b4ee226
 +        click.echo("Set port priority for port {} ... ".format(
 +            get_physical_port_name(port_name, i, ganged)), nl=False)
 +
-+        cfg1 = 0x0f
-+        cfg2 = 0xff
-+        oper_mode = 0xff
-+        add_power = 0xff
++        poe_port = config_db.get_entry('POE', port_name)
 +
-+        result, output_str = run_port_params_cmd(
-+            port_name, priority, cfg1, cfg2, oper_mode, add_power)
-+        if (result == None):
-+            result, output_str = run_port_params_cmd(
-+                port_name, priority, cfg1, cfg2, oper_mode, add_power)
-+            # print("try again: ")
-+            # print(result)
++        result = platform_chassis_poe.set_port_priority(int(poe_port['lanes']), priority)
 +
 +        if result:
-+            configdb = ConfigDBConnector()
-+            configdb.connect()
-+            configdb.mod_entry("PORT", port_name, {'poe_pri': priority})
++            config_db.mod_entry("POE", port_name, {'priority': priority})
 +            click.echo("OK")
 +        else:
 +            click.echo("Failed")
 +
 +        i += 1
-+
-+    return result, output_str
 +
 +
 +@ cli.command()
@@ -983,7 +644,11 @@ index 00000000..2b4ee226
 +            "Error: No physical ports found for logical port '{}'".format(port_name))
 +        return
 +
-+    if not is_port_type_poe(port_name):
++    config_db = ConfigDBConnector()
++    config_db.connect()
++    poe_port = config_db.get_entry('POE', port_name)
++
++    if not is_port_type_poe(poe_port['class']):
 +        click.echo(
 +            "power-inline is not applicable for none-PoE port {}.".format(port_name))
 +        sys.exit(EXIT_FAIL)
@@ -991,106 +656,22 @@ index 00000000..2b4ee226
 +    if len(physical_port_list) > 1:
 +        ganged = True
 +
-+    pure_power_mode = "enable" if (power_mode == "enableDynamic" or
-+                                   power_mode == "enableStatic" or
-+                                   power_mode == "enable") else "disable"
-+
-+    pure_power_calculation = "static" if (power_mode == "enableStatic" or
-+                                          power_mode == "disableStatic") else "disable"
-+
 +    for physical_port in physical_port_list:
 +        click.echo("Set port mode and max power for port {} ... ".format(
 +            get_physical_port_name(port_name, i, ganged)), nl=False)
 +
-+        priority = "0xff"  # not change this valule
-+        if pure_power_calculation == "static":
-+            cfg2 = 1
-+        else:
-+            cfg2 = 0
++        poe_port = config_db.get_entry('POE', port_name)
++        result = platform_chassis_poe.set_port_power(int(poe_port['lanes']), poe_port['class'], power_mode, float(max_power)/10)
 +
-+        if (poe_config_dict[port_name][1] == "AT"):
-+            oper_mode = "9"
-+        else:
-+            oper_mode = "0"
-+        add_power = 0
-+
-+        # click.echo("max_power: {}".format(max_power))
-+
-+        if (pure_power_mode == "enable" and max_power != 0):
-+            cfg1 = 1
-+            oper_mode = 0x31  # According to 3.3.12 Set BT Port Reserve Power Request
-+        elif (pure_power_mode == "enable"):
-+            cfg1 = 1
-+        elif (pure_power_mode == "disable"):
-+            cfg1 = 0
-+        else:
-+            click.echo("power_mode: {} is not supprted".format(power_mode))
-+
-+        result, output_str = run_port_params_cmd(
-+            port_name, priority, cfg1, cfg2, oper_mode, add_power)
-+        if (result == None):
-+            result, output_str = run_port_params_cmd(
-+                port_name, priority, cfg1, cfg2, oper_mode, add_power)
-+            # print("try again: ")
-+            # print(result)
-+
-+        if result == None:
-+            click.echo("Failed")
-+
-+        if (pure_power_mode == "enable" and max_power != 0):
-+            reserve_power = max_power
-+            pse_type = 1
-+            result, output_str = run_port_reserve_power_cmd(
-+                port_name, reserve_power, pse_type)
-+            if (result == None):
-+                result, output_str = run_port_reserve_power_cmd(
-+                    port_name, reserve_power, pse_type)
-+                # print("try again: ")
-+                # print(result)
-+
-+        if result == None:
-+            click.echo("Failed")
-+        else:
-+            configdb = ConfigDBConnector()
-+            configdb.connect()
-+            configdb.mod_entry("PORT", port_name, {'poe_status': power_mode})
-+            configdb.mod_entry("PORT", port_name, {
-+                               'poe_maxpower': float(max_power/10)})
++        if result:
++            config_db.mod_entry("POE", port_name, {'power_mode': power_mode})
++            config_db.mod_entry("POE", port_name, {
++                               'maxpower': float(max_power/10)})
 +            click.echo("OK")
++        else:
++            click.echo("Failed")
 +
 +        i += 1
-+
-+    return result, output_str
-+
-+def parse_poe_status(poe_status):
-+    """Parse and return the PoE status."""
-+    DELIVERING_START = 0x80
-+    DELIVERING_END = 0x89
-+    POE_OPEN = 0xA8
-+    PORT_OFF = 0x1A
-+    PORT_UNDERLOAD = 0x1E
-+    PORT_OVERLOAD = 0x1F
-+    PORT_EXCEED_BUDGET = 0x20
-+    PORT_EXCEED_LIMIT = 0x3C
-+
-+    if (int(poe_status) >= DELIVERING_START and int(poe_status) <= DELIVERING_END):
-+        poe_status = "delivering"
-+    elif (int(poe_status) == POE_OPEN):
-+        poe_status = "open"
-+    elif (int(poe_status) == PORT_OFF):
-+        poe_status = "off"
-+    elif (int(poe_status) == PORT_UNDERLOAD):
-+        poe_status = "underload"
-+    elif (int(poe_status) == PORT_OVERLOAD):
-+        poe_status = "overload"
-+    elif (int(poe_status) == PORT_EXCEED_BUDGET):
-+        poe_status = "> power budget"
-+    elif (int(poe_status) == PORT_EXCEED_LIMIT):
-+        poe_status = "> power limit"
-+    else:
-+        poe_status = "State {}".format(hex(int(poe_status)))
-+
-+    return poe_status
 +
 +# 'show' subgroup
 +@ cli.group()
@@ -1108,46 +689,31 @@ index 00000000..2b4ee226
 +
 +    config_db = ConfigDBConnector()
 +    config_db.connect()
-+    port_dict = config_db.get_table('PORT')
++    poe_dict = config_db.get_table('POE')
 +
 +    table = []
 +    header = ["Interface", "Mode", "Max-power(W)",
 +              "Priority", "State", "Used(W)"]
 +    # print(port_dict)
-+    i = 0
-+    for key in poe_config_dict:
++
++    for key in sorted(poe_dict, key=natural_keys):
++        if key == 'Global': #Global setting
++            continue  # Skips
 +        #
-+        if port_dict[key]["poe_pri"] == "NA":
++        if poe_dict[key]["priority"] == "NA":
 +            continue  # Skips the non-poe ports
 +
 +        if port is not None and key != port:
 +            continue  # Skips the non-selected ports
 +
-+        max_power = port_dict[key]["poe_maxpower"]
-+        if int(float(max_power)) == 0:  # James!!!
++        max_power = poe_dict[key]["maxpower"]
++        if float(max_power) == 0.0:
 +            max_power = "auto"
 +
-+        result, output_str = run_port_status_cmd(key)
-+        if (result == None):
-+            result, output_str = run_port_status_cmd(key)
-+            # print("try again: ")
-+            # print(result)
++        ps_info = platform_chassis_poe.get_port_status(int(poe_dict[key]['lanes']))
 +
-+        keyword = "portStatus"
-+        poe_status = parse_keyword(keyword, output_str)
-+        poe_status = parse_poe_status(poe_status)
-+
-+        keyword = "assignedClassPrimary"
-+        poe_class = parse_keyword(keyword, output_str)
-+        CLASS_NOT_ASSIGNED = 0xC
-+        if (int(poe_class) == CLASS_NOT_ASSIGNED):
-+            poe_class = "NA"
-+
-+        keyword = "measuredPortPower"
-+        poe_measure_power = float(parse_keyword(keyword, output_str))/10
-+
-+        table.append((key, port_dict[key]["poe_status"], max_power,
-+                     port_dict[key]["poe_pri"], poe_status, poe_measure_power))
++        table.append((key, poe_dict[key]["power_mode"], max_power,
++                     poe_dict[key]["priority"], ps_info['portstatus'], ps_info['measuredPortPower']))
 +
 +    print(tabulate(table, header, tablefmt='simple', stralign='left'))
 +
@@ -1159,45 +725,26 @@ index 00000000..2b4ee226
 +
 +    config_db = ConfigDBConnector()
 +    config_db.connect()
-+    port_dict = config_db.get_table('PORT')
++    poe_dict = config_db.get_table('POE')
 +
 +    table = []
 +    header = ["Interface", "State",
 +              "Class(Pri)", "Class(Sec)", "Used(W)"]
-+    i = 0
-+    for key in poe_config_dict:
++
++    for key in sorted(poe_dict, key=natural_keys):
++        if key == 'Global': #Global setting
++            continue  # Skips
 +        #
-+        if port_dict[key]["poe_pri"] == "NA":
++        if poe_dict[key]["priority"] == "NA":
 +            continue  # Skips the non-poe ports
 +
 +        if port is not None and key != port:
 +            continue  # Skips the non-selected ports
 +
-+        result, output_str = run_port_status_cmd(key)
-+        if (result == None):
-+            result, output_str = run_port_status_cmd(key)
-+            # print("try again: ")
-+            # print(result)
++        ps_info = platform_chassis_poe.get_port_status(int(poe_dict[key]['lanes']))
 +
-+        parsed_data = parse_data(output_str)
-+
-+        poe_status = parsed_data.get('portStatus')
-+        poe_class_p = parsed_data.get('assignedClassPrimary')
-+        poe_class_s = parsed_data.get('assignedClassSecondary')
-+        poe_measure_power = parsed_data.get('measuredPortPower')
-+        poe_measure_power = float(poe_measure_power)/10  # James!!!
-+
-+        # poe class
-+        if poe_class_p == '12':
-+            poe_class_p = '-'
-+        if poe_class_s == '12':
-+            poe_class_s = '-'
-+
-+        # poe status
-+        poe_status = parse_poe_status(poe_status)
-+
-+        table.append((key, poe_status, poe_class_p,
-+                     poe_class_s, poe_measure_power))
++        table.append((key, ps_info['assignedClassPrimary'], ps_info['assignedClassSecondary'],
++                     ps_info['portstatus'], ps_info['measuredPortPower']))
 +
 +    print(tabulate(table, header, tablefmt='simple', stralign='left'))
 +
@@ -1209,47 +756,22 @@ index 00000000..2b4ee226
 +
 +    config_db = ConfigDBConnector()
 +    config_db.connect()
-+    port_dict = config_db.get_table('PORT')
++    poe_dict = config_db.get_table('POE')
 +
 +    table = []
 +    header = ["Interface", "Method"]
-+    i = 0
-+    for key in poe_config_dict:
-+        if port_dict[key]["poe_pri"] == "NA":
++
++    for key in sorted(poe_dict, key=natural_keys):
++        if key == 'Global': #Global setting
++            continue  # Skips
++        if poe_dict[key]["priority"] == "NA":
 +            continue  # Skips the non-poe ports
 +
 +        if port is not None and key != port:
 +            continue  # Skips the non-selected ports
 +
-+        result, output_str = run_port_lldp_pse_data_cmd(key)
-+        if (result == None):
-+            result, output_str = run_port_lldp_pse_data_cmd(key)
-+            # print("try again: ")
-+            # print(result)
-+
-+        parsed_data = parse_data(output_str)
-+        poe_l2_usage = parsed_data.get('layer2Usage')
-+
-+        if (poe_l2_usage == "0"):
-+            poe_l2_usage = "Port is not deliver power"
-+        elif (poe_l2_usage == "1"):
-+            poe_l2_usage = "Port deliver power, using Layer1 (Assigned Class)"
-+        elif (poe_l2_usage == "2"):
-+            poe_l2_usage = "Port deliver power, Using Layer1 Autoclass"
-+        elif (poe_l2_usage == "3"):
-+            poe_l2_usage = "Port deliver power, using LLDP"
-+        elif (poe_l2_usage == "4"):
-+            poe_l2_usage = "Port deliver power, using LLDP Autoclass"
-+        elif (poe_l2_usage == "5"):
-+            poe_l2_usage = "Port deliver power, using CDP over 2P"
-+        elif (poe_l2_usage == "6"):
-+            poe_l2_usage = "Port deliver power, using CDP over 4P"
-+        elif (poe_l2_usage == "7"):
-+            poe_l2_usage = "Port is not deliver power and at reserve mode"
-+        elif (poe_l2_usage == "8"):
-+            poe_l2_usage = "Port deliver power, using reserve mode power"
-+
-+        table.append((key, poe_l2_usage))
++        lldp_pse_info = platform_chassis_poe.get_port_lldp_pse_data(int(poe_dict[key]['lanes']))
++        table.append((key, lldp_pse_info['layer2Usage']))
 +
 +    print(tabulate(table, header, tablefmt='simple', stralign='left'))
 +
@@ -1261,25 +783,27 @@ index 00000000..2b4ee226
 +
 +    config_db = ConfigDBConnector()
 +    config_db.connect()
-+    port_dict = config_db.get_table('PORT')
++    poe_dict = config_db.get_table('POE')
 +
 +    table = []
 +    header = ["Interface", "Mode", "Max-power(W)",
 +              "Priority", "MDI-TLV"]
-+    i = 0
-+    for key in poe_config_dict:
-+        if port_dict[key]["poe_pri"] == "NA":
++
++    for key in sorted(poe_dict, key=natural_keys):
++        if key == 'Global': #Global setting
++            continue  # Skips
++        if poe_dict[key]["priority"] == "NA":
 +            continue  # Skips the non-poe ports
 +
 +        if port is not None and key != port:
 +            continue  # Skips the non-selected ports
 +
-+        max_power = port_dict[key]["poe_maxpower"]
-+        if int(float(max_power)) == 0:  # James!!!
++        max_power = poe_dict[key]["maxpower"]
++        if float(max_power) == 0.0:
 +            max_power = "auto"
 +
-+        table.append((key, port_dict[key]["poe_status"], max_power,
-+                     port_dict[key]["poe_pri"], port_dict[key]["poe_tlv"]))
++        table.append((key, poe_dict[key]["power_mode"], max_power,
++                     poe_dict[key]["priority"], poe_dict[key]["lldp"]))
 +
 +    print(tabulate(table, header, tablefmt='simple', stralign='left'))
 +
@@ -1289,64 +813,35 @@ index 00000000..2b4ee226
 +def system_power():
 +    """Display system-power status of PoE"""
 +
-+    result, output_str = run_get_total_power_cmd()
-+    # print(result)
-+    # print(output_str)
-+    if (result == None):
-+        result, output_str = run_get_total_power_cmd()
-+        # print("try again: ")
-+        # print(result)
++    total_power_info_dict = platform_chassis_poe.get_total_power()
 +
 +    header = ['name', 'power(W)']
 +    table = []
 +
-+    keyword = "powerConsumption"
-+    powerConsumption = parse_keyword(keyword, output_str)
-+    # print("Power Consumption: {}".format(powerConsumption))
 +    display_word = "Power Consumption"
-+    table.append((display_word, powerConsumption))
++    table.append((display_word, total_power_info_dict['powerconsumption']))
 +
-+    keyword = "calcPower"
-+    calcPower = parse_keyword(keyword, output_str)
-+    # print("Calculated Power: {}".format(calcPower))
 +    display_word = "Calculated Power"
-+    table.append((display_word, calcPower))
++    table.append((display_word, total_power_info_dict['calcpower']))
 +
-+    keyword = "availablePower"
-+    availablePower = parse_keyword(keyword, output_str)
-+    # print("Available Power: {}".format(availablePower))
 +    display_word = "Available Power"
-+    table.append((display_word, availablePower))
++    table.append((display_word, total_power_info_dict['availablepower']))
 +
-+    keyword = "powerLim"
-+    powerLim = parse_keyword(keyword, output_str)
-+    # print("Power Limit: {}".format(powerLim))
 +    display_word = "Power Limit"
-+    table.append((display_word, powerLim))
++    table.append((display_word, total_power_info_dict['powerlimit']))
 +
-+    keyword = "powerBank"
-+    powerBank = parse_keyword(keyword, output_str)
-+    # print("Power Bank: {}".format(hex(int(powerBank))))
 +    display_word = "Power Bank"
-+    table.append((display_word, hex(int(powerBank))))
++    table.append((display_word, hex(int(total_power_info_dict['powerbank']))))
 +
-+    keyword = "preemptivePriority"
-+    tmp_file = "/etc/sonic/poe_preemptive_priority_tmp"
-+    if os.path.exists(tmp_file):
-+        value = "enable"
-+    else:
-+        value = "disable"
-+    # print("Power Bank: {}".format(hex(int(powerBank))))
++    config_db = ConfigDBConnector()
++    config_db.connect()
++
++    poe_global = config_db.get_entry('POE', 'Global')
++    value = poe_global['preemptive_priority']
 +    display_word = "Preemptive Priority"
 +    table.append((display_word, value))
 +
-+    keyword = "powerRedundant"
-+    tmp_file = "/etc/sonic/poe_redundant_tmp"
-+    if os.path.exists(tmp_file):
-+        value = "enable"
-+    else:
-+        value = "disable"
-+    # print("Power Bank: {}".format(hex(int(powerBank))))
++    value = poe_global['power_redundant']
 +    display_word = "Power Redundance"
 +    table.append((display_word, value))
 +
@@ -1356,7 +851,7 @@ index 00000000..2b4ee226
 +if __name__ == '__main__':
 +    cli()
 diff --git a/src/sonic-utilities/setup.py b/src/sonic-utilities/setup.py
-index bbdc9298..e56b2d0a 100644
+index 1c4f0ae1..a1e77d85 100644
 --- a/src/sonic-utilities/setup.py
 +++ b/src/sonic-utilities/setup.py
 @@ -62,6 +62,7 @@ setup(
@@ -1367,7 +862,7 @@ index bbdc9298..e56b2d0a 100644
      ],
      package_data={
          'generic_config_updater': ['generic_config_updater.conf.json'],
-@@ -189,6 +190,7 @@ setup(
+@@ -191,6 +192,7 @@ setup(
              'undebug = undebug.main:cli',
              'watchdogutil = watchdogutil.main:watchdogutil',
              'sonic-cli-gen = sonic_cli_gen.main:cli',
@@ -1376,13 +871,21 @@ index bbdc9298..e56b2d0a 100644
      },
      install_requires=[
 diff --git a/src/sonic-utilities/show/interfaces/__init__.py b/src/sonic-utilities/show/interfaces/__init__.py
-index a7a56244..0107e62a 100644
+index a7a56244..99baf98f 100644
 --- a/src/sonic-utilities/show/interfaces/__init__.py
 +++ b/src/sonic-utilities/show/interfaces/__init__.py
-@@ -412,6 +412,94 @@ def mpls(ctx, interfacename, namespace, display):
- 
+@@ -17,6 +17,7 @@ from . import portchannel
+ from collections import OrderedDict
+
+ HWSKU_JSON = 'hwsku.json'
++poe_support = None
+
+ # Read given JSON file
+ def readJsonFile(fileName):
+@@ -412,6 +413,107 @@ def mpls(ctx, interfacename, namespace, display):
+
  interfaces.add_command(portchannel.portchannel)
- 
+
 +
 +#
 +# poe group (show interfaces trasceiver ...)
@@ -1390,6 +893,11 @@ index a7a56244..0107e62a 100644
 +@interfaces.group(cls=clicommon.AliasedGroup)
 +def poe():
 +    """Show PoE port information"""
++    global poe_support
++    import sonic_platform
++    platform_chassis_poe = sonic_platform.platform.Platform().get_chassis().get_poe()
++    if not poe_support:
++        poe_support = True if platform_chassis_poe else False
 +    pass
 +
 +@poe.command()
@@ -1400,6 +908,8 @@ index a7a56244..0107e62a 100644
 +def power_inline(interfacename, namespace, verbose):
 +    """Show interface PoE information"""
 +
++    if not poe_support:
++        raise click.UsageError("poe not supported in this platform!")
 +    ctx = click.get_current_context()
 +
 +    cmd = "poeutil show power-inline"
@@ -1419,6 +929,8 @@ index a7a56244..0107e62a 100644
 +def power_conf(interfacename, namespace, verbose):
 +    """Show interface PoE information"""
 +
++    if not poe_support:
++        raise click.UsageError("poe not supported in this platform!")
 +    ctx = click.get_current_context()
 +
 +    cmd = "poeutil show power-conf"
@@ -1439,6 +951,8 @@ index a7a56244..0107e62a 100644
 +def power_status(interfacename, namespace, verbose):
 +    """Show interface PoE information"""
 +
++    if not poe_support:
++        raise click.UsageError("poe not supported in this platform!")
 +    ctx = click.get_current_context()
 +
 +    cmd = "poeutil show power-status"
@@ -1459,6 +973,8 @@ index a7a56244..0107e62a 100644
 +def power_method(interfacename, namespace, verbose):
 +    """Show interface PoE information"""
 +
++    if not poe_support:
++        raise click.UsageError("poe not supported in this platform!")
 +    ctx = click.get_current_context()
 +
 +    cmd = "poeutil show power-method"
@@ -1477,13 +993,13 @@ index a7a56244..0107e62a 100644
 diff --git a/src/sonic-utilities/show/main.py b/src/sonic-utilities/show/main.py
 old mode 100755
 new mode 100644
-index adbbad12..4e4a55e2
+index adbbad12..60856cc3
 --- a/src/sonic-utilities/show/main.py
 +++ b/src/sonic-utilities/show/main.py
-@@ -392,6 +392,20 @@ def arp(ipaddress, iface, verbose):
- 
+@@ -392,6 +392,26 @@ def arp(ipaddress, iface, verbose):
+
      run_command(cmd, display_cmd=verbose)
- 
+
 +
 +#
 +# 'poe-power' command ("show poe-power")
@@ -1493,6 +1009,12 @@ index adbbad12..4e4a55e2
 +@click.option('--verbose', is_flag=True, help="Enable verbose output")
 +def poe_power(verbose):
 +    """Show PoE status"""
++    import sonic_platform
++    platform_chassis_poe = sonic_platform.platform.Platform().get_chassis().get_poe()
++    poe_support = True if platform_chassis_poe else False
++
++    if not poe_support:
++        raise click.UsageError("poe not supported in this platform!")
 +    cmd = "poeutil show system-power"
 +
 +    run_command(cmd, display_cmd=verbose)

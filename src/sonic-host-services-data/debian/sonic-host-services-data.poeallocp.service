@@ -1,0 +1,11 @@
+[Unit]
+Description=PoE lldp allocate power handler service
+Requires=rc-local.service database.service
+After=updategraph.service database.service
+
+[Service]
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/poeallocp
+
+[Install]
+WantedBy=multi-user.target

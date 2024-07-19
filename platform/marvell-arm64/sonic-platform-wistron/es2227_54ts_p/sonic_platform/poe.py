@@ -230,10 +230,15 @@ class PoeImplBase(PoeBase):
         ================================================================================
         keys                        Value Format    Information
         --------------------------- --------------- ----------------------------
-        layer2Usage                 1*255VCHAR       lldp status code of this port
+        lldpstatus                 |1*255VCHAR     | 'OK' if ok otherwise 'NotOK'
+        layer2Usage                |1*255VCHAR     | pse status code of this port
+        alloc_power                |1*255VCHAR     | allocated power (unit: milliwalt)
         """
-        lldp_pse_key = {'layer2Usage'}
-        lldp_pse_info_dict = dict.fromkeys(lldp_pse_key, "NA")
+        lldp_pse_info_dict = {
+            'status' : 'NotOK',
+            'layer2Usage' : 'NA',
+            'alloc_power': '0'
+        }
 
         cmd = "sudo %s port get_lldp_pse_data %s" % (self.tool_path, port_num)
         result, output_str = self.run_command(cmd)
@@ -245,6 +250,12 @@ class PoeImplBase(PoeBase):
             poe_l2_usage = parsed_data.get('layer2Usage')
 
             lldp_pse_info_dict['layer2Usage'] = self.lldp_pse_status_code[poe_l2_usage]
+            if poe_l2_usage == '3' or poe_l2_usage == '4':
+                lldp_pse_info_dict['lldpstatus'] = 'OK'
+
+            poe_alloc_p = parsed_data.get('pseAllocatedPwrSingleOrAltA')
+            lldp_pse_info_dict['alloc_power'] = str(int(poe_alloc_p) * 100)
+
 
         return lldp_pse_info_dict
 

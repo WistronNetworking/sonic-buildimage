@@ -23,8 +23,6 @@ try:
     from sonic_py_common import daemon_base
     from swsscommon import swsscommon
     from sonic_py_common.interface import inband_prefix, recirc_prefix
-    from sonic_py_common import device_info
-
 except ImportError as err:
     raise ImportError("%s - required module not found" % str(err))
 
@@ -45,7 +43,7 @@ class LldpManager(daemon_base.DaemonBase):
         state_db: Handle to Redis State database via swsscommon lib
         config_db: Handle to Redis Config database via swsscommon lib
         pending_cmds: Dictionary where key is port name, value is pending
-                      LLDP configuration command to run 
+                      LLDP configuration command to run
                       and the last timestamp that this command was failed (used for retry mechanism)
     """
     REDIS_TIMEOUT_MS = 0
@@ -67,7 +65,7 @@ class LldpManager(daemon_base.DaemonBase):
         self.state_db = swsscommon.DBConnector("STATE_DB",
                                               self.REDIS_TIMEOUT_MS,
                                               False)
-        
+
         self.pending_cmds = {}
         self.hostname = "None"
         self.mgmt_ip = "None"
@@ -142,16 +140,16 @@ class LldpManager(daemon_base.DaemonBase):
         # asic-to-asic communication in VOQ based chassis system. We do not configure LLDP on these.
         if port_name.startswith(inband_prefix()) or port_name.startswith(recirc_prefix()):
             return
- 
+
         # Get the port alias. If None or empty string, use port name instead
         port_alias = port_table_dict.get("alias")
         if not port_alias:
             self.log_info("Unable to retrieve port alias for port '{}'. Using port name instead.".format(port_name))
             port_alias = port_name
-        
+
         # Get the port description. If None or empty string, we'll skip this configuration
         port_desc = port_table_dict.get("description")
-        
+
         lldpcli_cmd = ["lldpcli", "configure", "ports", port_name, "lldp", "portidsubtype", "local", port_alias]
 
         # if there is a description available, also configure that
@@ -159,6 +157,33 @@ class LldpManager(daemon_base.DaemonBase):
             lldpcli_cmd += ["description", port_desc]
         else:
             self.log_info("Unable to retrieve description for port '{}'. Not adding port description".format(port_name))
+
+        # Add the command to our dictionary of pending commands, overwriting any
+        # previous pending command for this port
+        self.pending_cmds[port_name] = { 'cmd': lldpcli_cmd, 'failed_count': 0}
+
+    def generate_pending_lldp_poe_cmd_for_port(self, port_name, poe_table_dict):
+        """
+        For port `port_name`, look up the description and alias in the Config database,
+        then form the appropriate lldpcli configuration command and run it.
+        """
+        if not self.is_port_up(port_name):
+            return
+        lldp_en = None
+
+        # Skip recirc and inband interface prefixes. These are recycle ports exposed in PORT_TABLE for
+        # asic-to-asic communication in VOQ based chassis system. We do not configure LLDP on these.
+        if port_name.startswith(inband_prefix()) or port_name.startswith(recirc_prefix()):
+            return
+
+        # Get the port description. If None or empty string, we'll skip this configuration
+        lldp_en = poe_table_dict.get("lldp")
+
+        if lldp_en == 'enable':
+            lldpcli_cmd = ["lldpcli", "configure", "ports", port_name, "dot3", "power", "pse", "supported", "enabled", "powerpairs", "signal", "class", "class-4"]
+        else:
+            lldpcli_cmd = ["lldpcli", "configure", "ports", port_name, "dot3", "power", "pse", "supported", "powerpairs", "signal", "class", "class-4"]
+
 
         # Add the command to our dictionary of pending commands, overwriting any
         # previous pending command for this port
@@ -175,7 +200,7 @@ class LldpManager(daemon_base.DaemonBase):
             if not self.is_port_up(port_name):
                 self.log_info("port %s is not up, continue"%port_name)
                 continue
-                
+
             if 'failed_timestamp' in port_item and time.time()-port_item['failed_timestamp']<FAILED_CMD_TIMEOUT:
                 continue
 
@@ -197,7 +222,7 @@ class LldpManager(daemon_base.DaemonBase):
                     self.pending_cmds[port_name]['failed_count'] += 1
                     self.pending_cmds[port_name]['failed_timestamp'] = time.time()
                     self.log_info("Command failed '{}': {} - cmd failed {} times, retrying again".format(cmd, stderr, self.pending_cmds[port_name]['failed_count']))
-                    
+
         # Delete all successful commands from self.pending_cmds
         for port_name in to_delete:
             self.pending_cmds.pop(port_name, None)
@@ -269,6 +294,12 @@ class LldpManager(daemon_base.DaemonBase):
         elif key == "PortConfigDone":
             self.port_config_done = True
 
+    def lldp_process_poe_table_event(self, key, op, fvp):
+        if key != "Global":
+            if op == "SET":
+                if fvp:
+                    self.generate_pending_lldp_poe_cmd_for_port(key, dict(fvp))
+
     def run(self):
         """
         Subscribes to notifications of changes in the PORT table
@@ -306,6 +337,10 @@ class LldpManager(daemon_base.DaemonBase):
         sst_device_confdb = swsscommon.SubscriberStateTable(self.config_db, swsscommon.CFG_DEVICE_METADATA_TABLE_NAME)
         sel.addSelectable(sst_device_confdb)
 
+        # Subscribe to POE table notifications in the Config DB
+        sst_poe_confdb = swsscommon.SubscriberStateTable(self.config_db, "POE")
+        sel.addSelectable(sst_poe_confdb)
+
         # Listen for changes to the PORT table in the CONFIG_DB and APP_DB
         while True:
             (state, selectableObj) = sel.select(SELECT_TIMEOUT_MS)
@@ -320,6 +355,9 @@ class LldpManager(daemon_base.DaemonBase):
                 elif selectableObj.getFd() == sst_appdb.getFd():
                     (key, op, fvp) = sst_appdb.pop()
                     self.lldp_process_port_table_event(key, op, fvp)
+                elif selectableObj.getFd() == sst_poe_confdb.getFd():
+                    (key, op, fvp) = sst_poe_confdb.pop()
+                    self.lldp_process_poe_table_event(key, op, fvp)
                 else:
                     self.log_error("Got unexpected selectable object")
 
@@ -359,8 +397,7 @@ def run_cmd(self, cmd):
 
 def check_timeout(self, start_time):
     if time.time() - start_time > PORT_INIT_TIMEOUT:
-        if device_info.is_frontend_port_present_in_host():
-            self.log_error("Port init timeout reached ({} seconds), resuming lldpd...".format(PORT_INIT_TIMEOUT))
+        self.log_error("Port init timeout reached ({} seconds), resuming lldpd...".format(PORT_INIT_TIMEOUT))
         return True
     return False
 
