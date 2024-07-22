@@ -743,8 +743,8 @@ index 00000000..0c673151
 +
 +        ps_info = platform_chassis_poe.get_port_status(int(poe_dict[key]['lanes']))
 +
-+        table.append((key, ps_info['assignedClassPrimary'], ps_info['assignedClassSecondary'],
-+                     ps_info['portstatus'], ps_info['measuredPortPower']))
++        table.append((key, ps_info['portstatus'], ps_info['assignedClassPrimary'],
++                     ps_info['assignedClassSecondary'], ps_info['measuredPortPower']))
 +
 +    print(tabulate(table, header, tablefmt='simple', stralign='left'))
 +
