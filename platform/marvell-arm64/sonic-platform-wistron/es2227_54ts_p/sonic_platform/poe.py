@@ -8,6 +8,7 @@ import subprocess
 
 from sonic_platform_base.poe_base import PoeBase
 from sonic_py_common import logger
+from sonic_py_common import device_info
 
 sonic_logger = logger.Logger()
 
@@ -30,7 +31,7 @@ class PoeImplBase(PoeBase):
     }
     def __init__(self):
 
-        self.tool_path = "/usr/local/bin/poetool"
+        self.tool_path = "%s/poetool" % (device_info.get_path_to_platform_dir())
 
     def get_priority_value(self, priority):
         priority_mapping = {
@@ -139,7 +140,7 @@ class PoeImplBase(PoeBase):
         power_key = {'powerconsumption', 'calcpower', 'availablepower', 'powerlimit', 'powerbank'}
         total_power_info_dict = dict.fromkeys(power_key, "NA")
 
-        cmd = "sudo {} mgmt get_total_power".format(self.tool_path)
+        cmd = "{} mgmt get_total_power".format(self.tool_path)
 
         result, output_str = self.run_command(cmd)
         if result == None:
@@ -166,7 +167,7 @@ class PoeImplBase(PoeBase):
         Returns:
             A boolean, True if configuration saved successfully, False if not
         """
-        cmd = "sudo {} system save_setting".format(self.tool_path)
+        cmd = "{} system save_setting".format(self.tool_path)
         result, output_str = self.run_command(cmd)
 
         return False if result == None else True
@@ -191,7 +192,7 @@ class PoeImplBase(PoeBase):
         ps_key = {'portstatus', 'assignedClassPrimary', 'assignedClassSecondary', 'measuredPortPower'}
         port_status_info_dict = dict.fromkeys(ps_key, "NA")
 
-        cmd = "sudo %s port get_port_status %s" % (self.tool_path, port_num)
+        cmd = "%s port get_port_status %s" % (self.tool_path, port_num)
         result, output_str = self.run_command(cmd)
         if result == None:
             result, output_str = self.run_command(cmd)
@@ -235,12 +236,12 @@ class PoeImplBase(PoeBase):
         alloc_power                |1*255VCHAR     | allocated power (unit: milliwalt)
         """
         lldp_pse_info_dict = {
-            'status' : 'NotOK',
+            'lldpstatus' : 'NotOK',
             'layer2Usage' : 'NA',
             'alloc_power': '0'
         }
 
-        cmd = "sudo %s port get_lldp_pse_data %s" % (self.tool_path, port_num)
+        cmd = "%s port get_lldp_pse_data %s" % (self.tool_path, port_num)
         result, output_str = self.run_command(cmd)
         if result == None:
             result, output_str = self.run_command(cmd)
@@ -269,7 +270,7 @@ class PoeImplBase(PoeBase):
         Returns:
             A boolean, True if configuration saved successfully, False if not
         """
-        cmd = "sudo %s port set_port_reserve_power %s %s 1" % (self.tool_path, port_num, int(power*10))
+        cmd = "%s port set_port_reserve_power %s %s 1" % (self.tool_path, port_num, int(power*10))
         result, output_str = self.run_command(cmd)
 
         return False if result == None else True
@@ -299,7 +300,7 @@ class PoeImplBase(PoeBase):
         if (pure_power_mode == "enable" and power != 0):
             oper_mode = 0x31  # According to 3.3.12 Set BT Port Reserve Power Request
 
-        cmd = "sudo %s port set_port_params %s %s %s %s 0 0xff" % (self.tool_path, port_num, cfg1, cfg2, oper_mode)
+        cmd = "%s port set_port_params %s %s %s %s 0 0xff" % (self.tool_path, port_num, cfg1, cfg2, oper_mode)
         result, output_str = self.run_command(cmd)
 
         if (pure_power_mode == "enable" and power != 0 and result != None):
@@ -319,7 +320,7 @@ class PoeImplBase(PoeBase):
             A boolean, True if configuration saved successfully, False if not
         """
         pri = self.get_priority_value(priority)
-        cmd = "sudo %s port set_port_params %s 0xf 0xff 0xff 0xff %s" % (self.tool_path, port_num, pri)
+        cmd = "%s port set_port_params %s 0xf 0xff 0xff 0xff %s" % (self.tool_path, port_num, pri)
         result, output_str = self.run_command(cmd)
 
         return False if result == None else True
@@ -335,7 +336,7 @@ class PoeImplBase(PoeBase):
         """
         IGNORANCE_MASK = '0'
         value = 0 if state == 'enable' else 1
-        cmd = "sudo %s system set_idv_mask %s %s" % (self.tool_path, IGNORANCE_MASK, value)
+        cmd = "%s system set_idv_mask %s %s" % (self.tool_path, IGNORANCE_MASK, value)
         result, output_str = self.run_command(cmd)
 
         return False if result == None else True
@@ -356,7 +357,7 @@ class PoeImplBase(PoeBase):
             print("FILE_PATH is not exsiting")
             return False
         value = 0 if state == 'enable' else  1
-        cmd = "sudo echo  %s >> %s" % (value, FILE_PATH)
+        cmd = "echo  %s >> %s" % (value, FILE_PATH)
         try:
             result = subprocess.check_output(
                 cmd, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
@@ -378,7 +379,7 @@ class PoeImplBase(PoeBase):
             A boolean, True if configuration saved successfully, False if not
         """
         power = int(req_power/100) #microchip power unit is 0.1W
-        cmd = "sudo %s port set_lldp_pd_req %s %s 0 0 0 0 0xff" % (self.tool_path, port_num, power)
+        cmd = "%s port set_lldp_pd_req %s %s 0 0 0 0 0xff" % (self.tool_path, port_num, power)
         result, output_str = self.run_command(cmd)
 
         return False if result == None else True
@@ -390,7 +391,7 @@ class PoeImplBase(PoeBase):
         Returns:
             A boolean, True if run chip reset successfully, False if not
         """
-        cmd = "sudo {} system reset".format(self.tool_path)
+        cmd = "{} system reset".format(self.tool_path)
         result, output_str = self.run_command(cmd)
 
         return False if result == None else True

@@ -1,0 +1,10 @@
+DPATH       := $($(DOCKER_POE)_PATH)
+DEP_FILES   := $(SONIC_COMMON_FILES_LIST) rules/docker-poe.mk rules/docker-poe.dep
+DEP_FILES   += $(SONIC_COMMON_BASE_FILES_LIST)
+DEP_FILES   += $(shell git ls-files $(DPATH))
+
+$(DOCKER_POE)_CACHE_MODE  := GIT_CONTENT_SHA
+$(DOCKER_POE)_DEP_FLAGS   := $(SONIC_COMMON_FLAGS_LIST)
+$(DOCKER_POE)_DEP_FILES   := $(DEP_FILES)
+
+$(eval $(call add_dbg_docker,$(DOCKER_POE),$(DOCKER_POE_DBG)))

@@ -20,14 +20,15 @@ try:
     import subprocess
     import os
     import time
+    from sonic_py_common import device_info
 except ImportError as e:
     raise ImportError('%s - required module not found' % str(e))
 
 # Deafults
 VERSION = '1.0'
 NUM_POE_PORT = 48
-POE_PORT_FAILED_STATUS_CMD = "poetool port get_port_status {0}"
-POE_ALL_PORT_POWER_STATUS_CMD = "poetool port get_all_ports_power_state"
+POE_PORT_FAILED_STATUS_CMD = "{0}/poetool port get_port_status {1}"
+POE_ALL_PORT_POWER_STATUS_CMD = "{0}/poetool port get_all_ports_power_state"
 POE_PORT_STATUS_GROUP = [1,2,3,4,5,6]
 POE_LED_BLINKING = 2
 POE_LED_ENABLE = 1
@@ -46,7 +47,7 @@ class poe_led_monitor(object):
             LED_STATE[port] = POE_LED_DISABLE
 
     def update_port_led(self):
-        poestatus = subprocess.getoutput(POE_ALL_PORT_POWER_STATUS_CMD)
+        poestatus = subprocess.getoutput(POE_ALL_PORT_POWER_STATUS_CMD.format(device_info.get_path_to_platform_dir()))
         power_status = []
 
         for i in POE_PORT_STATUS_GROUP:
@@ -64,7 +65,7 @@ class poe_led_monitor(object):
 
     def chk_port_fault(self, start_port, num_port):
         for port in range(start_port, start_port + num_port):
-            poefailedstatus = subprocess.getoutput(POE_PORT_FAILED_STATUS_CMD.format(port))
+            poefailedstatus = subprocess.getoutput(POE_PORT_FAILED_STATUS_CMD.format(device_info.get_path_to_platform_dir(), port))
             failed_code = poefailedstatus.split("\n\n")[1].split("  ")[1]
             if int(failed_code) in POE_PORT_FAILED_STATUS_CODE:
                 if LED_STATE[port] != POE_LED_BLINKING:
@@ -97,7 +98,7 @@ def main():
             port_cnt = 0
 
         #workaround for poe temperature
-        os.system("poetool device get_dev_status 0 | grep temperature | awk '{printf $2}' > /tmp/poe_temp; docker cp /tmp/poe_temp pmon:/")
+        os.system("%s/poetool device get_dev_status 0 | grep temperature | awk '{printf $2}' > /tmp/poe_temp; docker cp /tmp/poe_temp pmon:/" % (device_info.get_path_to_platform_dir()))
 
 if __name__ == '__main__':
     main()

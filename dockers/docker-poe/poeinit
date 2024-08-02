@@ -1,0 +1,87 @@
+#!/usr/bin/env python
+
+import os
+import subprocess
+import json
+import time
+from sonic_py_common.daemon_base import DaemonBase
+from sonic_py_common import device_info
+from swsscommon.swsscommon import ConfigDBConnector
+from sonic_py_common import logger
+import sonic_platform
+
+SYSLOG_IDENTIFIER = "poeinit"
+log = logger.Logger(SYSLOG_IDENTIFIER)
+
+
+def poe_cfg():
+    # PoE port configuration# Wait for the file to be ready
+    CONFIG_POE_DB_FILE = '%s/poe_default_cfg.json' % (device_info.get_path_to_hwsku_dir())
+    if not os.path.isfile(CONFIG_POE_DB_FILE):
+        return
+
+    config_db = ConfigDBConnector()
+    config_db.connect()
+    poe_table = config_db.get_table('POE')
+
+    poe_in_config_db = True if len(poe_table.keys()) else False
+
+    # Check if poe cfg not in the config_db
+    if poe_in_config_db == False:
+        # If poe cfg not in the config_db yet
+        # 1. Use the default poe cfg json file
+        # 2. Add the default poe cfg to redis DB
+
+        # Use the default poe cfg json file
+        with open(CONFIG_POE_DB_FILE) as json_file:
+            # Load the contents of the file
+            data = json.load(json_file)
+        poe_dict = data['POE']
+
+        # Add the default poe cfg to redis DB
+        config_db = ConfigDBConnector()
+        config_db.connect()
+        for key in poe_dict:
+            if key == 'Global':
+                poe_global_data = {
+                    'preemptive_priority': poe_dict[key]["preemptive_priority"],
+                    'power_redundant': poe_dict[key]["power_redundant"]
+                }
+                config_db.set_entry("POE", key, poe_global_data)
+            else:
+                poe_intf_data = {
+                    'lanes': poe_dict[key]["lanes"],
+                    'priority': poe_dict[key]["priority"],
+                    'power_mode': poe_dict[key]["power_mode"],
+                    'maxpower': poe_dict[key]["maxpower"],
+                    'class': poe_dict[key]["class"],
+                    'lldp': poe_dict[key]["lldp"]
+                }
+                config_db.set_entry("POE", key, poe_intf_data)
+    else:
+        poe_dict = config_db.get_table('POE')
+
+    pl = sonic_platform.platform.Platform()
+    cha = pl.get_chassis()
+    poe_api = cha.get_poe()
+
+    for key in poe_dict:
+        if key == 'Global': #Global setting
+            poe_api.set_preemptive_priority(poe_dict[key]["preemptive_priority"])
+            poe_api.set_power_redundant(poe_dict[key]["power_redundant"])
+            continue
+
+        if poe_dict[key]["priority"] == "NA":
+            continue  # Skips the non-poe ports
+
+        poe_api.set_port_priority(int(poe_dict[key]['lanes']), poe_dict[key]["priority"])
+        poe_api.set_port_power(int(poe_dict[key]['lanes']), poe_dict[key]['class'], poe_dict[key]["power_mode"], float(poe_dict[key]["maxpower"])/10)
+
+    # Save setting and rest to make poe priority work properly
+    time.sleep(1)
+    poe_api.save_config()
+    time.sleep(2)
+    poe_api.chip_reset()
+
+if __name__ == "__main__":
+    poe_cfg()
