@@ -10,7 +10,7 @@ DERIVED_TARGETS = libthrift-dev_$(THRIFT_VERSION_FULL)_$(CONFIGURED_ARCH).deb \
 		  python-thrift_$(THRIFT_VERSION_FULL)_$(CONFIGURED_ARCH).deb \
 		  thrift-compiler_$(THRIFT_VERSION_FULL)_$(CONFIGURED_ARCH).deb
 
-THRIFT_LINK_PRE = https://sonicstorage.blob.core.windows.net/public/debian
+THRIFT_LINK_PRE = https://raspbian.mirror.root.lu/pool/main/t/thrift
 
 $(addprefix $(DEST)/, $(MAIN_TARGET)): $(DEST)/% :
 	rm -rf thrift-$(THRIFT_VERSION)
