@@ -7,7 +7,7 @@ fw_uboot_env_cfg()
     PLATFORM=`sed -n 's/onie_platform=\(.*\)/\1/p' $MACH_FILE`
 }
 
-es2227_54ts_profile()
+es1227_54ts_p2rofile()
 {
     MAC_ADDR=$(fw_printenv -n ethaddr)
     find /usr/share/sonic/device/*es2227_54ts* -name profile.ini | xargs sed -i "s/switchMacAddress=.*/switchMacAddress=$MAC_ADDR/g"
@@ -26,7 +26,7 @@ update_modulelist()
 main()
 {
     fw_uboot_env_cfg
-    es2227_54ts_profile
+    es1227_54ts_p2rofile
     update_modulelist
 }
 

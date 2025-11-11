@@ -306,7 +306,7 @@ def poe_cfg():
         # 2. Add the default poe cfg to redis DB
 
         # Use the default poe cfg json file
-        CONFIG_POE_DB_FILE = '/usr/share/sonic/device/arm64-wistron_es2227_54ts_p-r0/wistron_es2227_54ts_p/poe_default_cfg.json'
+        CONFIG_POE_DB_FILE = '/usr/share/sonic/device/arm64-wistron_es1227_54ts_p2-r0/wistron_es1227_54ts_p2/poe_default_cfg.json'
         with open(CONFIG_POE_DB_FILE) as json_file:
             # Load the contents of the file
             data = json.load(json_file)

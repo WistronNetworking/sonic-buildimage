@@ -1,6 +1,6 @@
 {
     "chassis": {
-        "name": "wistron_es2227_54ts_p",
+        "name": "wistron_es1227_54ts_p2",
         "components": [
             {
                 "name": "U-Boot"
