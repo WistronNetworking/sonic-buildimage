@@ -1,0 +1,12 @@
+{
+    "chassis": {
+        "wistron_es1227_36ts_p": {
+            "component": {
+                "U-Boot": { },
+                "ONIE-VERSION": { },
+                "CPLD": { },
+                "PoE": { }
+            }
+        }
+    }
+}
