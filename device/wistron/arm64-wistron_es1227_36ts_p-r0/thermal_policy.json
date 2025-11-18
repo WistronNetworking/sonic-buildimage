@@ -1,0 +1,55 @@
+{
+    "thermal_control_algorithm": {
+        "run_at_boot_up": "false",
+        "interval": "60"
+    },
+    "info_types": [
+        {
+            "type": "thermal_info"
+        },
+        {
+            "type": "chassis_info"
+        }
+    ],
+    "policies": [
+	    {
+            "name": "temp over high critical threshold",
+            "conditions": [
+                {
+                    "type": "thermal.over.high_critical_threshold"
+                }
+            ],
+            "actions": [
+                {
+                    "type": "switch.shutdown"
+                }
+            ]
+        },
+        {
+            "name": "temp over high threshold",
+            "conditions": [
+                {
+                    "type": "thermal.over.high_threshold"
+                }
+            ],
+            "actions": [
+                {
+                    "type": "high_threshold.control"
+                }
+            ]
+        },
+        {
+            "name": "temp over threshold after cool down",
+            "conditions": [
+                {
+                    "type": "thermal.over.threshold_after_cool_down"
+                }
+            ],
+            "actions": [
+                {
+                    "type": "switch.shutdown"
+                }
+            ]
+        }
+    ]
+}

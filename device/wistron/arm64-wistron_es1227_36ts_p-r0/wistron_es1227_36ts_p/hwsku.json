@@ -1,0 +1,216 @@
+{
+    "interfaces": {
+        "Ethernet0": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet1": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet2": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet3": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet4": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet5": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet6": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet7": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet8": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet9": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet10": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet11": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet12": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet13": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet14": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet15": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet16": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet17": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet18": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet19": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet20": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet21": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet22": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet23": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet24": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet25": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet26": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet27": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet28": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet29": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet30": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet31": {
+            "default_brkout_mode": "1x1000[100,10]",
+            "fec" : "none",
+            "autoneg" : "on",
+            "port_type": "RJ45"
+        },
+        "Ethernet32": {
+            "default_brkout_mode": "1x10G[1000]",
+            "fec" : "none",
+            "autoneg" : "off"
+        },
+        "Ethernet33": {
+            "default_brkout_mode": "1x10G[1000]",
+            "fec" : "none",
+            "autoneg" : "off"
+        },
+        "Ethernet34": {
+            "default_brkout_mode": "1x10G[1000]",
+            "fec" : "none",
+            "autoneg" : "off"
+        },
+        "Ethernet35": {
+            "default_brkout_mode": "1x10G[1000]",
+            "fec" : "none",
+            "autoneg" : "off"
+        }
+    }
+}
