@@ -3,10 +3,10 @@
         "1-256": {
             "10000-copper-1.0M": {
                 "main": {
-                    "lane0": "0xfffe",
-                    "lane1": "0xfffe",
-                    "lane2": "0xfffe",
-                    "lane3": "0xfffe"
+                    "lane0": "0xfffffffe",
+                    "lane1": "0xfffffffe",
+                    "lane2": "0xfffffffe",
+                    "lane3": "0xfffffffe"
                 },
                 "post1": {
                     "lane0": "0x1",
@@ -35,10 +35,10 @@
             },
             "10000-copper-3.0M": {
                 "main": {
-                    "lane0": "0xfffe",
-                    "lane1": "0xfffe",
-                    "lane2": "0xfffe",
-                    "lane3": "0xfffe"
+                    "lane0": "0xfffffffe",
+                    "lane1": "0xfffffffe",
+                    "lane2": "0xfffffffe",
+                    "lane3": "0xfffffffe"
                 },
                 "post1": {
                     "lane0": "0x1",
@@ -65,7 +65,73 @@
                     "lane3": "0x0"
                 }
             }	    
-        }
+        },
+        "1-64": {
+            "40000-copper-1.0M": {
+                "main": {
+                    "lane0": "0xfffffffe",
+                    "lane1": "0xfffffffe",
+                    "lane2": "0xfffffffe",
+                    "lane3": "0xfffffffe"
+                },
+                "post1": {
+                    "lane0": "0x1",
+                    "lane1": "0x1",
+                    "lane2": "0x1",
+                    "lane3": "0x1"
+                },
+                "pre1": {
+                    "lane0": "0x0",
+                    "lane1": "0x0",
+                    "lane2": "0x0",
+                    "lane3": "0x0"
+                },
+                "pre2": {
+                    "lane0": "0x4",
+                    "lane1": "0x4",
+                    "lane2": "0x4",
+                    "lane3": "0x4"
+                },
+                "pre3": {
+                    "lane0": "0x0",
+                    "lane1": "0x0",
+                    "lane2": "0x0",
+                    "lane3": "0x0"
+                }
+            },
+            "40000-copper-3.0M": {
+                "main": {
+                    "lane0": "0xfffffffe",
+                    "lane1": "0xfffffffe",
+                    "lane2": "0xfffffffe",
+                    "lane3": "0xfffffffe"
+                },
+                "post1": {
+                    "lane0": "0x1",
+                    "lane1": "0x1",
+                    "lane2": "0x1",
+                    "lane3": "0x1"
+                },
+                "pre1": {
+                    "lane0": "0x0",
+                    "lane1": "0x0",
+                    "lane2": "0x0",
+                    "lane3": "0x0"
+                },
+                "pre2": {
+                    "lane0": "0x4",
+                    "lane1": "0x4",
+                    "lane2": "0x4",
+                    "lane3": "0x4"
+                },
+                "pre3": {
+                    "lane0": "0x0",
+                    "lane1": "0x0",
+                    "lane2": "0x0",
+                    "lane3": "0x0"
+                }
+            }
+        }	
     },
     "PORT_MEDIA_SETTINGS": {
         "1": {
