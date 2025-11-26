@@ -12,9 +12,19 @@ load_kernel_drivers() {
     # Carefully control the load order here to ensure consistent i2c bus numbering
     modprobe i2c_mv64xxx
     modprobe i2c_dev
-    insmod /usr/lib/modules/$(uname -r)/kernel/extra/wistron_cpld.ko
-    insmod /usr/lib/modules/$(uname -r)/kernel/extra/wistron_eeprom.ko
-    insmod /usr/lib/modules/$(uname -r)/kernel/extra/mvcpss.ko
+
+    if ! lsmod | grep -q wistron_cpld; then
+        insmod /usr/lib/modules/$(uname -r)/kernel/extra/wistron_cpld.ko
+    fi
+
+    if ! lsmod | grep -q wistron_eeprom; then
+        insmod /usr/lib/modules/$(uname -r)/kernel/extra/wistron_eeprom.ko
+    fi
+
+    if ! lsmod | grep -q mvcpss; then
+        insmod /usr/lib/modules/$(uname -r)/kernel/extra/mvcpss.ko
+    fi
+
     modprobe optoe
     modprobe jc42
 }
@@ -54,17 +64,6 @@ for i in {4..7};
 do
     echo optoe2 0x50 > /sys/bus/i2c/devices/i2c-$i/new_device
 done
-    #local j
-
-    #for j in {472..495};
-    #do
-    #    echo $j > /sys/class/gpio/export
-    #done
-
-    #local k
-    #for k in $(seq 473 4 493); do
-    #    echo out > /sys/class/gpio/gpio$k/direction
-    #done
 
 # Set temperature monitoring thresholds
 #for i in {0..2};

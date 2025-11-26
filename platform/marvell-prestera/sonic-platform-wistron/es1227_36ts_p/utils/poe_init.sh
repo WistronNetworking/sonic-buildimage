@@ -42,10 +42,10 @@ echo 1 > /sys/bus/i2c/devices/0-0033/poe_en_ctrl
 # PSUx2 = {power bank 0x10}
 # For PSU1(250W AC adapter)
 #poe_main 0x09 1 250 585 480
-poetool mgmt set_power_banks 1  250 585 480 0xa
+poetool mgmt set_power_banks 1  150 585 480 0xa
 # For PSU2(400W AC adapter)
 #poe_main 0x09 2 400 585 480
-poetool mgmt set_power_banks 2 400 585 480 0xa
+poetool mgmt set_power_banks 2 300 585 480 0xa
 
 # Program global matrix
 #poe_main 0x13

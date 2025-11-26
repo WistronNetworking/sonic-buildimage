@@ -8,6 +8,7 @@
 #############################################################################
 
 import os
+import subprocess
 
 try:
     from sonic_platform.sfp import Sfp
@@ -24,17 +25,17 @@ class Thermal(ThermalBase):
 
         # Sensor names
         self.THERMAL_NAME_LIST = [
-            "XFMR Ambient",
-            "DDR Ambient",
-            "System Ambient",
-            "CPU Temp",
-            "Dimm Temp",
-            "PoE Temp",
-            "MAC Temp",
-            "XCVR 1 Temp",
-            "XCVR 2 Temp",
-            "XCVR 3 Temp",
-            "XCVR 4 Temp"
+            "XFMR Ambient",    #0
+            "DDR Ambient",     #1
+            "System Ambient",  #2
+            "CPU Temp",        #3
+            "Dimm Temp",       #4
+            "MAC Temp",        #5
+            "PoE Temp",        #6
+            "XCVR 1 Temp",     #7
+            "XCVR 2 Temp",     #8
+            "XCVR 3 Temp",     #9
+            "XCVR 4 Temp"      #10
         ]
 
         # SYSFS paths for sensors
@@ -43,8 +44,9 @@ class Thermal(ThermalBase):
             "/sys/bus/i2c/devices/2-0049/hwmon/",  # System Ambient
             "/sys/bus/i2c/devices/2-004b/hwmon/",  # SDR/DIMM Ambient
             "/sys/devices/virtual/thermal/thermal_zone1/",  # CPU Temp
-            "/sys/bus/i2c/devices/0-001b/hwmon/"  # DDR DIMM TEMP
+            "/sys/bus/i2c/devices/0-001b/hwmon/"  # DDR DIMM Temp
         ]
+        self.POE_TEMP_FILE = "/tmp/poe_temp"
 
         if thermal_index >= 7:
             self.sfp_module = Sfp(33 + (thermal_index - 7), 'SFP')
@@ -62,10 +64,36 @@ class Thermal(ThermalBase):
             return ""
 
     def __get_temp(self, temp_file):
-        """Fetch temperature dynamically from specified file."""
-        if self.index < len(self.SYSFS_THERMAL_DIR):
+        """Fetch the temperature dynamically."""
+        print(f'self.index [{self.index}]')
+        if self.index == 6:  # Index for PoE Temp - Use external command
+            try:
+                # Uncomment required implementation based on requirement:
+
+                # Option 1: Using /tmp/poe_temp file
+                raw_temp = self.__read_txt_file(self.POE_TEMP_FILE)
+                print(f'[1] raw_temp [{raw_temp}]')
+                if raw_temp and raw_temp.isdigit():
+                    return float(raw_temp)
+
+                # Option 2: Using external command (poetool)
+                command = "poetool device get_dev_status 0 | grep temperature | awk '{printf $2}'"
+                raw_temp = subprocess.check_output(command, shell=True, text=True).strip()
+                print(f'[2] raw_temp [{raw_temp}]')
+                if raw_temp.isdigit():
+                    return float(raw_temp)
+
+            except subprocess.CalledProcessError as e:
+                print(f"Failed to read PoE temperature: {str(e)}")
+            except Exception as e:
+                print(f"Unexpected error while reading PoE temperature: {str(e)}")
+            return None
+
+        # General handling for other sensors
+        elif self.index < len(self.SYSFS_THERMAL_DIR):
             temp_dir = self.SYSFS_THERMAL_DIR[self.index]
-            hwmon_dir = next((d for d in os.listdir(temp_dir) if d.startswith("hwmon")), '')
+            hwmon_dir = next(
+                (d for d in os.listdir(temp_dir) if d.startswith("hwmon")), '')
             temp_file_path = os.path.join(temp_dir, hwmon_dir, temp_file)
 
             raw_temp = self.__read_txt_file(temp_file_path)
@@ -75,6 +103,9 @@ class Thermal(ThermalBase):
 
     def get_temperature(self):
         """Retrieve the temperature corresponding to the current index."""
+        if self.index == 6:  # PoE Temp
+            return self.__get_temp(None)
+
         if self.index < len(self.SYSFS_THERMAL_DIR):
             temp_file = "temp1_input" if self.index != 3 else "temp"  # CPU temp uses "temp"
             return self.__get_temp(temp_file)
@@ -89,7 +120,7 @@ class Thermal(ThermalBase):
             3:  90.0,  # CPU Temp
             4:  85.0,  # DDR Temp
             5: 110.0,  # MAC Temp
-            6: 100.0   # PoE Temp
+            6: 100.0,  # PoE Temp
         }
         return thresholds.get(self.index, 68.0)  # Default = 68.0
 
@@ -101,8 +132,8 @@ class Thermal(ThermalBase):
             2: 80.0,  # System Ambient
             3: 95.0,  # CPU Temp
             4: 88.0,  # Dimm Temp
-            5: 120.0,  # PoE Temp
-            6: 108.0   # MAC Temp
+            5: 120.0,  # MAC Temp
+            6: 108.0,  # PoE Temp
         }
         return thresholds_critical.get(self.index, 75.0)
 
@@ -138,10 +169,14 @@ class Thermal(ThermalBase):
 
     def get_presence(self):
         """Check if the sensor is present."""
+        if self.index == 6:  # PoE Temp
+            return os.path.isfile(self.POE_TEMP_FILE)
+
         if self.index < len(self.SYSFS_THERMAL_DIR):
             temp_file = "temp1_input" if self.index != 3 else "temp"
             temp_dir = self.SYSFS_THERMAL_DIR[self.index]
-            hwmon_dir = next((d for d in os.listdir(temp_dir) if d.startswith("hwmon")), '')
+            hwmon_dir = next(
+                (d for d in os.listdir(temp_dir) if d.startswith("hwmon")), '')
             temp_file_path = os.path.join(temp_dir, hwmon_dir, temp_file)
             return os.path.isfile(temp_file_path)
         return False
