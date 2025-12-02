@@ -1,143 +1,47 @@
 {
     "GLOBAL_MEDIA_SETTINGS": {
         "1-256": {
-            "10000-copper-1.0M": {
-                "main": {
-                    "lane0": "0xfffffffe",
-                    "lane1": "0xfffffffe",
-                    "lane2": "0xfffffffe",
-                    "lane3": "0xfffffffe"
-                },
-                "post1": {
-                    "lane0": "0x1",
-                    "lane1": "0x1",
-                    "lane2": "0x1",
-                    "lane3": "0x1"
-                },
-                "pre1": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0"
-                },
-                "pre2": {
-                    "lane0": "0x4",
-                    "lane1": "0x4",
-                    "lane2": "0x4",
-                    "lane3": "0x4"
-                },
-                "pre3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0"
-                }
-            },
-            "10000-copper-3.0M": {
-                "main": {
-                    "lane0": "0xfffffffe",
-                    "lane1": "0xfffffffe",
-                    "lane2": "0xfffffffe",
-                    "lane3": "0xfffffffe"
-                },
-                "post1": {
-                    "lane0": "0x1",
-                    "lane1": "0x1",
-                    "lane2": "0x1",
-                    "lane3": "0x1"
-                },
-                "pre1": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0"
-                },
-                "pre2": {
-                    "lane0": "0x4",
-                    "lane1": "0x4",
-                    "lane2": "0x4",
-                    "lane3": "0x4"
-                },
-                "pre3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0"
-                }
-            }	    
-        },
-        "1-64": {
-            "40000-copper-1.0M": {
-                "main": {
-                    "lane0": "0xfffffffe",
-                    "lane1": "0xfffffffe",
-                    "lane2": "0xfffffffe",
-                    "lane3": "0xfffffffe"
-                },
-                "post1": {
-                    "lane0": "0x1",
-                    "lane1": "0x1",
-                    "lane2": "0x1",
-                    "lane3": "0x1"
-                },
-                "pre1": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0"
-                },
-                "pre2": {
-                    "lane0": "0x4",
-                    "lane1": "0x4",
-                    "lane2": "0x4",
-                    "lane3": "0x4"
-                },
-                "pre3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0"
-                }
-            },
-            "40000-copper-3.0M": {
-                "main": {
-                    "lane0": "0xfffffffe",
-                    "lane1": "0xfffffffe",
-                    "lane2": "0xfffffffe",
-                    "lane3": "0xfffffffe"
-                },
-                "post1": {
-                    "lane0": "0x1",
-                    "lane1": "0x1",
-                    "lane2": "0x1",
-                    "lane3": "0x1"
-                },
-                "pre1": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0"
-                },
-                "pre2": {
-                    "lane0": "0x4",
-                    "lane1": "0x4",
-                    "lane2": "0x4",
-                    "lane3": "0x4"
-                },
-                "pre3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0"
+            "QSFP28":{
+                "speed:40G|10G": {
+                    "attn": {
+                        "lane0": "0x0",
+                        "lane1": "0x0",
+                        "lane2": "0x0",
+                        "lane3": "0x0"
+                    },
+                    "post1": {
+                        "lane0": "0x1",
+                        "lane1": "0x1",
+                        "lane2": "0x1",
+                        "lane3": "0x1"
+                    },
+                    "pre1": {
+                        "lane0": "0x0",
+                        "lane1": "0x0",
+                        "lane2": "0x0",
+                        "lane3": "0x0"
+                    },
+                    "pre2": {
+                        "lane0": "0x4",
+                        "lane1": "0x4",
+                        "lane2": "0x4",
+                        "lane3": "0x4"
+                    },
+                    "pre3": {
+                        "lane0": "0x0",
+                        "lane1": "0x0",
+                        "lane2": "0x0",
+                        "lane3": "0x0"
+                    }
                 }
             }
-        }	
+        }
     },
     "PORT_MEDIA_SETTINGS": {
         "1": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -156,26 +60,6 @@
                     "lane5": "0xa",
  		    "lane6": "0x8",
                     "lane7": "0x6"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -213,7 +97,7 @@
         "2": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -232,26 +116,6 @@
                     "lane5": "0x8",
                     "lane6": "0x4",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -289,7 +153,7 @@
         "3": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -308,26 +172,6 @@
                     "lane5": "0x6",
                     "lane6": "0x4",
                     "lane7": "0x6"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x2",
@@ -365,7 +209,7 @@
         "4": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -384,26 +228,6 @@
                     "lane5": "0x4",
                     "lane6": "0x4",
                     "lane7": "0x6"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -441,7 +265,7 @@
         "5": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -460,26 +284,6 @@
                     "lane5": "0x4",
                     "lane6": "0x4",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -517,7 +321,7 @@
         "6": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -536,26 +340,6 @@
                     "lane5": "0x4",
                     "lane6": "0x4",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -593,7 +377,7 @@
         "7": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -612,26 +396,6 @@
                     "lane5": "0x6",
                     "lane6": "0x4",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -669,7 +433,7 @@
         "8": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -688,26 +452,6 @@
                     "lane5": "0x4",
                     "lane6": "0x4",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -745,7 +489,7 @@
         "9": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -764,26 +508,6 @@
                     "lane5": "0xa",
                     "lane6": "0x6",
                     "lane7": "0x8"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -821,7 +545,7 @@
         "10": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -840,26 +564,6 @@
                     "lane5": "0x4",
                     "lane6": "0x8",
                     "lane7": "0x6"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -897,7 +601,7 @@
         "11": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -916,26 +620,6 @@
                     "lane5": "0x8",
                     "lane6": "0x8",
                     "lane7": "0x6"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -973,7 +657,7 @@
         "12": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -992,26 +676,6 @@
                     "lane5": "0x8",
                     "lane6": "0x4",
                     "lane7": "0x6"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -1049,7 +713,7 @@
         "13": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -1068,26 +732,6 @@
                     "lane5": "0x6",
                     "lane6": "0x4",
                     "lane7": "0x6"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -1125,7 +769,7 @@
         "14": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -1144,26 +788,6 @@
                     "lane5": "0x4",
                     "lane6": "0x6",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -1201,7 +825,7 @@
         "15": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -1220,26 +844,6 @@
                     "lane5": "0x4",
                     "lane6": "0x4",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -1277,7 +881,7 @@
         "16": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -1296,26 +900,6 @@
                     "lane5": "0x4",
                     "lane6": "0x4",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -1353,7 +937,7 @@
         "17": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -1372,26 +956,6 @@
                     "lane5": "0x4",
                     "lane6": "0x4",
                     "lane7": "0x6"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -1429,7 +993,7 @@
         "18": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -1448,26 +1012,6 @@
                     "lane5": "0x8",
                     "lane6": "0x4",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -1505,7 +1049,7 @@
         "19": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -1524,26 +1068,6 @@
                     "lane5": "0x4",
                     "lane6": "0x4",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -1581,7 +1105,7 @@
         "20": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -1600,26 +1124,6 @@
                     "lane5": "0x4",
                     "lane6": "0x4",
                     "lane7": "0x6"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -1657,7 +1161,7 @@
         "21": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -1676,26 +1180,6 @@
                     "lane5": "0x8",
                     "lane6": "0x8",
                     "lane7": "0x8"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -1733,7 +1217,7 @@
         "22": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -1752,26 +1236,6 @@
                     "lane5": "0x8",
                     "lane6": "0x4",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -1809,7 +1273,7 @@
         "23": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -1828,26 +1292,6 @@
                     "lane5": "0x8",
                     "lane6": "0x8",
                     "lane7": "0x8"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -1885,7 +1329,7 @@
         "24": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -1904,26 +1348,6 @@
                     "lane5": "0x8",
                     "lane6": "0x8",
                     "lane7": "0x8"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x6",
@@ -1961,7 +1385,7 @@
         "25": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -1980,26 +1404,6 @@
                     "lane5": "0x4",
                     "lane6": "0x6",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -2037,7 +1441,7 @@
         "26": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -2056,26 +1460,6 @@
                     "lane5": "0x6",
                     "lane6": "0x4",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -2113,7 +1497,7 @@
         "27": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -2132,26 +1516,6 @@
                     "lane5": "0x4",
                     "lane6": "0x4",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -2189,7 +1553,7 @@
         "28": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -2208,26 +1572,6 @@
                     "lane5": "0x6",
                     "lane6": "0x4",
                     "lane7": "0x6"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -2265,7 +1609,7 @@
         "29": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -2284,26 +1628,6 @@
                     "lane5": "0x6",
                     "lane6": "0x4",
                     "lane7": "0x6"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -2341,7 +1665,7 @@
         "30": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -2360,26 +1684,6 @@
                     "lane5": "0x6",
                     "lane6": "0x4",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -2417,7 +1721,7 @@
         "31": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -2436,26 +1740,6 @@
                     "lane5": "0x6",
                     "lane6": "0x8",
                     "lane7": "0x4"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x4",
@@ -2493,7 +1777,7 @@
         "32": {
             "QSFP-DD-sm_media_interface": {
               "speed:400GAUI-8|200GAUI-4|100GAUI-2": {
-                "main": {
+                "attn": {
                     "lane0": "0x0",
                     "lane1": "0x0",
                     "lane2": "0x0",
@@ -2512,26 +1796,6 @@
                     "lane5": "0x6",
                     "lane6": "0x6",
                     "lane7": "0x6"
-                },
-                "post2": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
-                },
-                "post3": {
-                    "lane0": "0x0",
-                    "lane1": "0x0",
-                    "lane2": "0x0",
-                    "lane3": "0x0",
-                    "lane4": "0x0",
-                    "lane5": "0x0",
-                    "lane6": "0x0",
-                    "lane7": "0x0"
                 },
                 "pre1": {
                     "lane0": "0x6",
