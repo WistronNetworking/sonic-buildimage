@@ -45,18 +45,18 @@ poe_config_dict = {
     "Ethernet21": ["21", "AT"],
     "Ethernet22": ["22", "AT"],
     "Ethernet23": ["23", "AT"],
-    "Ethernet24": ["24", "AT"],
-    "Ethernet25": ["25", "AT"],
-    "Ethernet26": ["26", "AT"],
-    "Ethernet27": ["27", "AT"],
-    "Ethernet28": ["28", "AT"],
-    "Ethernet29": ["29", "AT"],
-    "Ethernet30": ["30", "AT"],
-    "Ethernet31": ["31", "AT"],
+    "Ethernet24": ["24", "NA"],
+    "Ethernet25": ["25", "NA"],
+    "Ethernet26": ["26", "NA"],
+    "Ethernet27": ["27", "NA"],
+    "Ethernet28": ["28", "NA"],
+    "Ethernet29": ["29", "NA"],
+    "Ethernet30": ["30", "NA"],
+    "Ethernet31": ["31", "NA"],
     "Ethernet32": ["32", "NA"],
     "Ethernet33": ["33", "NA"],
     "Ethernet34": ["34", "NA"],
-    "Ethernet35": ["35", "NA"],
+    "Ethernet35": ["35", "NA"]
 }
 
 
@@ -245,16 +245,16 @@ def poe_cfg():
             # Delete the the file if it exists
             os.remove(tmp_file)
 
-    FILE_PATH = "/sys/bus/i2c/devices/0-0033/psu_budget_mode"
-    if not os.path.exists(FILE_PATH):
-        log.log_error("FILE_PATH is not exsiting " + FILE_PATH)
+    #FILE_PATH = "/sys/bus/i2c/devices/0-0033/psu_budget_mode"
+    #if not os.path.exists(FILE_PATH):
+    #    log.log_error("FILE_PATH is not exsiting " + FILE_PATH)
 
-    cmd = "sudo echo  %s >> %s" % (value, FILE_PATH)
-    try:
-        result = subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT, universal_newlines=True)
+    #cmd = "sudo echo  %s >> %s" % (value, FILE_PATH)
+    #try:
+    #    result = subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT, universal_newlines=True)
         # print(result.strip())
-    except subprocess.CalledProcessError as e:
-        log.log_error("Error running run_power_redundant_cmd command:" + e)
+    #except subprocess.CalledProcessError as e:
+    #    log.log_error("Error running run_power_redundant_cmd command:" + e)
 
     # PoE port configuration# Wait for the file to be ready
     CONFIG_DB_FILE = '/etc/sonic/config_db.json'
@@ -288,7 +288,7 @@ def poe_cfg():
         # 2. Add the default poe cfg to redis DB
 
         # Use the default poe cfg json file
-        CONFIG_POE_DB_FILE = '/usr/share/sonic/device/arm64-wistron_es2227_54ts_p-r0/wistron_es2227_54ts_p/poe_default_cfg.json'
+        CONFIG_POE_DB_FILE = '/usr/share/sonic/device/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/poe_default_cfg.json'
         with open(CONFIG_POE_DB_FILE) as json_file:
             # Load the contents of the file
             data = json.load(json_file)

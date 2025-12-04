@@ -1,4 +1,4 @@
-rm#!/usr/bin/env python
+#!/usr/bin/env python
 #
 # Copyright (C) 2023 Wistron Corporation
 #
