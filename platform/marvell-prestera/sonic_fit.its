@@ -117,7 +117,7 @@
                 algo = "sha1";
             };
         };
-	kernel_es1227 {
+        kernel_es1227 {
             description = "Linux Kernel";
             data = /incbin/("/boot/vmlinuz-6.1.0-29-2-arm64");
             type = "kernel";
@@ -191,7 +191,7 @@
                 algo = "sha1";
             };
         };
-	conf_es1227 {
+        conf_es1227 {
             description = "Boot Linux kernel with FDT blob + ramdisk for Wistron ES1227-54TS";
             kernel = "kernel_es1227";
             fdt = "fdt_es1227";
