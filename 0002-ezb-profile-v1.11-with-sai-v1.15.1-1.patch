@@ -1,0 +1,302 @@
+diff --git a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-Board-ES1227-36TS-P-32x1G-4x10G.md5 b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-Board-ES1227-36TS-P-32x1G-4x10G.md5
+old mode 100755
+new mode 100644
+index d1d6a2478..e44440740
+--- a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-Board-ES1227-36TS-P-32x1G-4x10G.md5
++++ b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-Board-ES1227-36TS-P-32x1G-4x10G.md5
+@@ -1 +1 @@
+-4aad4b40569df547eec1cafd3162250b
+\ No newline at end of file
++ba2c595b011c22253e77fb1941489332
+\ No newline at end of file
+diff --git a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-Board-ES1227-36TS-P-32x1G-4x10G.xml b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-Board-ES1227-36TS-P-32x1G-4x10G.xml
+old mode 100755
+new mode 100644
+index 1a1475fdb..1bb63e14a
+--- a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-Board-ES1227-36TS-P-32x1G-4x10G.xml
++++ b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-Board-ES1227-36TS-P-32x1G-4x10G.xml
+@@ -1,5 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2024-10-24-1.10" profile="Askboard" sid="7093bb99-b026-4a69-990a-db984aab32e7">
++<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2025-05-15-1.11" profile="Askboard" sid="e4650fda-5634-40b1-9d26-860af3e20dcf">
+   <askboardplt:ASK-Board xmlns:askboardplt="urn:marvell:askboard:yang">
+     <askboardplt:typedefs>
+       <askboardplt:typedef>
+@@ -189,6 +189,18 @@ with IEEE 1588v2 PTP Support</askboardplt:description>
+ Efficient Ethernet Transceiver</askboardplt:description>
+           <askboardplt:value>7</askboardplt:value>
+         </askboardplt:enum>
++        <askboardplt:enum>
++          <askboardplt:name>alaska-88E2110</askboardplt:name>
++          <askboardplt:description>Specifies PHY identifier 88E2110, Integrated Octal 10/100/1000/2.5G/5GBASE-T
++Ethernet Transceiver</askboardplt:description>
++          <askboardplt:value>8</askboardplt:value>
++        </askboardplt:enum>
++        <askboardplt:enum>
++          <askboardplt:name>alaska-88E2180</askboardplt:name>
++          <askboardplt:description>Specifies PHY identifier 88E2180, Integrated Octal 10/100/1000/2.5G/5GBASE-T
++Ethernet Transceiver</askboardplt:description>
++          <askboardplt:value>9</askboardplt:value>
++        </askboardplt:enum>
+       </askboardplt:typedef>
+       <askboardplt:typedef>
+         <askboardplt:name>physical-port-num-type</askboardplt:name>
+@@ -1251,7 +1263,7 @@ Efficient Ethernet Transceiver</askboardplt:description>
+         </askboardplt:ledstream-port>
+       </askboardplt:portMap-list>
+       <askboardplt:portMap-list>
+-        <askboardplt:portNumber askboardplt:type="physical-port-num-type">32</askboardplt:portNumber>
++        <askboardplt:portNumber askboardplt:type="physical-port-num-type">48</askboardplt:portNumber>
+         <askboardplt:TXQueue>
+           <askboardplt:mappingType askboardplt:type="port-mapping-type">ethernet_mac</askboardplt:mappingType>
+           <askboardplt:interfaceNum askboardplt:type="interface-num-type">48</askboardplt:interfaceNum>
+@@ -1261,12 +1273,12 @@ Efficient Ethernet Transceiver</askboardplt:description>
+           <askboardplt:phyType askboardplt:type="phy-type">NA</askboardplt:phyType>
+         </askboardplt:phy>
+         <askboardplt:ledstream-port>
+-          <askboardplt:ledPosition askboardplt:type="led-position-type">0</askboardplt:ledPosition>
++          <askboardplt:ledPosition askboardplt:type="led-position-type">1</askboardplt:ledPosition>
+           <askboardplt:portForceDataSupported askboardplt:type="boolean-type">false</askboardplt:portForceDataSupported>
+         </askboardplt:ledstream-port>
+       </askboardplt:portMap-list>
+       <askboardplt:portMap-list>
+-        <askboardplt:portNumber askboardplt:type="physical-port-num-type">33</askboardplt:portNumber>
++        <askboardplt:portNumber askboardplt:type="physical-port-num-type">49</askboardplt:portNumber>
+         <askboardplt:TXQueue>
+           <askboardplt:mappingType askboardplt:type="port-mapping-type">ethernet_mac</askboardplt:mappingType>
+           <askboardplt:interfaceNum askboardplt:type="interface-num-type">49</askboardplt:interfaceNum>
+@@ -1276,12 +1288,12 @@ Efficient Ethernet Transceiver</askboardplt:description>
+           <askboardplt:phyType askboardplt:type="phy-type">NA</askboardplt:phyType>
+         </askboardplt:phy>
+         <askboardplt:ledstream-port>
+-          <askboardplt:ledPosition askboardplt:type="led-position-type">1</askboardplt:ledPosition>
++          <askboardplt:ledPosition askboardplt:type="led-position-type">0</askboardplt:ledPosition>
+           <askboardplt:portForceDataSupported askboardplt:type="boolean-type">false</askboardplt:portForceDataSupported>
+         </askboardplt:ledstream-port>
+       </askboardplt:portMap-list>
+       <askboardplt:portMap-list>
+-        <askboardplt:portNumber askboardplt:type="physical-port-num-type">34</askboardplt:portNumber>
++        <askboardplt:portNumber askboardplt:type="physical-port-num-type">50</askboardplt:portNumber>
+         <askboardplt:TXQueue>
+           <askboardplt:mappingType askboardplt:type="port-mapping-type">ethernet_mac</askboardplt:mappingType>
+           <askboardplt:interfaceNum askboardplt:type="interface-num-type">50</askboardplt:interfaceNum>
+@@ -1291,12 +1303,12 @@ Efficient Ethernet Transceiver</askboardplt:description>
+           <askboardplt:phyType askboardplt:type="phy-type">NA</askboardplt:phyType>
+         </askboardplt:phy>
+         <askboardplt:ledstream-port>
+-          <askboardplt:ledPosition askboardplt:type="led-position-type">0</askboardplt:ledPosition>
++          <askboardplt:ledPosition askboardplt:type="led-position-type">1</askboardplt:ledPosition>
+           <askboardplt:portForceDataSupported askboardplt:type="boolean-type">false</askboardplt:portForceDataSupported>
+         </askboardplt:ledstream-port>
+       </askboardplt:portMap-list>
+       <askboardplt:portMap-list>
+-        <askboardplt:portNumber askboardplt:type="physical-port-num-type">35</askboardplt:portNumber>
++        <askboardplt:portNumber askboardplt:type="physical-port-num-type">51</askboardplt:portNumber>
+         <askboardplt:TXQueue>
+           <askboardplt:mappingType askboardplt:type="port-mapping-type">ethernet_mac</askboardplt:mappingType>
+           <askboardplt:interfaceNum askboardplt:type="interface-num-type">51</askboardplt:interfaceNum>
+@@ -1306,7 +1318,7 @@ Efficient Ethernet Transceiver</askboardplt:description>
+           <askboardplt:phyType askboardplt:type="phy-type">NA</askboardplt:phyType>
+         </askboardplt:phy>
+         <askboardplt:ledstream-port>
+-          <askboardplt:ledPosition askboardplt:type="led-position-type">1</askboardplt:ledPosition>
++          <askboardplt:ledPosition askboardplt:type="led-position-type">0</askboardplt:ledPosition>
+           <askboardplt:portForceDataSupported askboardplt:type="boolean-type">false</askboardplt:portForceDataSupported>
+         </askboardplt:ledstream-port>
+       </askboardplt:portMap-list>
+@@ -1314,7 +1326,7 @@ Efficient Ethernet Transceiver</askboardplt:description>
+         <askboardplt:portNumber askboardplt:type="physical-port-num-type">60</askboardplt:portNumber>
+         <askboardplt:TXQueue>
+           <askboardplt:mappingType askboardplt:type="port-mapping-type">cpu_sdma</askboardplt:mappingType>
+-          <askboardplt:interfaceNum askboardplt:type="interface-num-type">54</askboardplt:interfaceNum>
++          <askboardplt:interfaceNum askboardplt:type="interface-num-type">55</askboardplt:interfaceNum>
+           <askboardplt:reservePreemptiveChannel askboardplt:type="boolean-type">false</askboardplt:reservePreemptiveChannel>
+         </askboardplt:TXQueue>
+       </askboardplt:portMap-list>
+@@ -1322,10 +1334,46 @@ Efficient Ethernet Transceiver</askboardplt:description>
+         <askboardplt:portNumber askboardplt:type="physical-port-num-type">63</askboardplt:portNumber>
+         <askboardplt:TXQueue>
+           <askboardplt:mappingType askboardplt:type="port-mapping-type">cpu_sdma</askboardplt:mappingType>
+-          <askboardplt:interfaceNum askboardplt:type="interface-num-type">55</askboardplt:interfaceNum>
++          <askboardplt:interfaceNum askboardplt:type="interface-num-type">54</askboardplt:interfaceNum>
+           <askboardplt:reservePreemptiveChannel askboardplt:type="boolean-type">false</askboardplt:reservePreemptiveChannel>
+         </askboardplt:TXQueue>
+       </askboardplt:portMap-list>
++      <askboardplt:MppSelect-list>
++        <askboardplt:mppNum askboardplt:type="mpp-num-type">24</askboardplt:mppNum>
++        <askboardplt:mppSelValue askboardplt:type="mpp-select-type">3</askboardplt:mppSelValue>
++      </askboardplt:MppSelect-list>
++      <askboardplt:MppSelect-list>
++        <askboardplt:mppNum askboardplt:type="mpp-num-type">25</askboardplt:mppNum>
++        <askboardplt:mppSelValue askboardplt:type="mpp-select-type">3</askboardplt:mppSelValue>
++      </askboardplt:MppSelect-list>
++      <askboardplt:MppSelect-list>
++        <askboardplt:mppNum askboardplt:type="mpp-num-type">26</askboardplt:mppNum>
++        <askboardplt:mppSelValue askboardplt:type="mpp-select-type">1</askboardplt:mppSelValue>
++      </askboardplt:MppSelect-list>
++      <askboardplt:MppSelect-list>
++        <askboardplt:mppNum askboardplt:type="mpp-num-type">27</askboardplt:mppNum>
++        <askboardplt:mppSelValue askboardplt:type="mpp-select-type">1</askboardplt:mppSelValue>
++      </askboardplt:MppSelect-list>
++      <askboardplt:MppSelect-list>
++        <askboardplt:mppNum askboardplt:type="mpp-num-type">28</askboardplt:mppNum>
++        <askboardplt:mppSelValue askboardplt:type="mpp-select-type">2</askboardplt:mppSelValue>
++      </askboardplt:MppSelect-list>
++      <askboardplt:MppSelect-list>
++        <askboardplt:mppNum askboardplt:type="mpp-num-type">29</askboardplt:mppNum>
++        <askboardplt:mppSelValue askboardplt:type="mpp-select-type">2</askboardplt:mppSelValue>
++      </askboardplt:MppSelect-list>
++      <askboardplt:MppSelect-list>
++        <askboardplt:mppNum askboardplt:type="mpp-num-type">43</askboardplt:mppNum>
++        <askboardplt:mppSelValue askboardplt:type="mpp-select-type">1</askboardplt:mppSelValue>
++      </askboardplt:MppSelect-list>
++      <askboardplt:MppSelect-list>
++        <askboardplt:mppNum askboardplt:type="mpp-num-type">44</askboardplt:mppNum>
++        <askboardplt:mppSelValue askboardplt:type="mpp-select-type">1</askboardplt:mppSelValue>
++      </askboardplt:MppSelect-list>
++      <askboardplt:MppSelect-list>
++        <askboardplt:mppNum askboardplt:type="mpp-num-type">45</askboardplt:mppNum>
++        <askboardplt:mppSelValue askboardplt:type="mpp-select-type">1</askboardplt:mppSelValue>
++      </askboardplt:MppSelect-list>
+       <askboardplt:laneList-list>
+         <askboardplt:laneNumber askboardplt:type="uint32">0</askboardplt:laneNumber>
+         <askboardplt:invertTx askboardplt:type="boolean-type">false</askboardplt:invertTx>
+diff --git a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-L1-ES1227-36TS-P-32x1G-4x10G.md5 b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-L1-ES1227-36TS-P-32x1G-4x10G.md5
+old mode 100755
+new mode 100644
+index 7ceeadfed..bf81c3b71
+--- a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-L1-ES1227-36TS-P-32x1G-4x10G.md5
++++ b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-L1-ES1227-36TS-P-32x1G-4x10G.md5
+@@ -1 +1 @@
+-08ecbdae469c4d3462fbc297439752b8
+\ No newline at end of file
++370f408e299b06044243fc0e8fe61685
+\ No newline at end of file
+diff --git a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-L1-ES1227-36TS-P-32x1G-4x10G.xml b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-L1-ES1227-36TS-P-32x1G-4x10G.xml
+old mode 100755
+new mode 100644
+index 4fad48164..f747b3d08
+--- a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-L1-ES1227-36TS-P-32x1G-4x10G.xml
++++ b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-L1-ES1227-36TS-P-32x1G-4x10G.xml
+@@ -1,5 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2025-02-13-1.10" profile="Askl1" sid="20d097a2-1bdd-4b0a-8660-ad188e4d486c">
++<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2025-02-13-1.11" profile="Askl1" sid="ddddc28e-5798-463b-9b23-60159595df8b">
+   <ASKL1plt:ASK-L1 xmlns:ASKL1plt="urn:marvell:ASKL1:yang">
+     <ASKL1plt:typedefs>
+       <ASKL1plt:typedef>
+diff --git a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-PP-ES1227-36TS-P.md5 b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-PP-ES1227-36TS-P.md5
+old mode 100755
+new mode 100644
+index 0f1ab3007..5d652337e
+--- a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-PP-ES1227-36TS-P.md5
++++ b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-PP-ES1227-36TS-P.md5
+@@ -1 +1 @@
+-f14a2376cd158ea00f075675ed33dd1f
+\ No newline at end of file
++0fe4471045f61d8cac643f16e25032b7
+\ No newline at end of file
+diff --git a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-PP-ES1227-36TS-P.xml b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-PP-ES1227-36TS-P.xml
+old mode 100755
+new mode 100644
+index 1ac94f7e6..72f601372
+--- a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-PP-ES1227-36TS-P.xml
++++ b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/ASK-PP-ES1227-36TS-P.xml
+@@ -1,5 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2024-10-24-1.10" profile="Askpp" sid="85d852e5-1e5a-4b9b-a68d-7c1f65f7a541">
++<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2025-02-25-1.11" profile="Askpp" sid="69bab25d-d8f6-4bfe-baf5-bdcb26c08ff6">
+   <askppplt:ASK-PP xmlns:askppplt="urn:marvell:askpp:yang">
+     <askppplt:typedefs>
+       <askppplt:typedef>
+@@ -887,10 +887,12 @@
+         <askppplt:initPha askppplt:type="boolean-type">true</askppplt:initPha>
+         <askppplt:Pha-params>
+           <askppplt:packetOrderChangeEnable askppplt:type="boolean-type">false</askppplt:packetOrderChangeEnable>
+-          <askppplt:phaFwImageId askppplt:type="pha-firmware-image-id-type">01</askppplt:phaFwImageId>
+           <askppplt:phaFwImageIdVersion askppplt:type="uint32">0</askppplt:phaFwImageIdVersion>
+         </askppplt:Pha-params>
+       </askppplt:LibInit>
++      <askppplt:PhaParams>
++        <askppplt:phaFwImageId askppplt:type="pha-firmware-image-id-type">01</askppplt:phaFwImageId>
++      </askppplt:PhaParams>
+     </askppplt:PPInit>
+   </askppplt:ASK-PP>
+ </data>
+\ No newline at end of file
+diff --git a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/SAI-ES1227-36TS-P-32x1G-4x10G.md5 b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/SAI-ES1227-36TS-P-32x1G-4x10G.md5
+old mode 100755
+new mode 100644
+index ff1d72673..c3cd592ef
+--- a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/SAI-ES1227-36TS-P-32x1G-4x10G.md5
++++ b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/SAI-ES1227-36TS-P-32x1G-4x10G.md5
+@@ -1 +1 @@
+-6374a010b55f2e41f0331cd966f50f17
+\ No newline at end of file
++3a26c4219947e6feeba5016d48b0b487
+\ No newline at end of file
+diff --git a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/SAI-ES1227-36TS-P-32x1G-4x10G.xml b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/SAI-ES1227-36TS-P-32x1G-4x10G.xml
+old mode 100755
+new mode 100644
+index 6b811df3b..67bd6f4ae
+--- a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/SAI-ES1227-36TS-P-32x1G-4x10G.xml
++++ b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/SAI-ES1227-36TS-P-32x1G-4x10G.xml
+@@ -1,5 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2024-10-24-1.10" profile="SAI" sid="1ed4cd3c-ea04-44f4-8a20-4d1336284709">
++<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2025-02-25-1.11" profile="SAI" sid="e29ba6fe-f08d-4673-ac2d-2961846d0e1c">
+   <SAIplt:SAI xmlns:SAIplt="urn:marvell:SAI:yang">
+     <SAIplt:typedefs>
+       <SAIplt:typedef>
+@@ -352,24 +352,24 @@
+         <SAIplt:sdk_port_id SAIplt:type="port-id-type">31</SAIplt:sdk_port_id>
+       </SAIplt:port-list>
+       <SAIplt:port-list>
+-        <SAIplt:sai_port_id SAIplt:type="port-id-type">32</SAIplt:sai_port_id>
++        <SAIplt:sai_port_id SAIplt:type="port-id-type">48</SAIplt:sai_port_id>
+         <SAIplt:sdk_device_id SAIplt:type="device-id-type">0</SAIplt:sdk_device_id>
+-        <SAIplt:sdk_port_id SAIplt:type="port-id-type">32</SAIplt:sdk_port_id>
++        <SAIplt:sdk_port_id SAIplt:type="port-id-type">48</SAIplt:sdk_port_id>
+       </SAIplt:port-list>
+       <SAIplt:port-list>
+-        <SAIplt:sai_port_id SAIplt:type="port-id-type">33</SAIplt:sai_port_id>
++        <SAIplt:sai_port_id SAIplt:type="port-id-type">49</SAIplt:sai_port_id>
+         <SAIplt:sdk_device_id SAIplt:type="device-id-type">0</SAIplt:sdk_device_id>
+-        <SAIplt:sdk_port_id SAIplt:type="port-id-type">33</SAIplt:sdk_port_id>
++        <SAIplt:sdk_port_id SAIplt:type="port-id-type">49</SAIplt:sdk_port_id>
+       </SAIplt:port-list>
+       <SAIplt:port-list>
+-        <SAIplt:sai_port_id SAIplt:type="port-id-type">34</SAIplt:sai_port_id>
++        <SAIplt:sai_port_id SAIplt:type="port-id-type">50</SAIplt:sai_port_id>
+         <SAIplt:sdk_device_id SAIplt:type="device-id-type">0</SAIplt:sdk_device_id>
+-        <SAIplt:sdk_port_id SAIplt:type="port-id-type">34</SAIplt:sdk_port_id>
++        <SAIplt:sdk_port_id SAIplt:type="port-id-type">50</SAIplt:sdk_port_id>
+       </SAIplt:port-list>
+       <SAIplt:port-list>
+-        <SAIplt:sai_port_id SAIplt:type="port-id-type">35</SAIplt:sai_port_id>
++        <SAIplt:sai_port_id SAIplt:type="port-id-type">51</SAIplt:sai_port_id>
+         <SAIplt:sdk_device_id SAIplt:type="device-id-type">0</SAIplt:sdk_device_id>
+-        <SAIplt:sdk_port_id SAIplt:type="port-id-type">35</SAIplt:sdk_port_id>
++        <SAIplt:sdk_port_id SAIplt:type="port-id-type">51</SAIplt:sdk_port_id>
+       </SAIplt:port-list>
+     </SAIplt:Ports>
+     <SAIplt:scalingAC5>
+diff --git a/platform/marvell-prestera/sai.mk b/platform/marvell-prestera/sai.mk
+index db4a2d4a7..2191d415e 100644
+--- a/platform/marvell-prestera/sai.mk
++++ b/platform/marvell-prestera/sai.mk
+@@ -2,11 +2,11 @@
+ 
+ BRANCH = master
+ ifeq ($(CONFIGURED_ARCH),arm64)
+-MRVL_SAI_VERSION = 1.16.1-2
++MRVL_SAI_VERSION = 1.15.1-1
+ else ifeq ($(CONFIGURED_ARCH),armhf)
+-MRVL_SAI_VERSION = 1.16.1-2
++MRVL_SAI_VERSION = 1.15.1-1
+ else
+-MRVL_SAI_VERSION = 1.16.1-2
++MRVL_SAI_VERSION = 1.15.1-1
+ endif
+ 
+ MRVL_SAI_URL_PREFIX = https://github.com/Marvell-switching/sonic-marvell-binaries/raw/master/$(CONFIGURED_ARCH)/sai-plugin/$(BRANCH)/
