@@ -1,0 +1,34 @@
+#!/bin/bash
+
+REBOOT_CAUSE_FILE="/host/reboot-cause/reboot-cause.txt"
+REBOOT_CAUSE_POWER_LOSS="Power Loss"
+REBOOT_CAUSE_THERMAL_OVERLOAD_CPU="Thermal Overload: CPU"
+REBOOT_CAUSE_THERMAL_OVERLOAD_ASIC="Thermal Overload: ASIC"
+REBOOT_CAUSE_THERMAL_OVERLOAD_OTHER="Thermal Overload: Other"
+REBOOT_CAUSE_INSUFFICIENT_FAN_SPEED="Insufficient Fan Speed"
+REBOOT_CAUSE_WATCHDOG="Watchdog"
+REBOOT_CAUSE_HARDWARE_OTHER="Hardware - Other"
+REBOOT_CAUSE_HARDWARE_BIOS="BIOS"
+REBOOT_CAUSE_HARDWARE_CPU="CPU"
+REBOOT_CAUSE_HARDWARE_BUTTON="Push button"
+REBOOT_CAUSE_HARDWARE_RESET_FROM_ASIC="Reset from ASIC"
+REBOOT_CAUSE_NON_HARDWARE="Non-Hardware"
+
+
+WATCHDOG_REBOOT_CHECK()
+{
+	#log=$(ipmitool mc watchdog get)
+	#echo "ipmi watchdog: ${log}"
+        #reboot_cause=$(echo ${log} | grep 'Timer Expiration Flags' | awk '{print $4}')
+	reboot_cause=$(ipmitool mc watchdog get | grep 'Timer Expiration Flags' | awk '{print $4}')
+        echo "[reboot-cause] : ${reboot_cause}"
+        if [[ $reboot_cause == 0x10 ]]; then
+		echo "$REBOOT_CAUSE_WATCHDOG" > $REBOOT_CAUSE_FILE
+		echo "Watchdog" > $REBOOT_CAUSE_FILE
+		log=$(cat ${REBOOT_CAUSE_FILE})
+		echo "[reboot-cause.txt] : $log"
+		echo "reboot cause by watchdog"
+	fi
+}
+
+WATCHDOG_REBOOT_CHECK
