@@ -43,9 +43,13 @@ echo 1 > /sys/bus/i2c/devices/0-0033/poe_en_ctrl
 # For PSU1(250W AC adapter)
 #poe_main 0x09 1 250 585 480
 poetool mgmt set_power_banks 1  150 585 480 0xa
+poetool mgmt set_power_banks 2  150 585 480 0xa
+poetool mgmt set_power_banks 3  150 585 480 0xa
 # For PSU2(400W AC adapter)
 #poe_main 0x09 2 400 585 480
-poetool mgmt set_power_banks 2 300 585 480 0xa
+#poetool mgmt set_power_banks 1 300 585 480 0xa
+#poetool mgmt set_power_banks 2 300 585 480 0xa
+#poetool mgmt set_power_banks 3 300 585 480 0xa
 
 # Program global matrix
 #poe_main 0x13
@@ -53,7 +57,7 @@ poetool mgmt set_power_banks 2 300 585 480 0xa
 #poe_main 0x15
 
 # PoE power bank setting
-#poe_power.sh
+#poe_power.sh#
 # reload PoE configuration
 poe_cfg_init.py
 

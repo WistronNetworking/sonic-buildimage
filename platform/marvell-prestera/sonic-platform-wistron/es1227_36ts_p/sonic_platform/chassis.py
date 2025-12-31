@@ -14,7 +14,7 @@ try:
     from sonic_py_common import logger
     from sonic_platform_base.chassis_base import ChassisBase
     from sonic_platform.fan import Fan
-    from sonic_platform.psu import Psu
+    #from sonic_platform.psu import Psu
     from sonic_platform.component import Component
     from sonic_platform.thermal import Thermal
     from sonic_platform.sfp import Sfp
@@ -331,12 +331,12 @@ class Chassis(ChassisBase):
         #fanled_path="{}/fan_led".format(CPLD_SYSFS_DIR)
         watchdog_update_path="{}/watchdog_kick".format(CPLD_SYSFS_DIR)
 
-        #if color == "red":
-        #    val = 2
-        #elif color == "green_blinking":
-        #    val = 3
-        #elif color == "green":
-        #    val = 1
+        if color == "red":
+            val = 2
+        elif color == "green_blinking":
+            val = 3
+        elif color == "green":
+            val = 1
 
         color=int(self.__read_txt_file(sysled_path))
         if color is None:

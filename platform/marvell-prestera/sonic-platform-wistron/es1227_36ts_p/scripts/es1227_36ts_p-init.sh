@@ -59,7 +59,7 @@ echo jc42 0x1b > /sys/bus/i2c/devices/i2c-0/new_device
 #fi
 
 # Initialize SFP+ modules
-local i
+#local i
 for i in {4..7};
 do
     echo optoe2 0x50 > /sys/bus/i2c/devices/i2c-$i/new_device
