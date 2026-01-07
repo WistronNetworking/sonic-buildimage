@@ -1,0 +1,41 @@
+diff --git a/src/sonic-utilities/scripts/psushow b/src/sonic-utilities/scripts/psushow
+index 34a10918..9f62d339 100755
+--- a/src/sonic-utilities/scripts/psushow
++++ b/src/sonic-utilities/scripts/psushow
+@@ -23,7 +23,7 @@ def get_psu_status_list():
+     chassis_name = "chassis {}".format(chassis_num)
+     num_psus = db.get(db.STATE_DB, 'CHASSIS_INFO|{}'.format(chassis_name), 'psu_num')
+     if not num_psus:
+-        print('Error: Failed to get the number of PSUs')
++        #print('Error: Failed to get the number of PSUs')
+         return None
+
+     for psu_idx, psu_key in enumerate(natsorted(db.keys(db.STATE_DB, "PSU_INFO|*")), start = 1):
+@@ -67,7 +67,7 @@ def psu_status_show_table(index):
+     psu_status_list = get_psu_status_list()
+
+     if not psu_status_list:
+-        print('Error: Failed to get PSU status')
++        #print('Error: Failed to get PSU status')
+         return None
+
+     header = ['PSU',  'Model', 'Serial', 'HW Rev', 'Voltage (V)', 'Current (A)', 'Power (W)', 'Status', 'LED']
+@@ -102,7 +102,7 @@ def psu_status_show_json(index):
+     psu_status_list = get_psu_status_list()
+
+     if not psu_status_list:
+-        print('Error: Failed to get PSU status')
++        #print('Error: Failed to get PSU status')
+         return None
+
+     if index > 0:
+@@ -144,7 +144,8 @@ Examples:
+             ret = psu_status_show_table(psu_index)
+
+         if ret != 0:
+-            print("Error: failed to get PSU status from state DB")
++            #print("Error: failed to get PSU status from state DB")
++            print("PSU Not detected")
+             return 1
+
+     return 0
