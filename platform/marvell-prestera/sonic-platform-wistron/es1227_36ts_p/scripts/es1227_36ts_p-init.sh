@@ -82,8 +82,8 @@ fi
 echo 1 > /sys/bus/i2c/devices/0-0033/port_led_auto
 
 # Initialize PoE (Power-over-Ethernet) if script exists
-if [ -f /usr/local/bin/poe_init.sh ]; then
-    sh /usr/local/bin/poe_init.sh
-fi
+#if [ -f /usr/local/bin/poe_init.sh ]; then
+#    sh /usr/local/bin/poe_init.sh
+#fi
 
 exit 0

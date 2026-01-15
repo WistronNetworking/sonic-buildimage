@@ -206,6 +206,17 @@ def run_lldpcli_init_port_command(interface, enabled):
         return None
 
 def poe_cfg():
+
+    # Initialize PoE (Power-over-Ethernet) if script exists
+    if os.path.isfile('/usr/local/bin/poe_init.sh'):
+        # Execute the PoE init shell script
+        try:
+            subprocess.run(["sh", "/usr/local/bin/poe_init.sh"], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error: Failed to execute PoE init script. {str(e)}")
+    else:
+        print("PoE init script not found, skipping PoE initialization.")
+
     # PoE global configuration
     # preemptive priority
     tmp_file = "/etc/sonic/poe_preemptive_priority_tmp"
