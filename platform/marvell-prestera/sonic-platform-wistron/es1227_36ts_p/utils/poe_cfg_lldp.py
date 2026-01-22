@@ -211,6 +211,8 @@ def poe_cfg():
     if os.path.isfile('/usr/local/bin/poe_init.sh'):
         # Execute the PoE init shell script
         try:
+            print(f"Sleep 20 in poe_cfg_lldp.py")
+            time.sleep(20)
             subprocess.run(["sh", "/usr/local/bin/poe_init.sh"], check=True)
         except subprocess.CalledProcessError as e:
             print(f"Error: Failed to execute PoE init script. {str(e)}")

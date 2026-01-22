@@ -4,8 +4,6 @@ After=pmon.service es1227_36ts_p-init.service
 DefaultDependencies=no
 
 [Service]
-TimeoutStartSec=130s
-ExecStartPre=/bin/sh -c 'echo "PoE service: Pre-start sleep for 120 seconds beginning..." && /bin/sleep 120 && echo "PoE service: Pre-start sleep finished."'
 ExecStart=/usr/bin/python3 /usr/local/bin/poe_cfg_lldp.py
 Restart=on-failure
 RestartSec=5

@@ -38,15 +38,17 @@ echo 1 > /sys/bus/i2c/devices/0-0033/poe_en_ctrl
 #    poe_main 0x02 $port 1 1 0 3
 #done
 
-# Get 'Product Name' (0x21)
-product_name=$(show platform syseeprom 2>/dev/null | awk '/0x21/ {for (i=5; i<=NF; i++) printf $i " "; print ""}' | sed 's/ *$//')
-echo "Product_name $product_name"
+# Get 'Product Name
+#product_name=$(show platform syseeprom 2>/dev/null | awk '/0x21/ {for (i=5; i<=NF; i++) printf $i " "; print ""}' | sed 's/ *$//')
+#echo "Product_name $product_name"
+product_name=$(show ver 2>/dev/null | awk '/Model Number:/ {for (i=3; i<=NF; i++) printf $i " "; print ""}' | sed 's/ *$//')
+echo "[POE init] show ver product_name: $product_name"
 
-# Read CPLD driver values
+# [Method 1] Read CPLD driver values
 #sku1_psu1=$(cat /sys/bus/i2c/devices/0-0033/sku1_psu1 2>/dev/null || echo "0")
 #sku2_psu2=$(cat /sys/bus/i2c/devices/0-0033/sku2_psu2 2>/dev/null || echo "0")
 
-# Read Board ID to determine SKU ID
+# [Method 2] Read Board ID to determine SKU ID
 board_info=$(cat /sys/bus/i2c/devices/0-0033/board_id 2>/dev/null || echo "")
 sku_id=""
 
@@ -59,13 +61,13 @@ if [ -z "$sku_id" ]; then
 fi
 
 # Logical checks and actions
-if { [ -z "$product_name" ] || [ "$product_name" = "ES-1227-36TS-P-250" ]; } && [ "$sku_id" -eq 0 ]; then
+if { [ -z "$product_name" ] || [ "$product_name" = "ES-1227-36TS-B-250" ]; } && [ "$sku_id" -eq 0 ]; then
     echo "Configuring power banks for SKU0 (PSU 250W active, Product: $product_name)"
     poetool mgmt set_power_banks 1 150 585 480 0xa
     poetool mgmt set_power_banks 2 150 585 480 0xa
     poetool mgmt set_power_banks 3 150 585 480 0xa
 
-elif [ "$product_name" = "ES-1227-36TS-P-400" ] && [ "$sku_id" -eq 1 ]; then
+elif [ "$product_name" = "ES-1227-36TS-B-400" ] && [ "$sku_id" -eq 1 ]; then
     echo "Configuring power banks for SKU1 (PSU 400W active, Product: $product_name)"
     poetool mgmt set_power_banks 1 300 585 480 0xa
     poetool mgmt set_power_banks 2 300 585 480 0xa
