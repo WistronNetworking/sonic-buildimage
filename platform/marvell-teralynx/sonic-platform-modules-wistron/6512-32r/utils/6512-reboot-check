@@ -44,24 +44,24 @@ WATCHDOG_REBOOT_CHECK()
         if [[ $reboot_cause -ne 0x00 ]]; then
                 reboot_cause=$((~reboot_cause & 0xFF))
                 echo "[hardware reboot-cause] : ${reboot_cause}"
-		if [[ $((reboot_cause & 0x80)) -ne 0 ]]; then
+                if [[ $((reboot_cause & 0x80)) -ne 0 ]]; then
                         reboot_reason=$REBOOT_CAUSE_THERMAL_OVERLOAD_OTHER
                 elif [[ $((reboot_cause & 0x40)) -ne 0 ]]; then
                         reboot_reason=$REBOOT_CAUSE_INSUFFICIENT_FAN_SPEED
-                elif [[ $((reboot_cause & 0x20)) -ne 0 ]]; then
-                        reboot_reason=$REBOOT_CAUSE_HARDWARE_CPU
                 elif [[ $((reboot_cause & 0x10)) -ne 0 ]]; then
-                        reboot_reason=$REBOOT_CAUSE_HARDWARE_RESET_FROM_ASIC
+                        reboot_reason=$REBOOT_CAUSE_WATCHDOG
+                elif [[ $((reboot_cause & 0x20)) -ne 0 ]]; then
+                        reboot_reason=$CPU_PLATFORM_RESET
                 elif [[ $((reboot_cause & 0x08)) -ne 0 ]]; then
                         reboot_reason=$REBOOT_CAUSE_HARDWARE_BUTTON
                 elif [[ $((reboot_cause & 0x04)) -ne 0 ]]; then
-                        reboot_reason=$REBOOT_CAUSE_WATCHDOG
+                        reboot_reason=$REBOOT_CAUSE_HARDWARE_CPU
                 elif [[ $((reboot_cause & 0x02)) -ne 0 ]]; then
                         reboot_reason=$REBOOT_CAUSE_POWER_LOSS
                 elif [[ $((reboot_cause & 0x01)) -ne 0 ]]; then
-                        reboot_reason=$REBOOT_CAUSE_HARDWARE_RESET_FROM_ASIC
-                fi	
-		echo "reboot_reason: $reboot_reason"
+                        reboot_reason=$REBOOT_CAUSE_HARDWARE_OTHER
+                fi
+                echo "reboot_reason: $reboot_reason"
                 echo "$reboot_reason" > $REBOOT_CAUSE_FILE
                 log=$(cat ${REBOOT_CAUSE_FILE})
                 echo "[reboot-cause.txt] : $log"
@@ -71,4 +71,3 @@ WATCHDOG_REBOOT_CHECK()
 }
 
 WATCHDOG_REBOOT_CHECK
-
