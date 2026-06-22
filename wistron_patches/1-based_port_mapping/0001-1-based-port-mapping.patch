@@ -1,0 +1,2372 @@
+diff --git a/device/wistron/arm64-wistron_es1227_36ts_p-r0/platform.json b/device/wistron/arm64-wistron_es1227_36ts_p-r0/platform.json
+index 372ce15de..40152c90f 100644
+--- a/device/wistron/arm64-wistron_es1227_36ts_p-r0/platform.json
++++ b/device/wistron/arm64-wistron_es1227_36ts_p-r0/platform.json
+@@ -62,9 +62,6 @@
+             }
+         ],
+         "sfps": [
+-            {
+-                "name": "Ethernet32"
+-            },
+             {
+                 "name": "Ethernet33"
+             },
+@@ -73,261 +70,336 @@
+             },
+             {
+                 "name": "Ethernet35"
++            },
++            {
++                "name": "Ethernet36"
+             }
+         ]
+     },
+     "interfaces": {
+-        "Ethernet0": {
++        "Ethernet1": {
+             "index": "1",
+             "lanes": "0",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth1"]
++                "1x1000[100,10]": [
++                    "Eth1"
++                ]
+             }
+         },
+-        "Ethernet1": {
++        "Ethernet2": {
+             "index": "2",
+             "lanes": "1",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth2"]
++                "1x1000[100,10]": [
++                    "Eth2"
++                ]
+             }
+         },
+-        "Ethernet2": {
++        "Ethernet3": {
+             "index": "3",
+             "lanes": "2",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth3"]
++                "1x1000[100,10]": [
++                    "Eth3"
++                ]
+             }
+         },
+-        "Ethernet3": {
++        "Ethernet4": {
+             "index": "4",
+             "lanes": "3",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth4"]
++                "1x1000[100,10]": [
++                    "Eth4"
++                ]
+             }
+         },
+-        "Ethernet4": {
++        "Ethernet5": {
+             "index": "5",
+             "lanes": "4",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth5"]
++                "1x1000[100,10]": [
++                    "Eth5"
++                ]
+             }
+         },
+-        "Ethernet5": {
++        "Ethernet6": {
+             "index": "6",
+             "lanes": "5",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth6"]
++                "1x1000[100,10]": [
++                    "Eth6"
++                ]
+             }
+         },
+-        "Ethernet6": {
++        "Ethernet7": {
+             "index": "7",
+             "lanes": "6",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth7"]
++                "1x1000[100,10]": [
++                    "Eth7"
++                ]
+             }
+         },
+-        "Ethernet7": {
++        "Ethernet8": {
+             "index": "8",
+             "lanes": "7",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth8"]
++                "1x1000[100,10]": [
++                    "Eth8"
++                ]
+             }
+         },
+-        "Ethernet8": {
++        "Ethernet9": {
+             "index": "9",
+             "lanes": "8",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth9"]
++                "1x1000[100,10]": [
++                    "Eth9"
++                ]
+             }
+         },
+-        "Ethernet9": {
++        "Ethernet10": {
+             "index": "10",
+             "lanes": "9",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth10"]
++                "1x1000[100,10]": [
++                    "Eth10"
++                ]
+             }
+         },
+-        "Ethernet10": {
++        "Ethernet11": {
+             "index": "11",
+             "lanes": "10",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth11"]
++                "1x1000[100,10]": [
++                    "Eth11"
++                ]
+             }
+         },
+-        "Ethernet11": {
++        "Ethernet12": {
+             "index": "12",
+             "lanes": "11",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth12"]
++                "1x1000[100,10]": [
++                    "Eth12"
++                ]
+             }
+         },
+-        "Ethernet12": {
++        "Ethernet13": {
+             "index": "13",
+             "lanes": "12",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth13"]
++                "1x1000[100,10]": [
++                    "Eth13"
++                ]
+             }
+         },
+-        "Ethernet13": {
++        "Ethernet14": {
+             "index": "14",
+             "lanes": "13",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth14"]
++                "1x1000[100,10]": [
++                    "Eth14"
++                ]
+             }
+         },
+-        "Ethernet14": {
++        "Ethernet15": {
+             "index": "15",
+             "lanes": "14",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth15"]
++                "1x1000[100,10]": [
++                    "Eth15"
++                ]
+             }
+         },
+-        "Ethernet15": {
++        "Ethernet16": {
+             "index": "16",
+             "lanes": "15",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth16"]
++                "1x1000[100,10]": [
++                    "Eth16"
++                ]
+             }
+         },
+-        "Ethernet16": {
++        "Ethernet17": {
+             "index": "17",
+             "lanes": "16",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth17"]
++                "1x1000[100,10]": [
++                    "Eth17"
++                ]
+             }
+         },
+-        "Ethernet17": {
++        "Ethernet18": {
+             "index": "18",
+             "lanes": "17",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth18"]
++                "1x1000[100,10]": [
++                    "Eth18"
++                ]
+             }
+         },
+-        "Ethernet18": {
++        "Ethernet19": {
+             "index": "19",
+             "lanes": "18",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth19"]
++                "1x1000[100,10]": [
++                    "Eth19"
++                ]
+             }
+         },
+-        "Ethernet19": {
++        "Ethernet20": {
+             "index": "20",
+             "lanes": "19",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth20"]
++                "1x1000[100,10]": [
++                    "Eth20"
++                ]
+             }
+         },
+-        "Ethernet20": {
++        "Ethernet21": {
+             "index": "21",
+             "lanes": "20",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth21"]
++                "1x1000[100,10]": [
++                    "Eth21"
++                ]
+             }
+         },
+-        "Ethernet21": {
++        "Ethernet22": {
+             "index": "22",
+             "lanes": "21",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth22"]
++                "1x1000[100,10]": [
++                    "Eth22"
++                ]
+             }
+         },
+-        "Ethernet22": {
++        "Ethernet23": {
+             "index": "23",
+             "lanes": "22",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth23"]
++                "1x1000[100,10]": [
++                    "Eth23"
++                ]
+             }
+         },
+-        "Ethernet23": {
++        "Ethernet24": {
+             "index": "24",
+             "lanes": "23",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth24"]
++                "1x1000[100,10]": [
++                    "Eth24"
++                ]
+             }
+         },
+-        "Ethernet24": {
++        "Ethernet25": {
+             "index": "25",
+             "lanes": "24",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth25"]
++                "1x1000[100,10]": [
++                    "Eth25"
++                ]
+             }
+         },
+-        "Ethernet25": {
++        "Ethernet26": {
+             "index": "26",
+             "lanes": "25",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth26"]
++                "1x1000[100,10]": [
++                    "Eth26"
++                ]
+             }
+         },
+-        "Ethernet26": {
++        "Ethernet27": {
+             "index": "27",
+             "lanes": "26",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth27"]
++                "1x1000[100,10]": [
++                    "Eth27"
++                ]
+             }
+         },
+-        "Ethernet27": {
++        "Ethernet28": {
+             "index": "28",
+             "lanes": "27",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth28"]
++                "1x1000[100,10]": [
++                    "Eth28"
++                ]
+             }
+         },
+-        "Ethernet28": {
++        "Ethernet29": {
+             "index": "29",
+             "lanes": "28",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth29"]
++                "1x1000[100,10]": [
++                    "Eth29"
++                ]
+             }
+         },
+-        "Ethernet29": {
++        "Ethernet30": {
+             "index": "30",
+             "lanes": "29",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth30"]
++                "1x1000[100,10]": [
++                    "Eth30"
++                ]
+             }
+         },
+-        "Ethernet30": {
++        "Ethernet31": {
+             "index": "31",
+             "lanes": "30",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth31"]
++                "1x1000[100,10]": [
++                    "Eth31"
++                ]
+             }
+         },
+-        "Ethernet31": {
++        "Ethernet32": {
+             "index": "32",
+             "lanes": "31",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth32"]
++                "1x1000[100,10]": [
++                    "Eth32"
++                ]
+             }
+         },
+-        "Ethernet32": {
++        "Ethernet33": {
+             "index": "33",
+             "lanes": "48",
+             "breakout_modes": {
+-                "1x10G[1000]": ["Eth33"]
++                "1x10G[1000]": [
++                    "Eth33"
++                ]
+             }
+         },
+-        "Ethernet33": {
++        "Ethernet34": {
+             "index": "34",
+             "lanes": "49",
+             "breakout_modes": {
+-                "1x10G[1000]": ["Eth34"]
++                "1x10G[1000]": [
++                    "Eth34"
++                ]
+             }
+         },
+-        "Ethernet34": {
++        "Ethernet35": {
+             "index": "35",
+             "lanes": "50",
+             "breakout_modes": {
+-                "1x10G[1000]": ["Eth35"]
++                "1x10G[1000]": [
++                    "Eth35"
++                ]
+             }
+         },
+-        "Ethernet35": {
++        "Ethernet36": {
+             "index": "36",
+             "lanes": "51",
+             "breakout_modes": {
+-                "1x10G[1000]": ["Eth36"]
++                "1x10G[1000]": [
++                    "Eth36"
++                ]
+             }
+         }
+     }
+-}
++}
+\ No newline at end of file
+diff --git a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/hwsku.json b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/hwsku.json
+index d4c2724b5..0fab71c37 100644
+--- a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/hwsku.json
++++ b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/hwsku.json
+@@ -1,220 +1,220 @@
+ {
+     "interfaces": {
+-        "Ethernet0": {
+-            "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
+-            "port_type": "RJ45"
+-        },
+         "Ethernet1": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet2": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet3": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet4": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet5": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet6": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet7": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet8": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet9": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet10": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet11": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet12": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet13": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet14": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet15": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet16": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet17": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet18": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet19": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet20": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet21": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet22": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet23": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet24": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet25": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet26": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet27": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet28": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet29": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet30": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet31": {
+             "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
++            "fec": "none",
++            "autoneg": "on",
+             "port_type": "RJ45"
+         },
+         "Ethernet32": {
+-            "default_brkout_mode": "1x10G[1000]",
+-            "fec" : "none",
+-            "autoneg" : "off",
+-            "port_type": "SFP+"
++            "default_brkout_mode": "1x1000[100,10]",
++            "fec": "none",
++            "autoneg": "on",
++            "port_type": "RJ45"
+         },
+         "Ethernet33": {
+             "default_brkout_mode": "1x10G[1000]",
+-            "fec" : "none",
+-            "autoneg" : "off",
++            "fec": "none",
++            "autoneg": "off",
+             "port_type": "SFP+"
+         },
+         "Ethernet34": {
+             "default_brkout_mode": "1x10G[1000]",
+-            "fec" : "none",
+-            "autoneg" : "off",
++            "fec": "none",
++            "autoneg": "off",
+             "port_type": "SFP+"
+         },
+         "Ethernet35": {
+             "default_brkout_mode": "1x10G[1000]",
+-            "fec" : "none",
+-            "autoneg" : "off",
++            "fec": "none",
++            "autoneg": "off",
++            "port_type": "SFP+"
++        },
++        "Ethernet36": {
++            "default_brkout_mode": "1x10G[1000]",
++            "fec": "none",
++            "autoneg": "off",
+             "port_type": "SFP+"
+         }
+     }
+-}
++}
+\ No newline at end of file
+diff --git a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/poe_default_cfg.json b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/poe_default_cfg.json
+index 5504c96be..0db462135 100644
+--- a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/poe_default_cfg.json
++++ b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/poe_default_cfg.json
+@@ -1,251 +1,251 @@
+ {
+     "PORT": {
+-        "Ethernet0": {
++        "Ethernet1": {
+             "lanes": "0",
+             "poe_pri": "critical",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet1": {
++        "Ethernet2": {
+             "lanes": "1",
+             "poe_pri": "critical",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet2": {
++        "Ethernet3": {
+             "lanes": "2",
+             "poe_pri": "critical",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet3": {
++        "Ethernet4": {
+             "lanes": "3",
+             "poe_pri": "critical",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet4": {
++        "Ethernet5": {
+             "lanes": "4",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet5": {
++        "Ethernet6": {
+             "lanes": "5",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet6": {
++        "Ethernet7": {
+             "lanes": "6",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet7": {
++        "Ethernet8": {
+             "lanes": "7",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet8": {
++        "Ethernet9": {
+             "lanes": "8",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet9": {
++        "Ethernet10": {
+             "lanes": "9",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet10": {
++        "Ethernet11": {
+             "lanes": "10",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet11": {
++        "Ethernet12": {
+             "lanes": "11",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet12": {
++        "Ethernet13": {
+             "lanes": "12",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet13": {
++        "Ethernet14": {
+             "lanes": "13",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet14": {
++        "Ethernet15": {
+             "lanes": "14",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet15": {
++        "Ethernet16": {
+             "lanes": "15",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet16": {
++        "Ethernet17": {
+             "lanes": "16",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet17": {
++        "Ethernet18": {
+             "lanes": "17",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet18": {
++        "Ethernet19": {
+             "lanes": "18",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet19": {
++        "Ethernet20": {
+             "lanes": "19",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet20": {
++        "Ethernet21": {
+             "lanes": "20",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet21": {
++        "Ethernet22": {
+             "lanes": "21",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet22": {
++        "Ethernet23": {
+             "lanes": "22",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet23": {
++        "Ethernet24": {
+             "lanes": "23",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet24": {
++        "Ethernet25": {
+             "lanes": "24",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet25": {
++        "Ethernet26": {
+             "lanes": "25",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet26": {
++        "Ethernet27": {
+             "lanes": "26",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet27": {
++        "Ethernet28": {
+             "lanes": "27",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet28": {
++        "Ethernet29": {
+             "lanes": "28",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet29": {
++        "Ethernet30": {
+             "lanes": "29",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet30": {
++        "Ethernet31": {
+             "lanes": "30",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet31": {
++        "Ethernet32": {
+             "lanes": "31",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet32": {
++        "Ethernet33": {
+             "lanes": "48",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet33": {
++        "Ethernet34": {
+             "lanes": "49",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet34": {
++        "Ethernet35": {
+             "lanes": "50",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet35": {
++        "Ethernet36": {
+             "lanes": "51",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+diff --git a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/port_config.ini b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/port_config.ini
+index 90ede384b..0ee52ebfa 100644
+--- a/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/port_config.ini
++++ b/device/wistron/arm64-wistron_es1227_36ts_p-r0/wistron_es1227_36ts_p/port_config.ini
+@@ -1,37 +1,37 @@
+ #  name        lanes  alias      speed   autoneg    fec     index   poe_pri     poe_status      poe_maxpower       poe_tlv
+-Ethernet0      0      Eth1        1000     on       none    1       critical    enableDynamic       0              disable
+-Ethernet1      1      Eth2        1000     on       none    2       critical    enableDynamic       0              disable
+-Ethernet2      2      Eth3        1000     on       none    3       critical    enableDynamic       0              disable
+-Ethernet3      3      Eth4        1000     on       none    4       critical    enableDynamic       0              disable
+-Ethernet4      4      Eth5        1000     on       none    5       low         enableDynamic       0              disable
+-Ethernet5      5      Eth6        1000     on       none    6       low         enableDynamic       0              disable
+-Ethernet6      6      Eth7        1000     on       none    7       low         enableDynamic       0              disable
+-Ethernet7      7      Eth8        1000     on       none    8       low         enableDynamic       0              disable
+-Ethernet8      8      Eth9        1000     on       none    9       low         enableDynamic       0              disable
+-Ethernet9      9      Eth10       1000     on       none    10      low         enableDynamic       0              disable
+-Ethernet10     10     Eth11       1000     on       none    11      low         enableDynamic       0              disable
+-Ethernet11     11     Eth12       1000     on       none    12      low         enableDynamic       0              disable
+-Ethernet12     12     Eth13       1000     on       none    13      low         enableDynamic       0              disable
+-Ethernet13     13     Eth14       1000     on       none    14      low         enableDynamic       0              disable
+-Ethernet14     14     Eth15       1000     on       none    15      low         enableDynamic       0              disable
+-Ethernet15     15     Eth16       1000     on       none    16      low         enableDynamic       0              disable
+-Ethernet16     16     Eth17       1000     on       none    17      low         enableDynamic       0              disable
+-Ethernet17     17     Eth18       1000     on       none    18      low         enableDynamic       0              disable
+-Ethernet18     18     Eth19       1000     on       none    19      low         enableDynamic       0              disable
+-Ethernet19     19     Eth20       1000     on       none    20      low         enableDynamic       0              disable
+-Ethernet20     20     Eth21       1000     on       none    21      low         enableDynamic       0              disable
+-Ethernet21     21     Eth22       1000     on       none    22      low         enableDynamic       0              disable
+-Ethernet22     22     Eth23       1000     on       none    23      low         enableDynamic       0              disable
+-Ethernet23     23     Eth24       1000     on       none    24      low         enableDynamic       0              disable
+-Ethernet24     24     Eth25       1000     on       none    25      NA          NA                  0              NA
+-Ethernet25     25     Eth26       1000     on       none    26      NA          NA                  0              NA
+-Ethernet26     26     Eth27       1000     on       none    27      NA          NA                  0              NA
+-Ethernet27     27     Eth28       1000     on       none    28      NA          NA                  0              NA
+-Ethernet28     28     Eth29       1000     on       none    29      NA          NA                  0              NA
+-Ethernet29     29     Eth30       1000     on       none    30      NA          NA                  0              NA
+-Ethernet30     30     Eth31       1000     on       none    31      NA          NA                  0              NA
+-Ethernet31     31     Eth32       1000     on       none    32      NA          NA                  0              NA
+-Ethernet32     48     Eth33       10000    off      none    33      NA          NA                  0              NA
+-Ethernet33     49     Eth34       10000    off      none    34      NA          NA                  0              NA
+-Ethernet34     50     Eth35       10000    off      none    35      NA          NA                  0              NA
+-Ethernet35     51     Eth36       10000    off      none    36      NA          NA                  0              NA
++Ethernet1      0      Eth1        1000     on       none    1       critical    enableDynamic       0              disable
++Ethernet2      1      Eth2        1000     on       none    2       critical    enableDynamic       0              disable
++Ethernet3      2      Eth3        1000     on       none    3       critical    enableDynamic       0              disable
++Ethernet4      3      Eth4        1000     on       none    4       critical    enableDynamic       0              disable
++Ethernet5      4      Eth5        1000     on       none    5       low         enableDynamic       0              disable
++Ethernet6      5      Eth6        1000     on       none    6       low         enableDynamic       0              disable
++Ethernet7      6      Eth7        1000     on       none    7       low         enableDynamic       0              disable
++Ethernet8      7      Eth8        1000     on       none    8       low         enableDynamic       0              disable
++Ethernet9      8      Eth9        1000     on       none    9       low         enableDynamic       0              disable
++Ethernet10      9      Eth10       1000     on       none    10      low         enableDynamic       0              disable
++Ethernet11     10     Eth11       1000     on       none    11      low         enableDynamic       0              disable
++Ethernet12     11     Eth12       1000     on       none    12      low         enableDynamic       0              disable
++Ethernet13     12     Eth13       1000     on       none    13      low         enableDynamic       0              disable
++Ethernet14     13     Eth14       1000     on       none    14      low         enableDynamic       0              disable
++Ethernet15     14     Eth15       1000     on       none    15      low         enableDynamic       0              disable
++Ethernet16     15     Eth16       1000     on       none    16      low         enableDynamic       0              disable
++Ethernet17     16     Eth17       1000     on       none    17      low         enableDynamic       0              disable
++Ethernet18     17     Eth18       1000     on       none    18      low         enableDynamic       0              disable
++Ethernet19     18     Eth19       1000     on       none    19      low         enableDynamic       0              disable
++Ethernet20     19     Eth20       1000     on       none    20      low         enableDynamic       0              disable
++Ethernet21     20     Eth21       1000     on       none    21      low         enableDynamic       0              disable
++Ethernet22     21     Eth22       1000     on       none    22      low         enableDynamic       0              disable
++Ethernet23     22     Eth23       1000     on       none    23      low         enableDynamic       0              disable
++Ethernet24     23     Eth24       1000     on       none    24      low         enableDynamic       0              disable
++Ethernet25     24     Eth25       1000     on       none    25      NA          NA                  0              NA
++Ethernet26     25     Eth26       1000     on       none    26      NA          NA                  0              NA
++Ethernet27     26     Eth27       1000     on       none    27      NA          NA                  0              NA
++Ethernet28     27     Eth28       1000     on       none    28      NA          NA                  0              NA
++Ethernet29     28     Eth29       1000     on       none    29      NA          NA                  0              NA
++Ethernet30     29     Eth30       1000     on       none    30      NA          NA                  0              NA
++Ethernet31     30     Eth31       1000     on       none    31      NA          NA                  0              NA
++Ethernet32     31     Eth32       1000     on       none    32      NA          NA                  0              NA
++Ethernet33     48     Eth33       10000    off      none    33      NA          NA                  0              NA
++Ethernet34     49     Eth34       10000    off      none    34      NA          NA                  0              NA
++Ethernet35     50     Eth35       10000    off      none    35      NA          NA                  0              NA
++Ethernet36     51     Eth36       10000    off      none    36      NA          NA                  0              NA
+diff --git a/device/wistron/arm64-wistron_es1227_54ts_p2-r0/platform.json b/device/wistron/arm64-wistron_es1227_54ts_p2-r0/platform.json
+index 4b58c46d3..2ee9753c8 100644
+--- a/device/wistron/arm64-wistron_es1227_54ts_p2-r0/platform.json
++++ b/device/wistron/arm64-wistron_es1227_54ts_p2-r0/platform.json
+@@ -32,7 +32,7 @@
+         "fan_drawers": [
+             {
+                 "name": "FanTray1",
+-                "num_fans" : 1,
++                "num_fans": 1,
+                 "status_led": {
+                     "controllable": false
+                 },
+@@ -47,7 +47,7 @@
+             },
+             {
+                 "name": "FanTray2",
+-                "num_fans" : 1,
++                "num_fans": 1,
+                 "status_led": {
+                     "controllable": false
+                 },
+@@ -160,9 +160,6 @@
+             }
+         ],
+         "sfps": [
+-            {
+-                "name": "Ethernet48"
+-            },
+             {
+                 "name": "Ethernet49"
+             },
+@@ -177,386 +174,497 @@
+             },
+             {
+                 "name": "Ethernet53"
++            },
++            {
++                "name": "Ethernet54"
+             }
+         ]
+     },
+     "interfaces": {
+-        "Ethernet0": {
++        "Ethernet1": {
+             "index": "1",
+             "lanes": "0",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth1"]
++                "1x1000[100,10]": [
++                    "Eth1"
++                ]
+             }
+         },
+-        "Ethernet1": {
++        "Ethernet2": {
+             "index": "2",
+             "lanes": "1",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth2"]
++                "1x1000[100,10]": [
++                    "Eth2"
++                ]
+             }
+         },
+-        "Ethernet2": {
++        "Ethernet3": {
+             "index": "3",
+             "lanes": "2",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth3"]
++                "1x1000[100,10]": [
++                    "Eth3"
++                ]
+             }
+         },
+-        "Ethernet3": {
++        "Ethernet4": {
+             "index": "4",
+             "lanes": "3",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth4"]
++                "1x1000[100,10]": [
++                    "Eth4"
++                ]
+             }
+         },
+-        "Ethernet4": {
++        "Ethernet5": {
+             "index": "5",
+             "lanes": "4",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth5"]
++                "1x1000[100,10]": [
++                    "Eth5"
++                ]
+             }
+         },
+-        "Ethernet5": {
++        "Ethernet6": {
+             "index": "6",
+             "lanes": "5",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth6"]
++                "1x1000[100,10]": [
++                    "Eth6"
++                ]
+             }
+         },
+-        "Ethernet6": {
++        "Ethernet7": {
+             "index": "7",
+             "lanes": "6",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth7"]
++                "1x1000[100,10]": [
++                    "Eth7"
++                ]
+             }
+         },
+-        "Ethernet7": {
++        "Ethernet8": {
+             "index": "8",
+             "lanes": "7",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth8"]
++                "1x1000[100,10]": [
++                    "Eth8"
++                ]
+             }
+         },
+-        "Ethernet8": {
++        "Ethernet9": {
+             "index": "9",
+             "lanes": "8",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth9"]
++                "1x1000[100,10]": [
++                    "Eth9"
++                ]
+             }
+         },
+-        "Ethernet9": {
++        "Ethernet10": {
+             "index": "10",
+             "lanes": "9",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth10"]
++                "1x1000[100,10]": [
++                    "Eth10"
++                ]
+             }
+         },
+-        "Ethernet10": {
++        "Ethernet11": {
+             "index": "11",
+             "lanes": "10",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth11"]
++                "1x1000[100,10]": [
++                    "Eth11"
++                ]
+             }
+         },
+-        "Ethernet11": {
++        "Ethernet12": {
+             "index": "12",
+             "lanes": "11",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth12"]
++                "1x1000[100,10]": [
++                    "Eth12"
++                ]
+             }
+         },
+-        "Ethernet12": {
++        "Ethernet13": {
+             "index": "13",
+             "lanes": "12",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth13"]
++                "1x1000[100,10]": [
++                    "Eth13"
++                ]
+             }
+         },
+-        "Ethernet13": {
++        "Ethernet14": {
+             "index": "14",
+             "lanes": "13",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth14"]
++                "1x1000[100,10]": [
++                    "Eth14"
++                ]
+             }
+         },
+-        "Ethernet14": {
++        "Ethernet15": {
+             "index": "15",
+             "lanes": "14",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth15"]
++                "1x1000[100,10]": [
++                    "Eth15"
++                ]
+             }
+         },
+-        "Ethernet15": {
++        "Ethernet16": {
+             "index": "16",
+             "lanes": "15",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth16"]
++                "1x1000[100,10]": [
++                    "Eth16"
++                ]
+             }
+         },
+-        "Ethernet16": {
++        "Ethernet17": {
+             "index": "17",
+             "lanes": "16",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth17"]
++                "1x1000[100,10]": [
++                    "Eth17"
++                ]
+             }
+         },
+-        "Ethernet17": {
++        "Ethernet18": {
+             "index": "18",
+             "lanes": "17",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth18"]
++                "1x1000[100,10]": [
++                    "Eth18"
++                ]
+             }
+         },
+-        "Ethernet18": {
++        "Ethernet19": {
+             "index": "19",
+             "lanes": "18",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth19"]
++                "1x1000[100,10]": [
++                    "Eth19"
++                ]
+             }
+         },
+-        "Ethernet19": {
++        "Ethernet20": {
+             "index": "20",
+             "lanes": "19",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth20"]
++                "1x1000[100,10]": [
++                    "Eth20"
++                ]
+             }
+         },
+-        "Ethernet20": {
++        "Ethernet21": {
+             "index": "21",
+             "lanes": "20",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth21"]
++                "1x1000[100,10]": [
++                    "Eth21"
++                ]
+             }
+         },
+-        "Ethernet21": {
++        "Ethernet22": {
+             "index": "22",
+             "lanes": "21",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth22"]
++                "1x1000[100,10]": [
++                    "Eth22"
++                ]
+             }
+         },
+-        "Ethernet22": {
++        "Ethernet23": {
+             "index": "23",
+             "lanes": "22",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth23"]
++                "1x1000[100,10]": [
++                    "Eth23"
++                ]
+             }
+         },
+-        "Ethernet23": {
++        "Ethernet24": {
+             "index": "24",
+             "lanes": "23",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth24"]
++                "1x1000[100,10]": [
++                    "Eth24"
++                ]
+             }
+         },
+-        "Ethernet24": {
++        "Ethernet25": {
+             "index": "25",
+             "lanes": "24",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth25"]
++                "1x1000[100,10]": [
++                    "Eth25"
++                ]
+             }
+         },
+-        "Ethernet25": {
++        "Ethernet26": {
+             "index": "26",
+             "lanes": "25",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth26"]
++                "1x1000[100,10]": [
++                    "Eth26"
++                ]
+             }
+         },
+-        "Ethernet26": {
++        "Ethernet27": {
+             "index": "27",
+             "lanes": "26",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth27"]
++                "1x1000[100,10]": [
++                    "Eth27"
++                ]
+             }
+         },
+-        "Ethernet27": {
++        "Ethernet28": {
+             "index": "28",
+             "lanes": "27",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth28"]
++                "1x1000[100,10]": [
++                    "Eth28"
++                ]
+             }
+         },
+-        "Ethernet28": {
++        "Ethernet29": {
+             "index": "29",
+             "lanes": "28",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth29"]
++                "1x1000[100,10]": [
++                    "Eth29"
++                ]
+             }
+         },
+-        "Ethernet29": {
++        "Ethernet30": {
+             "index": "30",
+             "lanes": "29",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth30"]
++                "1x1000[100,10]": [
++                    "Eth30"
++                ]
+             }
+         },
+-        "Ethernet30": {
++        "Ethernet31": {
+             "index": "31",
+             "lanes": "30",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth31"]
++                "1x1000[100,10]": [
++                    "Eth31"
++                ]
+             }
+         },
+-        "Ethernet31": {
++        "Ethernet32": {
+             "index": "32",
+             "lanes": "31",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth32"]
++                "1x1000[100,10]": [
++                    "Eth32"
++                ]
+             }
+         },
+-        "Ethernet32": {
++        "Ethernet33": {
+             "index": "33",
+             "lanes": "32",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth33"]
++                "1x1000[100,10]": [
++                    "Eth33"
++                ]
+             }
+         },
+-        "Ethernet33": {
++        "Ethernet34": {
+             "index": "34",
+             "lanes": "33",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth34"]
++                "1x1000[100,10]": [
++                    "Eth34"
++                ]
+             }
+         },
+-        "Ethernet34": {
++        "Ethernet35": {
+             "index": "35",
+             "lanes": "34",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth35"]
++                "1x1000[100,10]": [
++                    "Eth35"
++                ]
+             }
+         },
+-        "Ethernet35": {
++        "Ethernet36": {
+             "index": "36",
+             "lanes": "35",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth36"]
++                "1x1000[100,10]": [
++                    "Eth36"
++                ]
+             }
+         },
+-        "Ethernet36": {
++        "Ethernet37": {
+             "index": "37",
+             "lanes": "36",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth37"]
++                "1x1000[100,10]": [
++                    "Eth37"
++                ]
+             }
+         },
+-        "Ethernet37": {
++        "Ethernet38": {
+             "index": "38",
+             "lanes": "37",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth38"]
++                "1x1000[100,10]": [
++                    "Eth38"
++                ]
+             }
+         },
+-        "Ethernet38": {
++        "Ethernet39": {
+             "index": "39",
+             "lanes": "38",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth39"]
++                "1x1000[100,10]": [
++                    "Eth39"
++                ]
+             }
+         },
+-        "Ethernet39": {
++        "Ethernet40": {
+             "index": "40",
+             "lanes": "39",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth40"]
++                "1x1000[100,10]": [
++                    "Eth40"
++                ]
+             }
+         },
+-        "Ethernet40": {
++        "Ethernet41": {
+             "index": "41",
+             "lanes": "40",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth41"]
++                "1x1000[100,10]": [
++                    "Eth41"
++                ]
+             }
+         },
+-        "Ethernet41": {
++        "Ethernet42": {
+             "index": "42",
+             "lanes": "41",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth42"]
++                "1x1000[100,10]": [
++                    "Eth42"
++                ]
+             }
+         },
+-        "Ethernet42": {
++        "Ethernet43": {
+             "index": "43",
+             "lanes": "42",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth43"]
++                "1x1000[100,10]": [
++                    "Eth43"
++                ]
+             }
+         },
+-        "Ethernet43": {
++        "Ethernet44": {
+             "index": "44",
+             "lanes": "43",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth44"]
++                "1x1000[100,10]": [
++                    "Eth44"
++                ]
+             }
+         },
+-        "Ethernet44": {
++        "Ethernet45": {
+             "index": "45",
+             "lanes": "44",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth45"]
++                "1x1000[100,10]": [
++                    "Eth45"
++                ]
+             }
+         },
+-        "Ethernet45": {
++        "Ethernet46": {
+             "index": "46",
+             "lanes": "45",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth46"]
++                "1x1000[100,10]": [
++                    "Eth46"
++                ]
+             }
+         },
+-        "Ethernet46": {
++        "Ethernet47": {
+             "index": "47",
+             "lanes": "46",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth47"]
++                "1x1000[100,10]": [
++                    "Eth47"
++                ]
+             }
+         },
+-        "Ethernet47": {
++        "Ethernet48": {
+             "index": "48",
+             "lanes": "47",
+             "breakout_modes": {
+-                "1x1000[100,10]": ["Eth48"]
++                "1x1000[100,10]": [
++                    "Eth48"
++                ]
+             }
+         },
+-        "Ethernet48": {
++        "Ethernet49": {
+             "index": "49",
+             "lanes": "48",
+             "breakout_modes": {
+-                "1x25G[10G]": ["Eth49"]
++                "1x25G[10G]": [
++                    "Eth49"
++                ]
+             }
+         },
+-        "Ethernet49": {
++        "Ethernet50": {
+             "index": "50",
+             "lanes": "49",
+             "breakout_modes": {
+-                "1x25G[10G]": ["Eth50"]
++                "1x25G[10G]": [
++                    "Eth50"
++                ]
+             }
+         },
+-        "Ethernet50": {
++        "Ethernet51": {
+             "index": "51",
+             "lanes": "50",
+             "breakout_modes": {
+-                "1x25G[10G]": ["Eth51"]
++                "1x25G[10G]": [
++                    "Eth51"
++                ]
+             }
+         },
+-        "Ethernet51": {
++        "Ethernet52": {
+             "index": "52",
+             "lanes": "51",
+             "breakout_modes": {
+-                "1x25G[10G]": ["Eth52"]
++                "1x25G[10G]": [
++                    "Eth52"
++                ]
+             }
+         },
+-        "Ethernet52": {
++        "Ethernet53": {
+             "index": "53",
+             "lanes": "52",
+             "breakout_modes": {
+-                "1x25G[10G]": ["Eth53"]
++                "1x25G[10G]": [
++                    "Eth53"
++                ]
+             }
+         },
+-        "Ethernet53": {
++        "Ethernet54": {
+             "index": "54",
+             "lanes": "53",
+             "breakout_modes": {
+-                "1x25G[10G]": ["Eth54"]
++                "1x25G[10G]": [
++                    "Eth54"
++                ]
+             }
+         }
+     },
+@@ -564,4 +672,4 @@
+         "poll_interval": "10",
+         "poll_admin_status": "enable"
+     }
+-}
++}
+\ No newline at end of file
+diff --git a/device/wistron/arm64-wistron_es1227_54ts_p2-r0/wistron_es1227_54ts_p2/hwsku.json b/device/wistron/arm64-wistron_es1227_54ts_p2-r0/wistron_es1227_54ts_p2/hwsku.json
+index 32d4c5230..1aa472166 100644
+--- a/device/wistron/arm64-wistron_es1227_54ts_p2-r0/wistron_es1227_54ts_p2/hwsku.json
++++ b/device/wistron/arm64-wistron_es1227_54ts_p2-r0/wistron_es1227_54ts_p2/hwsku.json
+@@ -1,11 +1,5 @@
+ {
+     "interfaces": {
+-        "Ethernet0": {
+-            "default_brkout_mode": "1x1000[100,10]",
+-            "fec" : "none",
+-            "autoneg" : "on",
+-            "port_type": "RJ45"
+-        },
+         "Ethernet1": {
+             "default_brkout_mode": "1x1000[100,10]",
+             "fec" : "none",
+@@ -289,32 +283,38 @@
+             "port_type": "RJ45"
+         },
+         "Ethernet48": {
+-            "default_brkout_mode": "1x25G[10G]",
++            "default_brkout_mode": "1x1000[100,10]",
+             "fec" : "none",
+-            "autoneg" : "off"
++            "autoneg" : "on",
++            "port_type": "RJ45"
+         },
+         "Ethernet49": {
+-            "default_brkout_mode": "1x25G[10G]",
++            "default_brkout_mode": "1x10G[25G]",
+             "fec" : "none",
+             "autoneg" : "off"
+         },
+         "Ethernet50": {
+-            "default_brkout_mode": "1x25G[10G]",
++            "default_brkout_mode": "1x10G[25G]",
+             "fec" : "none",
+             "autoneg" : "off"
+         },
+         "Ethernet51": {
+-            "default_brkout_mode": "1x25G[10G]",
++            "default_brkout_mode": "1x10G[25G]",
+             "fec" : "none",
+             "autoneg" : "off"
+         },
+         "Ethernet52": {
+-            "default_brkout_mode": "1x25G[10G]",
++            "default_brkout_mode": "1x10G[25G]",
+             "fec" : "none",
+             "autoneg" : "off"
+         },
+         "Ethernet53": {
+-            "default_brkout_mode": "1x25G[10G]",
++            "default_brkout_mode": "1x10G[25G]",
++            "fec" : "none",
++            "autoneg" : "off"
++        },
++        "Ethernet54": {
++            "default_brkout_mode": "1x10G[25G]",
+             "fec" : "none",
+             "autoneg" : "off"
+         }
+diff --git a/device/wistron/arm64-wistron_es1227_54ts_p2-r0/wistron_es1227_54ts_p2/poe_default_cfg.json b/device/wistron/arm64-wistron_es1227_54ts_p2-r0/wistron_es1227_54ts_p2/poe_default_cfg.json
+index 15e6f8c84..e57cbfc85 100644
+--- a/device/wistron/arm64-wistron_es1227_54ts_p2-r0/wistron_es1227_54ts_p2/poe_default_cfg.json
++++ b/device/wistron/arm64-wistron_es1227_54ts_p2-r0/wistron_es1227_54ts_p2/poe_default_cfg.json
+@@ -1,378 +1,378 @@
+ {
+     "PORT": {
+-        "Ethernet0": {
++        "Ethernet1": {
+             "lanes": "0",
+             "poe_pri": "critical",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet1": {
++        "Ethernet2": {
+             "lanes": "1",
+             "poe_pri": "critical",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet2": {
++        "Ethernet3": {
+             "lanes": "2",
+             "poe_pri": "critical",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet3": {
++        "Ethernet4": {
+             "lanes": "3",
+             "poe_pri": "critical",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet4": {
++        "Ethernet5": {
+             "lanes": "4",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet5": {
++        "Ethernet6": {
+             "lanes": "5",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet6": {
++        "Ethernet7": {
+             "lanes": "6",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet7": {
++        "Ethernet8": {
+             "lanes": "7",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet8": {
++        "Ethernet9": {
+             "lanes": "8",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet9": {
++        "Ethernet10": {
+             "lanes": "9",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet10": {
++        "Ethernet11": {
+             "lanes": "10",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet11": {
++        "Ethernet12": {
+             "lanes": "11",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet12": {
++        "Ethernet13": {
+             "lanes": "12",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet13": {
++        "Ethernet14": {
+             "lanes": "13",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet14": {
++        "Ethernet15": {
+             "lanes": "14",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet15": {
++        "Ethernet16": {
+             "lanes": "15",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet16": {
++        "Ethernet17": {
+             "lanes": "16",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet17": {
++        "Ethernet18": {
+             "lanes": "17",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet18": {
++        "Ethernet19": {
+             "lanes": "18",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet19": {
++        "Ethernet20": {
+             "lanes": "19",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet20": {
++        "Ethernet21": {
+             "lanes": "20",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet21": {
++        "Ethernet22": {
+             "lanes": "21",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet22": {
++        "Ethernet23": {
+             "lanes": "22",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet23": {
++        "Ethernet24": {
+             "lanes": "23",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet24": {
++        "Ethernet25": {
+             "lanes": "24",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet25": {
++        "Ethernet26": {
+             "lanes": "25",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet26": {
++        "Ethernet27": {
+             "lanes": "26",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet27": {
++        "Ethernet28": {
+             "lanes": "27",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet28": {
++        "Ethernet29": {
+             "lanes": "28",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet29": {
++        "Ethernet30": {
+             "lanes": "29",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet30": {
++        "Ethernet31": {
+             "lanes": "30",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet31": {
++        "Ethernet32": {
+             "lanes": "31",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet32": {
++        "Ethernet33": {
+             "lanes": "32",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet33": {
++        "Ethernet34": {
+             "lanes": "33",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet34": {
++        "Ethernet35": {
+             "lanes": "34",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet35": {
++        "Ethernet36": {
+             "lanes": "35",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet36": {
++        "Ethernet37": {
+             "lanes": "36",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet37": {
++        "Ethernet38": {
+             "lanes": "37",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet38": {
++        "Ethernet39": {
+             "lanes": "38",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet39": {
++        "Ethernet40": {
+             "lanes": "39",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet40": {
++        "Ethernet41": {
+             "lanes": "40",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet41": {
++        "Ethernet42": {
+             "lanes": "41",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet42": {
++        "Ethernet43": {
+             "lanes": "42",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet43": {
++        "Ethernet44": {
+             "lanes": "43",
+             "poe_pri": "low",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet44": {
++        "Ethernet45": {
+             "lanes": "44",
+             "poe_pri": "critical",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet45": {
++        "Ethernet46": {
+             "lanes": "45",
+             "poe_pri": "critical",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet46": {
++        "Ethernet47": {
+             "lanes": "46",
+             "poe_pri": "critical",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet47": {
++        "Ethernet48": {
+             "lanes": "47",
+             "poe_pri": "critical",
+             "poe_status": "enableDynamic",
+             "poe_maxpower": "0",
+             "poe_tlv": "disable"
+         },
+-        "Ethernet48": {
++        "Ethernet49": {
+             "lanes": "48",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet49": {
++        "Ethernet50": {
+             "lanes": "49",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet50": {
++        "Ethernet51": {
+             "lanes": "50",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet51": {
++        "Ethernet52": {
+             "lanes": "51",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet52": {
++        "Ethernet53": {
+             "lanes": "52",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+             "poe_tlv": "NA"
+         },
+-        "Ethernet53": {
+-            "lanes": "52",
++        "Ethernet54": {
++            "lanes": "53",
+             "poe_pri": "NA",
+             "poe_status": "NA",
+             "poe_maxpower": "0",
+diff --git a/device/wistron/arm64-wistron_es1227_54ts_p2-r0/wistron_es1227_54ts_p2/port_config.ini b/device/wistron/arm64-wistron_es1227_54ts_p2-r0/wistron_es1227_54ts_p2/port_config.ini
+index c7fb9e672..8d819dfe1 100644
+--- a/device/wistron/arm64-wistron_es1227_54ts_p2-r0/wistron_es1227_54ts_p2/port_config.ini
++++ b/device/wistron/arm64-wistron_es1227_54ts_p2-r0/wistron_es1227_54ts_p2/port_config.ini
+@@ -1,55 +1,55 @@
+ #  name        lanes  alias      speed   autoneg    fec     index   poe_pri     poe_status      poe_maxpower       poe_tlv
+-Ethernet0      0      Eth1        1000     on       none    1       critical    enableDynamic       0              disable
+-Ethernet1      1      Eth2        1000     on       none    2       critical    enableDynamic       0              disable
+-Ethernet2      2      Eth3        1000     on       none    3       critical    enableDynamic       0              disable
+-Ethernet3      3      Eth4        1000     on       none    4       critical    enableDynamic       0              disable
+-Ethernet4      4      Eth5        1000     on       none    5       low         enableDynamic       0              disable
+-Ethernet5      5      Eth6        1000     on       none    6       low         enableDynamic       0              disable
+-Ethernet6      6      Eth7        1000     on       none    7       low         enableDynamic       0              disable
+-Ethernet7      7      Eth8        1000     on       none    8       low         enableDynamic       0              disable
+-Ethernet8      8      Eth9        1000     on       none    9       low         enableDynamic       0              disable
+-Ethernet9      9      Eth10       1000     on       none    10      low         enableDynamic       0              disable
+-Ethernet10     10     Eth11       1000     on       none    11      low         enableDynamic       0              disable
+-Ethernet11     11     Eth12       1000     on       none    12      low         enableDynamic       0              disable
+-Ethernet12     12     Eth13       1000     on       none    13      low         enableDynamic       0              disable
+-Ethernet13     13     Eth14       1000     on       none    14      low         enableDynamic       0              disable
+-Ethernet14     14     Eth15       1000     on       none    15      low         enableDynamic       0              disable
+-Ethernet15     15     Eth16       1000     on       none    16      low         enableDynamic       0              disable
+-Ethernet16     16     Eth17       1000     on       none    17      low         enableDynamic       0              disable
+-Ethernet17     17     Eth18       1000     on       none    18      low         enableDynamic       0              disable
+-Ethernet18     18     Eth19       1000     on       none    19      low         enableDynamic       0              disable
+-Ethernet19     19     Eth20       1000     on       none    20      low         enableDynamic       0              disable
+-Ethernet20     20     Eth21       1000     on       none    21      low         enableDynamic       0              disable
+-Ethernet21     21     Eth22       1000     on       none    22      low         enableDynamic       0              disable
+-Ethernet22     22     Eth23       1000     on       none    23      low         enableDynamic       0              disable
+-Ethernet23     23     Eth24       1000     on       none    24      low         enableDynamic       0              disable
+-Ethernet24     24     Eth25       1000     on       none    25      low         enableDynamic       0              disable
+-Ethernet25     25     Eth26       1000     on       none    26      low         enableDynamic       0              disable
+-Ethernet26     26     Eth27       1000     on       none    27      low         enableDynamic       0              disable
+-Ethernet27     27     Eth28       1000     on       none    28      low         enableDynamic       0              disable
+-Ethernet28     28     Eth29       1000     on       none    29      low         enableDynamic       0              disable
+-Ethernet29     29     Eth30       1000     on       none    30      low         enableDynamic       0              disable
+-Ethernet30     30     Eth31       1000     on       none    31      low         enableDynamic       0              disable
+-Ethernet31     31     Eth32       1000     on       none    32      low         enableDynamic       0              disable
+-Ethernet32     32     Eth33       1000     on       none    33      low         enableDynamic       0              disable
+-Ethernet33     33     Eth34       1000     on       none    34      low         enableDynamic       0              disable
+-Ethernet34     34     Eth35       1000     on       none    35      low         enableDynamic       0              disable
+-Ethernet35     35     Eth36       1000     on       none    36      low         enableDynamic       0              disable
+-Ethernet36     36     Eth37       1000     on       none    37      low         enableDynamic       0              disable
+-Ethernet37     37     Eth38       1000     on       none    38      low         enableDynamic       0              disable
+-Ethernet38     38     Eth39       1000     on       none    39      low         enableDynamic       0              disable
+-Ethernet39     39     Eth40       1000     on       none    40      low         enableDynamic       0              disable
+-Ethernet40     40     Eth41       1000     on       none    41      low         enableDynamic       0              disable
+-Ethernet41     41     Eth42       1000     on       none    42      low         enableDynamic       0              disable
+-Ethernet42     42     Eth43       1000     on       none    43      low         enableDynamic       0              disable
+-Ethernet43     43     Eth44       1000     on       none    44      low         enableDynamic       0              disable
+-Ethernet44     44     Eth45       1000     on       none    45      low         enableDynamic       0              disable
+-Ethernet45     45     Eth46       1000     on       none    46      low         enableDynamic       0              disable
+-Ethernet46     46     Eth47       1000     on       none    47      low         enableDynamic       0              disable
+-Ethernet47     47     Eth48       1000     on       none    48      low         enableDynamic       0              disable
+-Ethernet48     48     Eth49       25000    off      none    49      NA          NA                  0              NA
+-Ethernet49     49     Eth50       25000    off      none    50      NA          NA                  0              NA
+-Ethernet50     50     Eth51       25000    off      none    51      NA          NA                  0              NA
+-Ethernet51     51     Eth52       25000    off      none    52      NA          NA                  0              NA
+-Ethernet52     52     Eth53       25000    off      none    53      NA          NA                  0              NA
+-Ethernet53     53     Eth54       25000    off      none    54      NA          NA                  0              NA
++Ethernet1      0      Eth1        1000     on       none    1       critical    enableDynamic       0              disable
++Ethernet2      1      Eth2        1000     on       none    2       critical    enableDynamic       0              disable
++Ethernet3      2      Eth3        1000     on       none    3       critical    enableDynamic       0              disable
++Ethernet4      3      Eth4        1000     on       none    4       critical    enableDynamic       0              disable
++Ethernet5      4      Eth5        1000     on       none    5       low         enableDynamic       0              disable
++Ethernet6      5      Eth6        1000     on       none    6       low         enableDynamic       0              disable
++Ethernet7      6      Eth7        1000     on       none    7       low         enableDynamic       0              disable
++Ethernet8      7      Eth8        1000     on       none    8       low         enableDynamic       0              disable
++Ethernet9      8      Eth9        1000     on       none    9       low         enableDynamic       0              disable
++Ethernet10      9      Eth10       1000     on       none    10      low         enableDynamic       0              disable
++Ethernet11     10     Eth11       1000     on       none    11      low         enableDynamic       0              disable
++Ethernet12     11     Eth12       1000     on       none    12      low         enableDynamic       0              disable
++Ethernet13     12     Eth13       1000     on       none    13      low         enableDynamic       0              disable
++Ethernet14     13     Eth14       1000     on       none    14      low         enableDynamic       0              disable
++Ethernet15     14     Eth15       1000     on       none    15      low         enableDynamic       0              disable
++Ethernet16     15     Eth16       1000     on       none    16      low         enableDynamic       0              disable
++Ethernet17     16     Eth17       1000     on       none    17      low         enableDynamic       0              disable
++Ethernet18     17     Eth18       1000     on       none    18      low         enableDynamic       0              disable
++Ethernet19     18     Eth19       1000     on       none    19      low         enableDynamic       0              disable
++Ethernet20     19     Eth20       1000     on       none    20      low         enableDynamic       0              disable
++Ethernet21     20     Eth21       1000     on       none    21      low         enableDynamic       0              disable
++Ethernet22     21     Eth22       1000     on       none    22      low         enableDynamic       0              disable
++Ethernet23     22     Eth23       1000     on       none    23      low         enableDynamic       0              disable
++Ethernet24     23     Eth24       1000     on       none    24      low         enableDynamic       0              disable
++Ethernet25     24     Eth25       1000     on       none    25      low         enableDynamic       0              disable
++Ethernet26     25     Eth26       1000     on       none    26      low         enableDynamic       0              disable
++Ethernet27     26     Eth27       1000     on       none    27      low         enableDynamic       0              disable
++Ethernet28     27     Eth28       1000     on       none    28      low         enableDynamic       0              disable
++Ethernet29     28     Eth29       1000     on       none    29      low         enableDynamic       0              disable
++Ethernet30     29     Eth30       1000     on       none    30      low         enableDynamic       0              disable
++Ethernet31     30     Eth31       1000     on       none    31      low         enableDynamic       0              disable
++Ethernet32     31     Eth32       1000     on       none    32      low         enableDynamic       0              disable
++Ethernet33     32     Eth33       1000     on       none    33      low         enableDynamic       0              disable
++Ethernet34     33     Eth34       1000     on       none    34      low         enableDynamic       0              disable
++Ethernet35     34     Eth35       1000     on       none    35      low         enableDynamic       0              disable
++Ethernet36     35     Eth36       1000     on       none    36      low         enableDynamic       0              disable
++Ethernet37     36     Eth37       1000     on       none    37      low         enableDynamic       0              disable
++Ethernet38     37     Eth38       1000     on       none    38      low         enableDynamic       0              disable
++Ethernet39     38     Eth39       1000     on       none    39      low         enableDynamic       0              disable
++Ethernet40     39     Eth40       1000     on       none    40      low         enableDynamic       0              disable
++Ethernet41     40     Eth41       1000     on       none    41      low         enableDynamic       0              disable
++Ethernet42     41     Eth42       1000     on       none    42      low         enableDynamic       0              disable
++Ethernet43     42     Eth43       1000     on       none    43      low         enableDynamic       0              disable
++Ethernet44     43     Eth44       1000     on       none    44      low         enableDynamic       0              disable
++Ethernet45     44     Eth45       1000     on       none    45      low         enableDynamic       0              disable
++Ethernet46     45     Eth46       1000     on       none    46      low         enableDynamic       0              disable
++Ethernet47     46     Eth47       1000     on       none    47      low         enableDynamic       0              disable
++Ethernet48     47     Eth48       1000     on       none    48      low         enableDynamic       0              disable
++Ethernet49     48     Eth49       10000    off      none    49      NA          NA                  0              NA
++Ethernet50     49     Eth50       10000    off      none    50      NA          NA                  0              NA
++Ethernet51     50     Eth51       10000    off      none    51      NA          NA                  0              NA
++Ethernet52     51     Eth52       10000    off      none    52      NA          NA                  0              NA
++Ethernet53     52     Eth53       10000    off      none    53      NA          NA                  0              NA
++Ethernet54     53     Eth54       10000    off      none    54      NA          NA                  0              NA
+diff --git a/platform/marvell-prestera/sonic-platform-wistron/es1227_54ts_p2/sonic_platform/sfp.py b/platform/marvell-prestera/sonic-platform-wistron/es1227_54ts_p2/sonic_platform/sfp.py
+index 7466638e7..ef276c0c0 100644
+--- a/platform/marvell-prestera/sonic-platform-wistron/es1227_54ts_p2/sonic_platform/sfp.py
++++ b/platform/marvell-prestera/sonic-platform-wistron/es1227_54ts_p2/sonic_platform/sfp.py
+@@ -314,7 +314,7 @@ class Sfp(SfpOptoeBase):
+             Returns:
+             string: The name of the device
+         """
+-        return "Ethernet" + str(self.index - 1)
++        return "Ethernet" + str(self.index)
+
+     def get_presence(self):
+         """
