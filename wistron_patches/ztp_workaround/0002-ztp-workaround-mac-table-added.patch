@@ -839,7 +839,7 @@ index d8afbe8..ec29c4b 100755
  ###########################################################################
 -
 -# Initalize constants
-+ 
++
 +# Initialize constants
  RETRY_COUNT=24
  RETRY_INTERVAL=5
@@ -848,16 +848,16 @@ index d8afbe8..ec29c4b 100755
  CMD=$1
  ZTP_ACTIVITY=/var/run/ztp/activity
  
-+# Conditional flag to execute INBAND ZTP VLAN WORKROUND 
-+AMAZON_FLAG=false 
++# Conditional flag to execute INBAND ZTP VLAN WORKROUND
++AMAZON_FLAG=false
 +# Conditional flag to decide which VLAN(s) to hook
 +HOOK_ALL_VLANS=true  # Change this to false to only hook VLAN 951
-+ 
++
  PLATFORM=`sonic-cfggen -H -v DEVICE_METADATA.localhost.platform`
  PRESET=(`head -n 1 /usr/share/sonic/device/$PLATFORM/default_sku`)
  HW_KEY=${PRESET[0]}
 -
-+ 
++
  # Command usage and help
  usage()
  {
@@ -865,7 +865,7 @@ index d8afbe8..ec29c4b 100755
   Usage:  ztp-profile.sh < create [destination_file] | install <discovery|resume> | remove [config-fallback] >
 -
 -         create  - Create ZTP configuration used to initialze switch ports
-+ 
++
 +         create  - Create ZTP configuration used to initialize switch ports
           install - Create and load ZTP configuration used to initialize switch ports
                     and start DHCP discovery
@@ -874,7 +874,7 @@ index d8afbe8..ec29c4b 100755
  EOF
  }
 -
-+ 
++
  updateActivity()
  {
      if [ ! -e ${ZTP_ACTIVITY} ]; then
@@ -883,7 +883,7 @@ index d8afbe8..ec29c4b 100755
      echo "$(date '+%Y-%m-%d %H:%M:%S %Z' -u) | $1" > ${ZTP_ACTIVITY}
  }
 -
-+ 
++
  # Get ztp profile information for Config DB
  get_ztp_profile()
  {
@@ -892,18 +892,18 @@ index d8afbe8..ec29c4b 100755
      IPV6=$(sonic-db-cli CONFIG_DB HGET "ZTP|mode" "ipv6")
      IPV4=$(sonic-db-cli CONFIG_DB HGET "ZTP|mode" "ipv4")
 -
-+ 
++
      if [ "${ZTP_PROF_LOADED}" = "active" ]; then
          ZTP_STRING="ztp;inband:${INBAND};ipv4:${IPV4};ipv6:${IPV6}"
      else
          ZTP_STRING="no-ztp"
      fi
 -
-+ 
++
      echo $ZTP_STRING
  }
 -
-+ 
++
  get_feature()
  {
      if ztp features | grep -q "$1" ; then
@@ -912,14 +912,14 @@ index d8afbe8..ec29c4b 100755
      fi
  }
 -
-+ 
++
  # ztp profile string based on features enabled
  get_ztp_feature_string()
  {
      echo "ztp;inband:$(get_feature inband);ipv4:$(get_feature ipv4);ipv6:$(get_feature ipv6)"
  }
 -
-+ 
++
  # Create DHCP policy used by ifupdown2
  dhcp_policy_create()
  {
@@ -928,7 +928,7 @@ index d8afbe8..ec29c4b 100755
             -p -t ${DHCP_POLICY_TEMPLATE} > ${DHCP_POLICY_FILE}
  }
 -
-+ 
++
  # Create ZTP configuration
  ztp_config_create()
  {
@@ -937,7 +937,7 @@ index d8afbe8..ec29c4b 100755
          DEST_FILE=${TMP_ZTP_CONFIG_DB_JSON}
      fi
 -
-+ 
++
      PRODUCT_NAME=$(decode-syseeprom  -p | tr -dc '[[:print:]]')
      SERIAL_NO=$(decode-syseeprom  -s | tr -dc '[[:print:]]')
      sonic-cfggen -H -k ${HW_KEY} -a "{\"ZTP_INBAND\": \"$(get_feature inband)\", \
@@ -946,7 +946,7 @@ index d8afbe8..ec29c4b 100755
      dhcp_policy_create
  }
 -
-+ 
++
  # Create and load requested configuration profile
  load_config()
  {
@@ -955,7 +955,7 @@ index d8afbe8..ec29c4b 100755
          /usr/bin/config-setup factory ${CONFIG_DB_JSON}
      fi
 -
-+ 
++
      if [ -e ${DEST_FILE} ]; then
          config reload ${DEST_FILE} -y -f
          rm -f ${TMP_ZTP_CONFIG_DB_JSON}
@@ -964,14 +964,14 @@ index d8afbe8..ec29c4b 100755
      return 1
  }
 -
-+ 
++
  wait_for_system_online()
  {
      TRIES=${RETRY_COUNT}
 -    # Obtain the list of interfaces that may be created after some delay
      HOTPLUG_LIST=$(sonic-db-cli CONFIG_DB KEYS "PORT*" | cut -f2 -d\|)
 -
-+ 
++
      while [ ${TRIES} -gt 0 ]
      do
          RETRY=0
@@ -980,13 +980,13 @@ index d8afbe8..ec29c4b 100755
          TRIES=`expr $TRIES - 1`
      done
 -
-+ 
++
      if [ "${TRIES}" = "0" ]; then
          return 1
      fi
      return 0
  }
-+ 
++
 +# Check if VLAN 951 exists
 +check_vlan951_exists() {
 +    if ip link show | grep -q "Vlan951"; then
@@ -995,7 +995,7 @@ index d8afbe8..ec29c4b 100755
 +        return 1
 +    fi
 +}
-+ 
++
 +hook_dhcp_for_vlans() {
 +    if [ "$HOOK_ALL_VLANS" = true ]; then
 +        for vlan in $(ip link show | grep -o 'Vlan[0-9]*' | sort -u); do
@@ -1077,23 +1077,23 @@ index d8afbe8..ec29c4b 100755
 +        fi
 +    fi
 +}
-+ 
++
  ### Execution starts here ###
  CMD="$1"
 -
-+ 
++
  # Validate input
  if [ "$CMD" = "" ]; then
      usage
      exit 1
  fi
 -
-+ 
++
  # Process ZTP profile install request
 -if [ "$CMD" = "install" ] ; then
 -
 +if [ "$CMD" = "install" ]; then
-+ 
++
      # Detect and create ZTP configuration profile if needed
      FEATURE_STRING=$(get_ztp_feature_string)
      ZTP_DB_PROFILE=$(get_ztp_profile)
@@ -1115,7 +1115,7 @@ index d8afbe8..ec29c4b 100755
          fi
      fi
 -
-+ 
++
      # Wait for in-band interfaces to become available
 -    # Default max wait time is 2 minutes
      updateActivity "Waiting for system online status before continuing ZTP"
@@ -1126,7 +1126,7 @@ index d8afbe8..ec29c4b 100755
          echo "System is ready to respond."
      fi
 -
-+ 
++
      if [ "$2" = "resume" ] && [ "$(get_ztp_profile)" = "$(get_ztp_feature_string)" ]; then
 -        # Restart interface configuration again to pickup newly created interfaces
 -        # to start DHCP discovery
@@ -1139,9 +1139,9 @@ index d8afbe8..ec29c4b 100755
          fi
      fi
 -fi
-+ 
++
 +    python3 /usr/lib/ztp/add_macentry.py
-+ 
++
 +    # Check if VLAN exists before running additional scripts
 +    if [ "$AMAZON_FLAG" = true ]; then
 +	    if [ "$HOOK_ALL_VLANS" = true ]; then
@@ -1151,26 +1151,26 @@ index d8afbe8..ec29c4b 100755
 +	        echo "Create static MAC etnry for Vlan951."
 +	        python3 /usr/lib/ztp/add_StaticFDBEntry_CPU63_onVlan951.py
 +	    fi
-+	    
++
 +	    # Hook DHCP client
 +	    echo "Hook DHCP client."
 +	    hook_dhcp_for_vlans
-+	  
++
 +	  fi
 +
-+    
++
  
  # Process ZTP profile remove request
 -if [ "$CMD" = "remove" ] ; then
 -
 +elif [ "$CMD" = "remove" ]; then
-+ 
++
      # Remove ZTP configuration profile if it still exists
      if [ "$(get_ztp_profile)" != "no-ztp" ]; then
          # Cleanup locks held by the ZTP session
          rm -rf /var/run/ztp/ztp.lock
 -
-+ 
++
          if [ "$2" = "config-fallback" ]; then
              updateActivity "Waiting for system online status before stopping ZTP"
              echo "Waiting for system online status before stopping ZTP. (This may take 30--$(expr $RETRY_COUNT \* $RETRY_INTERVAL) seconds)."
@@ -1179,7 +1179,7 @@ index d8afbe8..ec29c4b 100755
                  echo "Error: System is not ready. Proceeding with stopping ZTP after waiting for $(expr $RETRY_COUNT \* $RETRY_INTERVAL) seconds."
              fi
 -
-+ 
++
              if [ -e ${CONFIG_DB_JSON} ]; then
                  updateActivity "Removing ZTP configuration profile and loading startup configuration"
                  echo "Removing ZTP configuration profile. Loading startup configuration."
@@ -1188,17 +1188,17 @@ index d8afbe8..ec29c4b 100755
              sonic-db-cli CONFIG_DB DEL "ZTP|mode" > /dev/null
          fi
 -
-+ 
++
          updateActivity "Restarting network configuration"
          # Restart interface configuration to stop DHCP
          systemctl restart interfaces-config
      fi
 -
-+ 
++
      # Remove ZTP DHCP policy
      rm -f ${DHCP_POLICY_FILE}
 -
-+ 
++
      # Remove syslog forwarding and console logging configuration
      if [ -f /etc/dhcp/dhclient-exit-hooks.d/ztp-rsyslog ] || \
 -      [ -f ${SYSLOG_CONF_FILE} ] || \
@@ -1212,7 +1212,7 @@ index d8afbe8..ec29c4b 100755
      fi
  fi
 -
-+ 
++
  # Create ZTP configuration
  if [ "$CMD" = "create" ]; then
      ztp_config_create $2
@@ -1222,5 +1222,5 @@ index d8afbe8..ec29c4b 100755
  fi
 -
 -exit 0
-+ 
++
 +# End of script
