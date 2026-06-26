@@ -69,12 +69,12 @@
 SHELL = /bin/bash
 
 USER := $(shell id -un)
-PWD := $(shell pwd)
+PWD := $(shell realpath $(shell pwd))
 USER_LC := $(shell echo $(USER) | tr A-Z a-z)
 ifneq ($(DEFAULT_CONTAINER_REGISTRY),)
-DOCKER_MACHINE := $(shell docker run --rm $(DEFAULT_CONTAINER_REGISTRY)/debian:buster uname -m)
+DOCKER_MACHINE := $(shell docker run --rm $(DEFAULT_CONTAINER_REGISTRY)/debian:trixie uname -m)
 else
-DOCKER_MACHINE := $(shell docker run --rm debian:buster uname -m)
+DOCKER_MACHINE := $(shell docker run --rm debian:trixie uname -m)
 endif
 HOST_DOCKERD_GID := $(shell getent group docker | cut -d : -f3)
 
@@ -160,10 +160,6 @@ ifeq ($(ENABLE_DOCKER_BASE_PULL),)
 	override ENABLE_DOCKER_BASE_PULL = n
 endif
 
-ifeq ($(LEGACY_SONIC_MGMT_DOCKER),)
-	override LEGACY_SONIC_MGMT_DOCKER = y
-endif
-
 ifeq ($(CONFIGURED_ARCH),amd64)
 SLAVE_BASE_IMAGE = $(SLAVE_DIR)
 MULTIARCH_QEMU_ENVIRON = n
@@ -221,6 +217,7 @@ $(shell CONFIGURED_ARCH=$(CONFIGURED_ARCH) \
 	DOCKER_EXTRA_OPTS=$(DOCKER_EXTRA_OPTS) \
 	DEFAULT_CONTAINER_REGISTRY=$(DEFAULT_CONTAINER_REGISTRY) \
 	FIPS_VERSION=$(FIPS_VERSION) \
+	FIPS_GOLANG_MAIN_VERSION=$(FIPS_GOLANG_MAIN_VERSION) \
 	FIPS_GOLANG_VERSION=$(FIPS_GOLANG_VERSION) \
 	j2 $(SLAVE_DIR)/Dockerfile.j2 > $(SLAVE_DIR)/Dockerfile)
 
@@ -344,6 +341,11 @@ endif
 $(info "SECURE_UPGRADE_PROD_SIGNING_TOOL": "$(SECURE_UPGRADE_PROD_SIGNING_TOOL)")
 ifneq ($(SECURE_UPGRADE_PROD_SIGNING_TOOL),)
 	DOCKER_RUN += -v $(SECURE_UPGRADE_PROD_SIGNING_TOOL):/sonic/scripts/$(shell basename -- $(SECURE_UPGRADE_PROD_SIGNING_TOOL)):ro
+endif
+
+# Pass the Signing prod tool arguments as environment variable to avoid make command-line parsing issues
+ifneq ($(SECURE_UPGRADE_PROD_TOOL_ARGS),)
+	DOCKER_RUN += -e "SECURE_UPGRADE_PROD_TOOL_ARGS=$(SECURE_UPGRADE_PROD_TOOL_ARGS)"
 endif
 
 ifneq ($(SONIC_DPKG_CACHE_SOURCE),)
@@ -564,7 +566,6 @@ SONIC_BUILD_INSTRUCTION :=  $(MAKE) \
                            SECURE_UPGRADE_SIGNING_CERT=$(SECURE_UPGRADE_SIGNING_CERT) \
                            SECURE_UPGRADE_KERNEL_CAFILE=$(SECURE_UPGRADE_KERNEL_CAFILE) \
                            SECURE_UPGRADE_PROD_SIGNING_TOOL=$(SECURE_UPGRADE_PROD_SIGNING_TOOL) \
-                           SECURE_UPGRADE_PROD_TOOL_ARGS="\"'$(SECURE_UPGRADE_PROD_TOOL_ARGS)'\"" \
                            SONIC_DEFAULT_CONTAINER_REGISTRY=$(DEFAULT_CONTAINER_REGISTRY) \
                            ENABLE_HOST_SERVICE_ON_START=$(ENABLE_HOST_SERVICE_ON_START) \
                            SLAVE_DIR=$(SLAVE_DIR) \
@@ -584,7 +585,6 @@ SONIC_BUILD_INSTRUCTION :=  $(MAKE) \
                            SONIC_OS_VERSION=$(SONIC_OS_VERSION) \
                            PIP_HTTP_TIMEOUT=$(PIP_HTTP_TIMEOUT) \
                            BUILD_PROCESS_TIMEOUT=$(BUILD_PROCESS_TIMEOUT) \
-                           LEGACY_SONIC_MGMT_DOCKER=$(LEGACY_SONIC_MGMT_DOCKER) \
                            SONIC_PTF_ENV_PY_VER=$(SONIC_PTF_ENV_PY_VER) \
 						   ENABLE_MULTIDB=$(ENABLE_MULTIDB) \
                            $(SONIC_OVERRIDE_BUILD_VARS)
@@ -610,6 +610,7 @@ export MIRROR_SECURITY_URLS
 export MIRROR_SNAPSHOT
 export SONIC_VERSION_CONTROL_COMPONENTS
 export PIP_HTTP_TIMEOUT
+export SECURE_UPGRADE_PROD_TOOL_ARGS
 
 %:: | sonic-build-hooks
 ifneq ($(filter y, $(MULTIARCH_QEMU_ENVIRON) $(CROSS_BUILD_ENVIRON)),)
