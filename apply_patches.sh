@@ -6,6 +6,13 @@ set -e
 PATCH_DIR="wistron_patches"
 ZTP_DIR="$PATCH_DIR/ztp_workaround"
 ZTP_ACTION="disable"
+ZTP_PATCH_FILES=(
+    "$PATCH_DIR/1-based_port_mapping/0001-1-based-port-mapping.patch"
+    "$ZTP_DIR/0001-set-sfp-port-default-speed-to-10G.patch"
+    "$ZTP_DIR/0001-Add-dhcp_l2-dhcpv6_l2-to-copp_cfg.json.patch"
+    "$ZTP_DIR/0002-Add-dhcp_l2-dhcpv6_l2-to-copp-supported-list.patch"
+    "$ZTP_DIR/0002-ztp-workaround-mac-table-added.patch"
+)
 
 # Parse arguments for simpler execution
 while [[ "$#" -gt 0 ]]; do
@@ -15,8 +22,8 @@ while [[ "$#" -gt 0 ]]; do
         -h|--help) 
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
-            echo "  -z, --ztp, ZTP=yes    Enable ZTP workaround patches (applied before regular patches)"
-            echo "  ZTP=no                Revert ZTP workaround patches if applied, and skip them"
+            echo "  -z, --ztp, ZTP=yes    Enable 1-based port mapping and ZTP workaround patches"
+            echo "  ZTP=no                Revert 1-based port mapping and ZTP workaround patches if applied, and skip them"
             echo "  -h, --help            Show this help message"
             echo "  (Default: Skip ZTP workaround patches without reverting)"
             exit 0
@@ -37,6 +44,11 @@ fi
 # Function to apply a single patch
 apply_patch_file() {
     local patch_file="$1"
+
+    if [ ! -f "$patch_file" ]; then
+        echo "[ERROR] Patch file not found: $patch_file"
+        exit 1
+    fi
 
     # Check if the patch is already applied by doing a dry-run in reverse (-R).
     # If this succeeds, the patch is already present.
@@ -62,6 +74,11 @@ apply_patch_file() {
 revert_patch_file() {
     local patch_file="$1"
 
+    if [ ! -f "$patch_file" ]; then
+        echo "[ERROR] Patch file not found: $patch_file"
+        exit 1
+    fi
+
     # Check if the patch is already applied by doing a dry-run in reverse (-R).
     # If this succeeds, the patch is already present, meaning we can revert it.
     if patch -p1 -R --dry-run < "$patch_file" >/dev/null 2>&1; then
@@ -85,75 +102,20 @@ shopt -s nullglob
 # 2. Handle ZTP patches based on action
 if [ "$ZTP_ACTION" == "enable" ]; then
     echo "[INFO] --- ZTP patches enabled ---"
-    if [ -d "$ZTP_DIR" ]; then
-        ztp_files=("$ZTP_DIR"/*.patch)
-        if [ ${#ztp_files[@]} -gt 0 ]; then
-            dhcp_patches=()
-            other_patches=()
-            for patch_file in "${ztp_files[@]}"; do
-                case "$patch_file" in
-                    *[dD][hH][cC][pP]*) dhcp_patches+=("$patch_file") ;;
-                    *) other_patches+=("$patch_file") ;;
-                esac
-            done
-
-            if [ ${#dhcp_patches[@]} -gt 0 ]; then
-                mapfile -t dhcp_patches < <(printf "%s\n" "${dhcp_patches[@]}" | sort -V)
-                echo "[INFO] Applying DHCP ZTP patches first..."
-                for patch_file in "${dhcp_patches[@]}"; do
-                    apply_patch_file "$patch_file"
-                done
-            fi
-
-            if [ ${#other_patches[@]} -gt 0 ]; then
-                mapfile -t other_patches < <(printf "%s\n" "${other_patches[@]}" | sort -V)
-                echo "[INFO] Applying remaining ZTP patches..."
-                for patch_file in "${other_patches[@]}"; do
-                    apply_patch_file "$patch_file"
-                done
-            fi
-        else
-            echo "[WARNING] No matching .patch files found in $ZTP_DIR."
-        fi
-    else
-        echo "[WARNING] ZTP workaround directory not found: $ZTP_DIR"
-    fi
+    echo "[INFO] Applying 1-based port mapping and ZTP workaround patches in fixed order..."
+    for patch_file in "${ZTP_PATCH_FILES[@]}"; do
+        apply_patch_file "$patch_file"
+    done
+    echo "[INFO] ZTP patch apply finished!"
+    exit 0
 elif [ "$ZTP_ACTION" == "revert" ]; then
     echo "[INFO] --- Reverting ZTP patches ---"
-    if [ -d "$ZTP_DIR" ]; then
-        ztp_files=("$ZTP_DIR"/*.patch)
-        if [ ${#ztp_files[@]} -gt 0 ]; then
-            dhcp_patches=()
-            other_patches=()
-            for patch_file in "${ztp_files[@]}"; do
-                case "$patch_file" in
-                    *[dD][hH][cC][pP]*) dhcp_patches+=("$patch_file") ;;
-                    *) other_patches+=("$patch_file") ;;
-                esac
-            done
-
-            # Revert in exact reverse numerical order: remaining patches first, then DHCP patches
-            if [ ${#other_patches[@]} -gt 0 ]; then
-                mapfile -t other_patches < <(printf "%s\n" "${other_patches[@]}" | sort -rV)
-                echo "[INFO] Reverting remaining ZTP patches..."
-                for patch_file in "${other_patches[@]}"; do
-                    revert_patch_file "$patch_file"
-                done
-            fi
-
-            if [ ${#dhcp_patches[@]} -gt 0 ]; then
-                mapfile -t dhcp_patches < <(printf "%s\n" "${dhcp_patches[@]}" | sort -rV)
-                echo "[INFO] Reverting DHCP ZTP patches..."
-                for patch_file in "${dhcp_patches[@]}"; do
-                    revert_patch_file "$patch_file"
-                done
-            fi
-        else
-            echo "[WARNING] No matching .patch files found in $ZTP_DIR."
-        fi
-    else
-        echo "[WARNING] ZTP workaround directory not found: $ZTP_DIR"
-    fi
+    echo "[INFO] Reverting 1-based port mapping and ZTP workaround patches in reverse fixed order..."
+    for ((i=${#ZTP_PATCH_FILES[@]}-1; i>=0; i--)); do
+        revert_patch_file "${ZTP_PATCH_FILES[$i]}"
+    done
+    echo "[INFO] ZTP patch revert finished!"
+    exit 0
 else
     echo "[INFO] --- ZTP patches disabled (uses default behavior, skipped) ---"
 fi
@@ -173,4 +135,3 @@ else
 fi
 
 echo "[INFO] Patch execution finished!"
-
