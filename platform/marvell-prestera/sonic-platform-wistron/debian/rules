@@ -12,7 +12,9 @@ endif
 KERNEL_SRC :=  /lib/modules/$(KVERSION)
 INSTALL_MOD_DIR := kernel/extra/
 MOD_SRC_DIR:= $(shell pwd)
-MODULE_DIRS:= es1227_54ts es2227_54ts es2227_54ts_p es1227_36ts_p es1227_54ts_p2
+# Scope build to es1227_54ts_p2 only (trixie/6.12 migration); other boards' debs
+# are still emitted (empty) from debian/control to satisfy SONiC make deps.
+MODULE_DIRS:= es1227_54ts_p2
 MODULE_DIR := modules
 UTILS_DIR := utils
 SERVICE_DIR := service
@@ -28,10 +30,11 @@ clean:
 
 build:
 	(for mod in $(MODULE_DIRS); do \
-		make modules -C $(KERNEL_SRC)/build M=$(MOD_SRC_DIR)/$${mod}/modules; \
+		make -C $(KERNEL_SRC)/build M=$(MOD_SRC_DIR)/$${mod}/modules clean; \
+		make -C $(KERNEL_SRC)/build M=$(MOD_SRC_DIR)/$${mod}/modules modules || exit 1; \
 		cd $(MOD_SRC_DIR)/../$(PRESTERA_MODULE_SRC)/; \
 		make clean; \
-		make modules -C $(KERNEL_SRC)/build M=`pwd` CONFIG_KM_MVPCI=y CONFIG_KM_MVINT=y || exit 1; \
+		make modules -C $(KERNEL_SRC)/build M=`pwd` CONFIG_KM_MVPCI=y CONFIG_KM_MVINT=y CONFIG_KM_MVDMA2=y CONFIG_KM_MVETH=y || exit 1; \
                 cp *.ko $(MOD_SRC_DIR)/$${mod}/$(MODULE_DIR)/; \
         cd $(MOD_SRC_DIR)/$${mod}; \
 		python3 setup.py bdist_wheel -d $(MOD_SRC_DIR)/$${mod}; \
@@ -45,7 +48,7 @@ binary: binary-arch binary-indep
 binary-arch:
 	# Nothing to do
 
-binary-indep:
+binary-indep: build
 	dh_testdir
 	dh_installdirs
 
