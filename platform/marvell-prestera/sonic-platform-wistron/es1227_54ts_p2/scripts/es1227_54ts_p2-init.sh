@@ -16,6 +16,7 @@ load_kernel_drivers() {
     insmod /usr/lib/modules/$(uname -r)/kernel/extra/wistron_max31790.ko
     insmod /usr/lib/modules/$(uname -r)/kernel/extra/wistron_eeprom.ko
     insmod /usr/lib/modules/$(uname -r)/kernel/extra/mvcpss.ko
+    modprobe mvSai
     modprobe optoe
     modprobe jc42
 }

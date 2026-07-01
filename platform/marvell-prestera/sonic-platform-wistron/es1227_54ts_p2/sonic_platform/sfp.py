@@ -314,7 +314,7 @@ class Sfp(SfpOptoeBase):
             Returns:
             string: The name of the device
         """
-        return "Ethernet" + str(self.index - 1)
+        return "Ethernet" + str(self.index)
 
     def get_presence(self):
         """

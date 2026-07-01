@@ -209,8 +209,7 @@ static struct bin_attribute eeprom_attr = {
     .read = eeprom_read,
 };
 
-static int eeprom_probe(struct i2c_client *client,
-            const struct i2c_device_id *id)
+static int eeprom_probe(struct i2c_client *client)
 {
     struct eeprom_data *data;
     int err;
