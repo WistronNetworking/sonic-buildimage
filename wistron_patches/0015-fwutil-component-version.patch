@@ -1,0 +1,145 @@
+diff --git a/platform/marvell-prestera/sonic-platform-wistron/es1227_54ts_p2/sonic_platform/component.py b/platform/marvell-prestera/sonic-platform-wistron/es1227_54ts_p2/sonic_platform/component.py
+index 3ee2c1c80..14ee30cd4 100644
+--- a/platform/marvell-prestera/sonic-platform-wistron/es1227_54ts_p2/sonic_platform/component.py
++++ b/platform/marvell-prestera/sonic-platform-wistron/es1227_54ts_p2/sonic_platform/component.py
+@@ -9,7 +9,16 @@
+ try:
+     import sys
+     import subprocess
+-    from sonic_platform_base.component_base import ComponentBase
++    from sonic_platform_base.component_base import (
++        ComponentBase,
++        FW_AUTO_SCHEDULED,
++        FW_AUTO_ERR_IMAGE,
++        FW_AUTO_INSTALLED,
++        FW_AUTO_ERR_BOOT_TYPE,
++        FW_AUTO_ERR_UNKNOWN
++    )
++    from . import eeprom
++    from sonic_platform_base.sonic_eeprom import eeprom_tlvinfo
+ except ImportError as e:
+     raise ImportError(str(e) + "- required module not found")
+ 
+@@ -75,10 +84,34 @@ class Component(ComponentBase):
+         """
+ 
+         if self.index == 0:
+-            cmdstatus, uboot_version = cmd.getstatusoutput('grep --null-data ^U-Boot /dev/mtd0 | tail -n 1 | cut -d" " -f2')
++            cmdstatus, uboot_version = cmd.getstatusoutput('grep -a --null-data -oE "U-Boot 20[0-9]{2}\\.[0-9]{2}-[^ ]+" /dev/mtd0 | head -n 1 | cut -d" " -f2')
+             return uboot_version
+ 
+         if self.index == 1:
++            # ONIE update appends the new version string at the end of the EEPROM.
++            # We parse the EEPROM binary directly to find the latest ONIE Version TLV,
++            # using dynamically imported paths and constants to avoid hardcoding.
++            try:
++                # Fetch path and TLV code dynamically
++                eeprom_path = eeprom.Tlv()._eeprom_path
++                onie_tlv_code = eeprom_tlvinfo.TlvInfoDecoder._TLV_CODE_ONIE_VERSION
++                
++                with open(eeprom_path, 'rb') as f:
++                    data = f.read()
++                versions = []
++                for i in range(len(data) - 2):
++                    if data[i] == onie_tlv_code:
++                        length = data[i+1]
++                        if 0 < length < 64 and i + 2 + length <= len(data):
++                            val = data[i+2 : i+2+length]
++                            if all(32 <= b < 127 for b in val):
++                                versions.append(val.decode('ascii'))
++                if versions:
++                    return versions[-1]
++            except Exception:
++                pass
++                
++            # Fallback to the original installation machine.conf
+             cmdstatus, onie_version = cmd.getstatusoutput('grep ^onie_version /host/machine.conf | cut -f2 -d"="')
+             return onie_version
+ 
+@@ -103,6 +136,44 @@ class Component(ComponentBase):
+         Returns:
+             A boolean, True if install was successful, False if not
+         """
++        if self.index == 0:
++            try:
++                cmd_uboot = "flashcp -v {} /dev/mtd0".format(image_path)
++                status, _ = cmd.getstatusoutput(cmd_uboot)
++                if status != 0:
++                    return False
++                return True
++            except Exception:
++                return False
++        elif self.index == 1:
++            try:
++                # 1. Copy file to staging area (ONIE Boot Partition)
++                cmd_copy = "cp -f {} /host/onie-updater".format(image_path)
++                status, _ = cmd.getstatusoutput(cmd_copy)
++                if status != 0:
++                    return False
++                
++                # 2. For Marvell platforms, since the original onie_bootcmd is hardcoded to install mode,
++                # override the boot command to replace 'install' with 'update'
++                onie_update_cmd = "setenv onie_boot_reason update; run set_onie_bootargs; run get_onie_images; run release_i2c_bus; bootm $boot_address"
++                cmd_setenv_boot = "fw_setenv boot_once '{}'".format(onie_update_cmd)
++                status, _ = cmd.getstatusoutput(cmd_setenv_boot)
++                if status != 0:
++                    return False
++
++                return True
++            except Exception:
++                return False
++        elif self.index == 2:
++            try:
++                cmd_cpld = "updateCPLD 0x1 0x40 {}".format(image_path)
++                status, _ = cmd.getstatusoutput(cmd_cpld)
++                if status != 0:
++                    return False
++                return True
++            except Exception:
++                return False
++
+         return False
+ 
+     def get_presence(self):
+@@ -191,4 +262,41 @@ class Component(ComponentBase):
+         Raises:
+             RuntimeError: update failed
+         """
++        if self.index in [0, 1]:
++            if self.install_firmware(image_path):
++                cmd.getstatusoutput("reboot")
++                return True
++            return False
++        # CPLD (index 2) requires hard power cycle, software reboot is insufficient.
++        # Thus, it doesn't support the automated update_firmware flow.
+         return False
++
++    def auto_update_firmware(self, image_path, boot_type):
++        """
++        Updates firmware of the component automatically based on boot_type.
++        """
++        if self.index in [0, 1]:
++            if boot_type not in ["cold", "none"]:
++                return FW_AUTO_ERR_BOOT_TYPE
++                
++            if self.install_firmware(image_path):
++                if boot_type == "none":
++                    return FW_AUTO_INSTALLED
++                return FW_AUTO_SCHEDULED
++            else:
++                return FW_AUTO_ERR_IMAGE
++                
++        elif self.index == 2:
++            # CPLD requires hard power cycle, so "cold" reboot (software) is invalid.
++            # We only support "none" (install only) for auto update, 
++            # and rely on the external PDU to perform the actual power cycle.
++            if boot_type != "none":
++                return FW_AUTO_ERR_BOOT_TYPE
++                
++            if self.install_firmware(image_path):
++                return FW_AUTO_INSTALLED
++            else:
++                return FW_AUTO_ERR_IMAGE
++        
++        return FW_AUTO_ERR_UNKNOWN
++
