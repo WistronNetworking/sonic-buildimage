@@ -104,10 +104,16 @@ ssh admin@<server> '
 '
 
 # 3. DHCP server config
+# NOTE: option dhcp-renewal-time / dhcp-rebinding-time are REQUIRED.
+# Without them, dhclient on the DUT can end up with renew == rebind == expire
+# in its lease file (no distinct T1/T2), so it never attempts an early unicast
+# renew or a broadcast rebind before hard expiry -- see Section 8.6.
 sudo tee /etc/dhcp/dhcpd.conf << 'EOF'
 authoritative;
 default-lease-time 1200;
 max-lease-time 1200;
+option dhcp-renewal-time 600;      # T1 = 50% of lease-time
+option dhcp-rebinding-time 1050;   # T2 = 87.5% of lease-time
 log-facility local7;
 
 subnet 10.90.90.0 netmask 255.255.255.0 {
@@ -338,12 +344,15 @@ Vlan951@Bridge   UP             192.168.10.x/24
 
 ### 5.2 Install Generic VLAN DHCP Route Hook
 
-Install a generic hook. Do not write this as `interface = Vlan951`; the route problem applies to any `Vlan*` DHCP interface.
+Install a generic hook. Do not write this as `interface = Vlan951`; the route problem applies to any DHCP data-path interface.
 
 **Reason:**
 * DHCP server identifier: `10.90.90.205`
 * **Without this hook**: DHCP renew unicast to `10.90.90.205` follows the default route, usually `eth0` -> renew `ACK` is not received on `Vlan951` -> lease can expire.
-* **With this hook**: `dhclient` receives `BOUND`/`RENEW`/`REBIND`/`REBOOT` on `Vlan*` -> add host route to the DHCP server via the DHCP router option -> `10.90.90.205/32 via 192.168.10.1 dev Vlan951`.
+* **With this hook**: `dhclient` receives `BOUND`/`RENEW`/`REBIND`/`REBOOT` -> add host route to the DHCP server via the DHCP router option -> `10.90.90.205/32 via 192.168.10.1 dev Vlan951`.
+
+> [!WARNING]
+> **The interface match must cover `Ethernet*` too, not just `Vlan*`** (updated 2026-07-06). On any boot where `Vlan951` doesn't exist yet, ZTP legitimately DHCPs `Ethernet11` as a routed port — a `Vlan*`-only hook never fires there, no route to the ZTP/DHCP server gets added, and the option-67 download times out forever (see `ztp_option67_sop.md` §2.1/§4.4(4)). An earlier narrow version of this snippet caused exactly that regression when it was re-installed from this document after the widened fix had already been applied on the DUT — this template is the source of truth, keep it widened.
 
 Create `/etc/dhcp/dhclient-exit-hooks.d/vlan_dhcp_server_route`:
 ```sh
@@ -351,7 +360,7 @@ Create `/etc/dhcp/dhclient-exit-hooks.d/vlan_dhcp_server_route`:
 
 case "$reason" in
   BOUND|RENEW|REBIND|REBOOT)
-    if echo "$interface" | grep -q '^Vlan' && \
+    if echo "$interface" | grep -qE '^(Vlan|Ethernet)' && \
        [ -n "$new_dhcp_server_identifier" ] && \
        [ -n "$new_routers" ]; then
       gw=$(echo "$new_routers" | awk '{print $1}')
@@ -370,7 +379,7 @@ $ sed -n '1,80p' /etc/dhcp/dhclient-exit-hooks.d/vlan_dhcp_server_route
 
 case "$reason" in
   BOUND|RENEW|REBIND|REBOOT)
-    if echo "$interface" | grep -q '^Vlan' && \
+    if echo "$interface" | grep -qE '^(Vlan|Ethernet)' && \
        [ -n "$new_dhcp_server_identifier" ] && \
        [ -n "$new_routers" ]; then
       gw=$(echo "$new_routers" | awk '{print $1}')
@@ -824,7 +833,69 @@ eth0                         f8:60:f0:a6:6b:e2  B             23
 3. If testing a newer SAI is required, build a complete image with a matching SAI/EZB/CPSS set instead of replacing only libsai inside the running syncd container.
 4. Local git history shows `1.16.1-3` was previously added and later reverted back to `1.15.1-1`, so the revert is consistent with this runtime result.
 
-### 8.5 Troubleshoot Command Execution Logs
+### 8.5 Missing `dhcp-renewal-time`/`dhcp-rebinding-time` — Ping Drops After ~Lease-Time
+
+* **Test Date**: 2026-07-02
+* **Symptom**: `Vlan951` gets an IP and pings the DHCP server fine, then loses connectivity again roughly at the lease-time boundary (observed ~900-1200s after bind, matching `default-lease-time`).
+
+**Root cause**:
+
+`/etc/dhcp/dhcpd.conf` set `default-lease-time`/`max-lease-time` but did **not** set `option dhcp-renewal-time` (T1) or `option dhcp-rebinding-time` (T2). Without explicit T1/T2, the DUT's `dhclient` lease file recorded `renew`/`rebind`/`expire` as the **same timestamp**:
+
+```text
+$ cat /var/lib/dhcp/dhclient.Vlan951.leases
+lease {
+  interface "Vlan951";
+  fixed-address 192.168.10.102;
+  ...
+  renew 5 2002/06/07 05:58:49;
+  rebind 5 2002/06/07 05:58:49;
+  expire 5 2002/06/07 05:58:49;
+}
+```
+
+Normal behavior should split these ~50% (T1, unicast RENEW) / ~87.5% (T2, broadcast REBIND) / 100% (EXPIRE) into the lease-time. With all three collapsed to the expiry instant, `dhclient` has no early-renewal window and no broadcast-rebind fallback window — it only gets one shot at unicast RENEW right at expiry, and if that single REQUEST doesn't get a DHCPACK, the IP is dropped and `dhclient` must restart a full broadcast DISCOVER cycle (relies on `dhcp_relay` again) or, worse, go silent without retrying:
+
+```text
+$ ps -o pid,etimes,cmd -p 25542
+    PID ELAPSED CMD
+  25542    1741 /sbin/dhclient -pf /run/dhclient.Ethernet11.pid -lf /var/lib/dhcp/dhclient.Ethernet11.leases Ethernet11 -nw
+# no log activity for 29 minutes after the malformed lease's single expiry-time RENEW attempt failed
+```
+
+Separately, `journalctl -u isc-dhcp-server` on the server (`192.168.80.161`) confirmed the unicast `DHCPREQUEST` (T1-equivalent, sent to the `dhcp-server-identifier` `10.90.90.205`) was going completely unanswered for 5+ minutes straight:
+
+```text
+$ sudo grep -i "Vlan951" /var/log/syslog | grep -iE "DHCPREQUEST|DHCPACK"
+DHCPREQUEST for 192.168.10.103 on Vlan951 to 10.90.90.205 port 67   # x15, 06:26:37 - 06:31:49, zero DHCPACK
+```
+
+**Fix** (on the DHCP server, `192.168.80.161`):
+
+```text
+sudo sed -i '/^max-lease-time 1200;/a option dhcp-renewal-time 600;\noption dhcp-rebinding-time 1050;' /etc/dhcp/dhcpd.conf
+sudo dhcpd -t -cf /etc/dhcp/dhcpd.conf   # syntax check, no output = OK
+sudo systemctl restart isc-dhcp-server
+```
+
+**Verification** (short lease-time used temporarily to observe two full cycles quickly — `default-lease-time 180; option dhcp-renewal-time 90; option dhcp-rebinding-time 150;`):
+
+```text
+$ sudo tail -f /var/log/syslog | grep -iE "DHCPREQUEST.*Vlan951|bound.*renewal|DHCPACK"
+[t=40s]  DHCPACK of 192.168.10.104 from 10.90.90.205
+         bound to 192.168.10.104 -- renewal in 77 seconds.      # T1 renew #1: clean unicast ACK
+[t=160s] DHCPREQUEST for 192.168.10.104 on Vlan951 to 10.90.90.205 port 67
+         DHCPACK of 192.168.10.104 from 10.90.90.205
+         bound to 192.168.10.104 -- renewal in 68 seconds.      # T1 renew #2: clean unicast ACK
+
+# IP 192.168.10.104 stayed bound continuously for the full 200s test window
+```
+
+Both T1 renewal cycles completed cleanly via unicast to `10.90.90.205` once the server advertised explicit T1/T2 — a sharp contrast to the ~15 unanswered unicast `DHCPREQUEST`s seen before the fix. After verification, `dhcpd.conf` was restored to production values (`default-lease-time 1200; option dhcp-renewal-time 600; option dhcp-rebinding-time 1050;`), see Section 3.1.
+
+**Note**: this is a different root cause from Section 5.2's route hook. The route hook fixes unicast RENEW packets egressing the wrong interface (`eth0` instead of `Vlan951`) due to the default route; this fix (explicit T1/T2) makes `dhclient` actually schedule a renewal attempt with headroom before hard expiry, and gives it a broadcast-REBIND fallback (via `dhcp_relay`, same path as the initial DISCOVER) if the unicast RENEW is ever dropped. Both fixes are required together for a stable long-running `Vlan951` lease.
+
+### 8.6 Troubleshoot Command Execution Logs
 
 ```
 
@@ -868,6 +939,267 @@ default via 192.168.80.254 dev eth0
 
 ---
 
+### 8.7 Ethernet11 RX Freeze — What Is Proven, What Is Suspected, and Forensics SOP
+
+* **Date**: 2026-07-02
+* **Status**: root cause NOT pinned down to the SAI/CPSS internal level yet. This section records the evidence, the suspected mechanism, and the forensic steps to run **during the next freeze, BEFORE recovering**, so the root cause can be definitively identified.
+
+**Observed episode (2026-07-02)**: DUT lost its `Vlan951` DHCP lease and could not re-acquire. Server (`192.168.80.161`) journal showed it answering every relayed DISCOVER with an OFFER (`DHCPOFFER on 192.168.10.105 ... via 192.168.10.1`), but on the DUT `tcpdump -i Ethernet11` showed **only outgoing DISCOVERs, zero inbound frames of any kind for 25s**, and `show lldp neighbors` had lost the Ethernet11 entry.
+
+**Proven facts**:
+
+1. The freeze is in the **ASIC→CPU punt path**, not kernel/dhclient: link up, TX fine, but *all* CPU-bound classes die together — LLDP (COPP trap), broadcast DHCP (`dhcp_l2` trap), and flooded traffic. Same conclusion as §8.4 ("LLDP also disappears, so it is an ASIC/SAI/hostif CPU RX path problem").
+2. Trigger correlates with **runtime VLAN/port membership churn**. §9.1-3 already documented the freeze appearing when Ethernet11 is added to the VLAN at runtime. In this episode, the amplifier was the **ZTP discovery 316-second flap loop**: `sonic-ztp: "Restarting network discovery."` every ~316s → restarts `interfaces-config.service` → kills dhclients + bounces eth0 AND the Ethernet11 bridge port (`entered disabled state` → `blocking` → `forwarding` in dmesg, exact 316s period). ZTP never completes because the lab DHCP server offers no provisioning data (option 67 / ztp_data_url), so it loops forever — ~11 bounce cycles over 58 minutes preceded the freeze.
+3. `systemctl restart swss` (rebuilds all SAI state) followed by one `systemctl restart ztp` (re-runs the AMAZON hook) reliably recovers; cold reboot also recovers. Hardware is fine.
+4. This SAI family has prior CPU-punt bugs: 1.17.1-2 fixed VLAN-based→port-based ARP trapping (SAIPRST-5514).
+
+**Suspected mechanism** (structural, unproven): the CPU RX path on this platform is two layers stacked:
+
+* SAI/orchagent-owned: COPP traps (lldp, dhcp_l2, ...) + hostif delivery.
+* AMAZON-hook-owned, programmed **out-of-band via CPSS telnet (localhost:12345 in syncd)**: `cpssDxChBrgVlanMemberAdd` (CPU port 63 as tagged member of VLAN 951) + static FDB → CPU63. **SAI/orchagent cannot see these entries.**
+
+Every interface bounce makes orchagent re-program VLAN membership / flush FDB; it can silently overwrite the out-of-band CPU63 entries (killing the unicast-to-CPU path). But trap-based classes (LLDP/dhcp_l2) dying too means SAI's own hostif/SDMA RX state also wedges under repeated churn — that part is a SAI-internal bug we cannot fix from outside.
+
+**Forensics SOP — run these DURING the next freeze, BEFORE any recovery** (recovery destroys the evidence):
+
+```text
+# 0. Confirm it is the freeze (not server-side): TX-only tcpdump + LLDP gone
+sudo timeout 20 tcpdump -i Ethernet11 -n            # expect: outgoing only, no inbound
+show lldp neighbors | grep -A4 Ethernet11            # expect: empty
+
+# 1. From inside syncd, check CPSS state via the CPSS shell
+docker exec -it syncd bash
+telnet localhost 12345
+# 1a. Is CPU port 63 still a member of VLAN 951?
+#     (dump VLAN entry / port membership for vid 951)
+# 1b. Read SDMA/trap-queue counters, then send pings from the peer and read again:
+#     - counters not moving  -> ASIC is dropping before punt (VLAN member / FDB / trap entry lost)
+#     - counters moving but no frames on the netdev -> hostif/SDMA delivery wedge (SAI internal)
+
+# 2. Interpretation
+#    CPU63 missing from VLAN 951  => orchagent overwrote the out-of-band hook programming
+#                                    (workaround architecture problem; hook must be re-applied
+#                                     after ANY VLAN/port reprogramming, or moved into SAI-visible config)
+#    CPU63 present, counters dead => SAI hostif/SDMA RX wedge; collect CPSS dump and open a
+#                                    Marvell case (reference SAIPRST-5514 family)
+
+# 3. Only after evidence is captured, recover:
+systemctl restart swss      # wait swss/syncd active
+systemctl restart ztp       # re-run AMAZON hook (CPU63 FDB + VLAN member + DHCP)
+systemctl stop ztp          # kill the 316s discovery flap loop (see below)
+# stop ztp ALSO kills the ztp-started Vlan951 dhclient -> restart it manually:
+dhclient -pf /run/dhclient.Vlan951.pid -lf /var/lib/dhcp/dhclient.Vlan951.leases Vlan951 -nw
+# and remove the stray physical-port dhclients started by interfaces-config:
+for p in $(pgrep -x dhclient -a | grep Ethernet11 | awk '{print $1}'); do kill "$p"; done
+```
+
+**Stability note (runtime-only state)**: the stable state (`ztp` stopped + manual `Vlan951` dhclient) does NOT survive a reboot. After any reboot, ZTP re-enters Active Discovery and the 316s flap loop returns — re-run the recovery sequence above (automated in `/home/otis/recover_ztp.sh` + `/home/otis/fix_dhclient.sh` on the build host). The permanent fix is to give ZTP real provisioning data (DHCP option 67 → ztp.json URL) so it completes and exits discovery on its own.
+
+**Pitfall when checking dhclient remotely**: `ps -ef | grep '[d]hclient.*Vlan951'` self-matches the wrapping `bash -c` process when run through ssh one-liners, producing false positives (this masked the killed dhclient once). Use `pgrep -x dhclient -a | grep Vlan951` instead (`-x` = exact process-name match, cannot match the wrapper).
+
+**Correction to the suspected mechanism above (2026-07-02, confirmed by reading the actual hook source)**: the AMAZON hook scripts (`add_StaticFDBEntry_CPU63_from_iplink.py` / `_onVlan951.py` in `wistron_patches/ztp_workaround/0002-ztp-workaround-mac-table-added.patch`) only ever **add** the CPU63 static FDB entry and VLAN member via CPSS telnet on every ZTP cycle — they never explicitly delete or re-add VLAN membership themselves. `hook_dhcp_for_vlans` (also in that patch) only checks VLAN/port `show` output and launches `dhclient`; it does not touch VLAN config either.
+
+The actual port-bounce mechanism is `systemctl restart interfaces-config`, invoked from two places:
+1. Stock upstream `sonic-ztp`'s own discovery-restart logic (not in the Wistron patch) — this is the source of the `"Restarting network discovery."` log line and the 316s flap period.
+2. `ztp-profile.sh`'s own `resume`/`remove` code paths (`"Restarting network configuration."`), which are in the Wistron patch.
+
+`interfaces-config.service` restart toggles `Ethernet11`'s Linux admin state down/up as part of re-applying `config_db.json`, and that admin toggle is what produces the `disabled -> blocking -> forwarding` bridge-port state cycle seen in dmesg — not a VLAN-membership delete/re-add by the hook itself. Whether `orchagent`'s post-bounce VLAN/bridge-port resync (triggered by the admin toggle) clobbers the hook's out-of-band CPU63 entry remains **unconfirmed** — the Forensics SOP above is still the only way to pin this down definitively.
+
+### 8.7.1 Forensics Run 2026-07-02: Freeze Reproduced, Root Cause Narrowed to SAI-Internal Wedge
+
+* **Date**: 2026-07-02
+* **Method**: deliberately reproduced the freeze by tight-looping `systemctl restart interfaces-config` every ~4s (the confirmed bounce mechanism from §8.7's correction above) while polling `show lldp neighbors` + `ping 192.168.10.1` after each iteration. **Froze in 2 iterations** (~8s) — far faster than the naturally-occurring 316s-interval/11-cycle/58-minute episode.
+
+> [!IMPORTANT]
+> **The trigger is NOT deterministic.** A second run of the same 20-iteration loop later the same day (run manually on the DUT, after a fresh `restart swss` + manual hook re-add from the recovery below) completed **all 20 iterations with no freeze** — LLDP present, ping OK, and `0/63 tagged` intact on every check. Three data points so far: froze after ~11 bounces (natural episode), froze after 2 (first deliberate run), survived 20 (second deliberate run). Each bounce is a probabilistic race, with at least two suspected (unproven) covariates worth recording in future runs:
+> 1. **SAI state age**: the freeze runs happened on an swss instance that had been up ~80 min and had absorbed 3 ZTP cycles + a link-down incident; the clean 20-iteration run happened minutes after a fresh `restart swss` (clean SAI init). Record `systemctl show swss --property=ActiveEnterTimestamp` at test start.
+> 2. **Concurrent punt traffic during the bounce window**: the natural episode had heavy ZTP DHCP broadcast activity in flight; the clean run had only idle LLDP/renew traffic. The race may require a frame actually traversing the punt path at the moment of reprogramming — consider running a continuous ping from the relay toward the DUT during the loop.
+> To increase reproduction odds: raise `MAX_ITER` to 50, drop the inter-iteration sleep to 2s, and add inbound traffic.
+
+**CPSS commands discovered for this forensics SOP** (the CLI is a Marvell LuaCLI shell on `localhost:12345`; ztp's own hook scripts use `/usr/lib/ztp/telnetlib.py`, a vendored copy, since stdlib `telnetlib` is removed in this image's Python 3.13):
+```text
+show vlan device 0 tag 951        # non-destructive: lists VLAN 951 port membership + tag mode
+                                   # healthy example:
+                                   #   951   0/63   tagged     Control   FID     <- CPU port
+                                   #         0/10   untagged             <- Ethernet11
+```
+
+**Evidence captured DURING the freeze (before any recovery)**:
+1. `show vlan device 0 tag 951` — **CPU port 63 was still present as a tagged member** (`0/63 tagged`). VLAN membership was NOT lost.
+2. `ip -s link show Ethernet11` RX packet counter — **frozen at exactly 300 packets across 3 consecutive ping attempts** (bytes/packets identical on every read). Proves the kernel netdev genuinely stopped receiving, not just an L3/ARP-layer symptom.
+3. `tcpdump -i Ethernet11 -e -n` for 8s — **captured only the DUT's own outgoing LLDP frame** (`5c:ff:35:e9:55:12 > 01:80:c2:00:00:0e`, TX direction). Zero inbound frames of any kind.
+4. `ip neigh show dev Vlan951` — empty (no ARP entry at all, not even `FAILED`).
+5. `show lldp neighbors` — no `Ethernet11` entry (consistent with prior freeze episodes).
+
+**Conclusion**: per §8.7's own interpretation table (`CPU63 present, counters dead => SAI hostif/SDMA RX wedge`), this run **rules out** the "orchagent overwrote the out-of-band CPU63 entry" hypothesis as the mechanism for the freeze itself — the entry survived. The freeze is a **SAI-internal hostif/SDMA RX delivery wedge**: the ASIC-to-CPU trap path stops delivering frames for reasons internal to `mrvllibsai`, independent of whether the CPSS VLAN table is intact. This matches §8.2-8.4's finding that swapping `mrvllibsai` versions changes port/hostif behavior — the bug lives inside the SAI/CPSS binary, not in the Wistron VLAN/FDB workaround scripts.
+
+> [!NOTE]
+> An ASIC-level MIB counter check (`show interfaces mac counters ethernet 0/10`) was also attempted during the freeze but returned all-zero for both RX **and** TX counters, which contradicts the confirmed-working TX (LLDP was seen transmitting via `tcpdump`). This reading is **inconclusive** — likely wrong port index or a read/clear semantic on that counter view — and should not be treated as evidence either way. Do not rely on it without first confirming the port-index mapping and counter-reset behavior independently.
+
+**Recovery required an extra step this time, and it reveals an operational trap**: the standard §8.7 recovery (`restart swss` -> wait active -> `restart ztp` -> `stop ztp`) did **not** clear the freeze. Root cause of the recovery failure:
+
+* Once ZTP has reached a **persisted** `ZTP Status: SUCCESS` (as it now does, via the §10 option-67 fix), `systemctl restart ztp` short-circuits: `journalctl -u ztp` shows only `ZTP already completed with result SUCCESS at ...` and the service exits in ~5s **without re-running the AMAZON hook**. Before the §10 fix, ZTP was permanently stuck in discovery (never reached SUCCESS), so every `restart ztp` naturally re-ran the hook as part of its normal discovery attempt — that's why the old recovery sequence in §8.7 worked reliably back then.
+* Net effect: `restart swss` (which unconditionally wipes all SAI state, including the out-of-band CPU63 entry) is no longer paired with anything that restores CPU63, because `restart ztp` is now a no-op. Confirmed via `show vlan device 0 tag 951` after the standard recovery sequence: `0/63` was **completely absent** (not present-but-frozen — actually gone this time, since `restart swss` really does clear it and nothing re-added it).
+
+**Fix**: after `restart swss` on a DUT that has already reached persisted `ZTP Status: SUCCESS`, re-run the AMAZON hook scripts **directly** instead of relying on `systemctl restart ztp`:
+```bash
+python3 /usr/lib/ztp/add_macentry.py
+python3 /usr/lib/ztp/add_StaticFDBEntry_CPU63_from_iplink.py
+# then restart the Vlan951 dhclient for a fresh DISCOVER (old lease's unicast RENEW may
+# still be racing against the just-restored CPU path):
+for p in $(pgrep -x dhclient -a | grep Vlan951 | awk '{print $1}'); do sudo kill "$p"; done
+sudo rm -f /run/dhclient.Vlan951.pid
+sudo dhclient -v -pf /run/dhclient.Vlan951.pid -lf /var/lib/dhcp/dhclient.Vlan951.leases Vlan951 -nw &
+```
+Verified this restored `show vlan device 0 tag 951` to `0/63 tagged`, then `ping 192.168.10.1` and `ping 10.90.90.205` both returned 0% loss and `show lldp neighbors` showed `Ethernet11` again.
+
+**Updated recovery decision tree for DUTs that have reached §10's persisted SUCCESS state**:
+```text
+freeze detected
+  -> restart swss, wait for swss+syncd active, settle ~30s
+  -> check `show ztp status`:
+       ZTP Status != SUCCESS  -> `systemctl restart ztp` re-runs the hook automatically (old behavior)
+       ZTP Status == SUCCESS  -> `systemctl restart ztp` is a NO-OP; manually re-run
+                                  add_macentry.py + add_StaticFDBEntry_CPU63_from_iplink.py,
+                                  then restart the Vlan951 dhclient
+```
+
+### 8.7.2 Standalone Runbook — Reproduce the Freeze Directly on the DUT
+
+Self-contained copy-paste version of the §8.7.1 experiment, for running directly in a shell on the DUT (no jump-host wrapper needed). Requires `sudo` and the stock AMAZON hook files under `/usr/lib/ztp/`.
+
+**Prerequisite check**:
+```bash
+ls /usr/lib/ztp/add_macentry.py /usr/lib/ztp/add_StaticFDBEntry_CPU63_from_iplink.py /usr/lib/ztp/telnetlib.py
+```
+
+**Step 1 — CPSS VLAN-membership check script** (non-destructive, pure read):
+```bash
+cat > /tmp/cpss_check_vlan951.py << 'EOF'
+#!/usr/bin/env python3
+import sys, time
+sys.path.insert(0, "/usr/lib/ztp")
+from telnetlib import Telnet
+
+tn = Telnet("localhost", 12345, 10)
+time.sleep(1)
+tn.read_very_eager()
+tn.write(b"show vlan device 0 tag 951\n")
+time.sleep(2)
+out = tn.read_very_eager()
+print(out.decode(errors="replace"))
+tn.write(b"CLIexit\n")
+tn.close()
+EOF
+```
+Baseline (should show `0/63 tagged` when healthy):
+```bash
+python3 /tmp/cpss_check_vlan951.py
+```
+
+**Step 2 — churn + freeze-detection loop**:
+```bash
+cat > /tmp/churn_freeze_test.sh << 'EOF'
+#!/bin/bash
+LOG=/tmp/churn_test.log
+MAX_ITER=20
+> "$LOG"
+
+echo "=== BASELINE CPU63 ===" | tee -a "$LOG"
+python3 /tmp/cpss_check_vlan951.py 2>&1 | tee -a "$LOG"
+
+fail_streak=0
+i=0
+while [ "$i" -lt "$MAX_ITER" ]; do
+  i=$((i+1))
+  echo "--- iteration $i: restart interfaces-config ---" | tee -a "$LOG"
+  sudo systemctl restart interfaces-config >>"$LOG" 2>&1
+  sleep 4
+
+  lldp=$(show lldp neighbors 2>/dev/null | grep -A2 "Interface:.*Ethernet11")
+  pingres=$(ping -c1 -W1 192.168.10.1 2>&1)
+  ok=$(echo "$pingres" | grep -c "1 received")
+
+  echo "iter=$i lldp_present=$([ -n "$lldp" ] && echo yes || echo no) ping_ok=$ok" | tee -a "$LOG"
+
+  if [ "$ok" -eq 0 ]; then fail_streak=$((fail_streak+1)); else fail_streak=0; fi
+
+  if [ "$fail_streak" -ge 2 ] && [ -z "$lldp" ]; then
+    echo "=== FREEZE DETECTED at iteration $i ===" | tee -a "$LOG"
+    echo "=== CPSS EVIDENCE (BEFORE RECOVERY) ===" | tee -a "$LOG"
+    python3 /tmp/cpss_check_vlan951.py 2>&1 | tee -a "$LOG"
+    echo "=== RX counters ===" | tee -a "$LOG"
+    ip -s link show Ethernet11 | tee -a "$LOG"
+    echo "=== STOPPED. Evidence in $LOG. Do NOT recover yet — see Step 3. ===" | tee -a "$LOG"
+    exit 0
+  fi
+done
+echo "=== NO FREEZE after $MAX_ITER iterations ===" | tee -a "$LOG"
+EOF
+chmod +x /tmp/churn_freeze_test.sh
+```
+Run it (loops until freeze detected or 20 iterations exhausted):
+```bash
+rm -f /tmp/churn_test.log    # a stale log from a previous run/user can cause
+                             # "Permission denied" on the truncate even as root
+bash /tmp/churn_freeze_test.sh
+```
+
+> [!NOTE]
+> A single clean run does not disprove the trigger — see the §8.7.1 IMPORTANT note: one deliberate run froze in 2 iterations, another survived all 20. Treat each bounce as a probabilistic race; run multiple rounds (raise `MAX_ITER`, shorten the sleep, add inbound traffic from the relay) before concluding anything about reproducibility.
+
+**Step 3 — once frozen, capture extra evidence BEFORE recovering**:
+```bash
+show lldp neighbors | grep -A4 Ethernet11        # expect: empty
+ip neigh show dev Vlan951                        # expect: empty or INCOMPLETE
+
+ip -s link show Ethernet11 | grep -A1 "RX:"
+for i in 1 2 3; do ping -c1 -W1 192.168.10.1 >/dev/null 2>&1; done
+ip -s link show Ethernet11 | grep -A1 "RX:"      # expect: identical to the line above
+
+sudo timeout 8 tcpdump -i Ethernet11 -e -n        # expect: outgoing frames only
+
+python3 /tmp/cpss_check_vlan951.py                # the key read — see interpretation below
+```
+**Interpretation**:
+* `0/63 tagged` still present + RX counter frozen -> SAI/CPSS-internal hostif/SDMA wedge (§8.7.1's result).
+* `0/63` missing entirely -> orchagent overwrote the out-of-band hook programming (the originally suspected mechanism, not observed in §8.7.1's run).
+
+**Step 4 — recovery** (check `show ztp status` first — the path differs depending on whether ZTP has ever reached `SUCCESS`):
+```bash
+show ztp status | grep "ZTP Status"
+```
+If **not** `SUCCESS` (still in discovery) — standard §8.7 recovery works, `restart ztp` re-runs the hook automatically:
+```bash
+sudo systemctl restart swss
+systemctl is-active swss syncd   # wait for both "active"
+sleep 30
+sudo systemctl restart ztp
+sleep 15
+sudo systemctl stop ztp
+```
+If `SUCCESS` (e.g. after completing §10's option-67 SOP) — `restart ztp` is a no-op (`journalctl -u ztp` shows `ZTP already completed with result SUCCESS...` and exits in ~5s without touching CPU63). Re-run the hook scripts directly instead:
+```bash
+sudo systemctl restart swss
+systemctl is-active swss syncd   # wait for both "active"
+sleep 30
+
+python3 /usr/lib/ztp/add_macentry.py
+python3 /usr/lib/ztp/add_StaticFDBEntry_CPU63_from_iplink.py
+python3 /tmp/cpss_check_vlan951.py               # confirm 0/63 tagged is back
+
+for p in $(pgrep -x dhclient -a | grep Vlan951 | awk '{print $1}'); do sudo kill "$p"; done
+sudo rm -f /run/dhclient.Vlan951.pid
+sudo dhclient -v -pf /run/dhclient.Vlan951.pid -lf /var/lib/dhcp/dhclient.Vlan951.leases Vlan951 -nw &
+sleep 10
+```
+**Final verification** (either path):
+```bash
+ping -c3 -W1 192.168.10.1        # expect 0% loss
+ping -c3 -W1 10.90.90.205        # expect 0% loss
+show lldp neighbors | grep -A4 Ethernet11   # expect the relay neighbor entry back
+```
+
 ## 9. Notes
 
 ### 9.1 Key Gotchas (Read This First on a Fresh Reflash)
@@ -891,6 +1223,7 @@ These lessons were learned the hard way across several reflash cycles. Following
      * Sometimes the DUT binds fine while showing `KEEP` (RX works, `KEEP` is cosmetic).
      * Sometimes RX genuinely freezes: `ip -s link show Ethernet11` RX counter stuck, `show lldp neighbors` loses the `Ethernet11` entry, and DHCP gets `"No DHCPOFFERS"` even though the relay is sending the `OFFER` out its downlink (confirmed by tcpdump).
    * The freeze appears when `Ethernet11` is added to the VLAN at RUNTIME. Reliable clear: **reboot the DUT** — after boot, LLDP returns on `Ethernet11` (RX healthy) even though the attribute still reads `KEEP`. So: if `"No DHCPOFFERS"` AND the relay `tcpdump` shows the `OFFER` leaving the downlink AND `Ethernet11` RX is frozen / LLDP missing -> reboot the DUT.
+   * 2026-07-02 update: the ZTP discovery 316s flap loop massively amplifies the odds of hitting this freeze, and `restart swss` + `restart ztp` (hook re-run) also clears it without a reboot. **Before recovering, capture CPSS-level evidence — see §8.7 Forensics SOP** (checks whether CPU port 63 lost its VLAN 951 membership vs. a SAI hostif/SDMA wedge).
 
 4. **Trigger the DUT with `systemctl restart ztp`, never `config ztp run`; run config as a scp'd script.**
    * `config ztp run` (and `rm config_db.json` + restart) does a config reload that erases the runtime `Vlan951` config and lets ZTP discovery re-grab `Ethernet11` as a routed port.
@@ -911,7 +1244,11 @@ These lessons were learned the hard way across several reflash cycles. Following
      ```
    * Verify: `docker exec dhcp_relay supervisorctl status` -> `isc-dhcpv4-relay-VlanXXX` RUNNING, `start` EXITED.
 
-6. **Mgmt IP drifts after `config ztp disable` / reboot — keep console handy, flush ARP.**
+6. **Server `dhcpd.conf` must set `option dhcp-renewal-time`/`option dhcp-rebinding-time` explicitly, or leases silently fail to renew ~lease-time later.**
+   * Without them, the DUT's lease file collapses `renew`/`rebind`/`expire` into one timestamp, giving `dhclient` no early-renew window and no broadcast-rebind fallback — ping to the DHCP server drops roughly `default-lease-time` seconds after bind. See Section 8.5.
+   * Fix: add `option dhcp-renewal-time 600;` (T1, 50%) and `option dhcp-rebinding-time 1050;` (T2, 87.5%) for a 1200s lease, then `systemctl restart isc-dhcp-server`.
+
+7. **Mgmt IP drifts after `config ztp disable` / reboot — keep console handy, flush ARP.**
    * `eth0`'s mgmt IP comes from ZTP DHCP; `config ztp disable -y` / reboot can re-lease a DIFFERENT IP (e.g. server moved `192.168.80.167` -> `.166`) and the box appears "down". The box is usually fine (relay still sees it via LLDP, link up) — only the mgmt IP moved.
    * Find the real IP via console (console server `ssh admin@192.168.80.135`, server=port 4, relay=port 5, client=port 6; login `admin` / `Prestera123` ; `ip -br addr show eth0`).
    * On the jump host, a stale ARP can hide the new IP: `sudo ip neigh flush <ip>` then ping.
@@ -952,3 +1289,168 @@ Why L2 broadcast DHCP now reaches DUT CPU without `ebtables`:
   * ASIC programs `SAI_HOSTIF_TRAP_TYPE_DHCP_L2` via `orchagent`/`syncd`.
   * L2 broadcast DHCP (dst MAC `ff:ff:ff:ff:ff:ff`) is punted to CPU directly.
   * No `ebtables` MAC rewrite needed.
+
+---
+
+## 10. ZTP HTTP Server + DHCP Option 67 SOP (Production Fix for the 316s Discovery Loop)
+
+* **Date**: 2026-07-02
+* **Status**: PASS. `ZTP Status: SUCCESS`, `ZTP Service: Inactive` — no further discovery loop.
+
+### 10.1 Objective
+
+Give ZTP real provisioning data via DHCP option 67 (`ztp_data_url`) so the DUT completes ZTP discovery instead of looping forever with `sonic-ztp: "Restarting network discovery."` every 316s (§8.7 / §9.1-3). This is the permanent fix referenced in those sections.
+
+### 10.2 Architecture
+
+* HTTP server co-located on the DHCP server, `192.168.80.161`, reachable from the DUT over the same `Vlan2`/`Vlan951` relay path already used for DHCP (`10.90.90.205:8080`).
+* `192.168.80.161` has **no internet access** — all files must be prepared locally (e.g. WSL) then `scp`'d in via the jump host chain. Do not attempt `apt-get install nginx` etc. directly on it.
+* SSH to both the DUT and the DHCP server in this environment goes through a jump host chain (`~/.ssh/config`: `Host jump` -> `Host 71` -> target), and both boxes use password auth only (no key installed).
+
+### 10.3 Server-side setup (`192.168.80.161`)
+
+Directory + files:
+```text
+~admin/ztp-www/
+  ztp.json
+  ztp-provisioning.sh
+```
+
+**`ztp.json` — correct schema** (the section must live *inside* `"ztp"`, not as a top-level sibling key):
+```json
+{
+  "ztp": {
+    "provisioning-script": {
+      "plugin": {
+        "url": "http://10.90.90.205:8080/ztp-provisioning.sh"
+      },
+      "reboot-on-success": false,
+      "ignore-result": false
+    },
+    "restart-ztp-no-config": false
+  }
+}
+```
+
+> [!WARNING]
+> **Schema gotcha (hit 2026-07-02)**: a top-level `"provisioning-scripts": [...]` (plural, sibling of `"ztp"`) is silently ignored by `sonic-ztp` — it is not an error, the file just gets treated as an empty/no-op profile. Symptom: `journalctl -u ztp` shows `Downloading provisioning data ... ZTP successfully completed` with **no** `Processing configuration section ...` line at all. If that line is missing, the JSON schema is wrong — re-check the nesting before touching DHCP/HTTP.
+
+`ztp-provisioning.sh`:
+```bash
+#!/bin/bash
+exec >> /var/log/ztp.log 2>&1
+echo "=== ZTP Provisioning Started ==="
+date
+show ver 2>/dev/null | head -6
+echo "--- saving startup config so ZTP exits discovery ---"
+config save -y
+echo "=== ZTP Provisioning Completed ==="
+date
+exit 0
+```
+
+> [!WARNING]
+> **Why `config save -y` is required**: without a startup `/etc/sonic/config_db.json`, ZTP logs `ZTP completed but startup configuration '/etc/sonic/config_db.json' not found. Waiting for 300 seconds before restarting ZTP.` and keeps re-entering discovery even after `provisioning-script: SUCCESS`. The provisioning script's last step must persist a startup config, or ZTP treats the run as incomplete and loops every 300s anyway.
+
+Start the HTTP server (not managed by systemd — plain `nohup`):
+```bash
+mkdir -p ~/ztp-www
+cp ztp.json ztp-provisioning.sh ~/ztp-www/
+chmod 644 ~/ztp-www/ztp.json
+chmod 755 ~/ztp-www/ztp-provisioning.sh
+cd ~/ztp-www
+nohup python3 -m http.server 8080 > /tmp/ztp_http.log 2>&1 &
+```
+
+> [!WARNING]
+> **Not reboot-persistent.** After any reboot of `192.168.80.161`, re-run the `nohup python3 -m http.server 8080` line above, in addition to the existing §3.2 static-route + `isc-dhcp-server` restart steps.
+
+Verify from the server itself:
+```bash
+curl -s http://10.90.90.205:8080/ztp.json                                             # returns the JSON above
+curl -s -o /dev/null -w "%{http_code}\n" http://10.90.90.205:8080/ztp-provisioning.sh  # 200
+```
+
+### 10.4 `dhcpd.conf`: add DHCP option 67
+
+Add `option bootfile-name` (DHCP option 67 — SONiC's `dhclient-exit-hooks.d/ztp` maps this to `ztp_data_url`) inside the `192.168.10.0` subnet block that serves the DUT:
+```text
+subnet 192.168.10.0 netmask 255.255.255.0 {
+  range 192.168.10.100 192.168.10.109;
+  option routers 192.168.10.1;
+  option subnet-mask 255.255.255.0;
+  option domain-name "test.ntc.lab";
+  option domain-name-servers 8.8.8.8;
+  option bootfile-name "http://10.90.90.205:8080/ztp.json";
+}
+```
+
+> [!WARNING]
+> `option bootfile-name http://...;` **without quotes** fails `dhcpd -t` with `semicolon expected` (the `//` and `:` are parsed as tokens). The value must be a quoted string: `option bootfile-name "http://...";`.
+
+Syntax check + reload:
+```bash
+sudo cp /etc/dhcp/dhcpd.conf /etc/dhcp/dhcpd.conf.bak.$(date +%s)
+sudo dhcpd -t -cf /etc/dhcp/dhcpd.conf     # no output = OK
+sudo systemctl restart isc-dhcp-server
+```
+
+DUT-side confirms receipt in `/var/run/ztp/`:
+```bash
+cat /var/run/ztp/dhcp_67-ztp_data_url      # -> http://10.90.90.205:8080/ztp.json
+cat /var/run/ztp/ztp_data_opt67.json       # -> the downloaded file, verbatim
+```
+
+### 10.5 Full DUT-side verification flow
+
+1. Confirm `AMAZON_FLAG=true` in `/usr/lib/ztp/ztp-profile.sh` (§9.1 gotcha 2 / §5.1).
+2. Confirm `Vlan951` exists with `Ethernet11` as an untagged member (§5.1).
+3. Poll `show ztp status` — target end state:
+   ```text
+   ZTP Admin Mode : True
+   ZTP Service    : Inactive
+   ZTP Status     : SUCCESS
+   ZTP Source     : dhcp-opt67 (Vlan951)
+
+   provisioning-script: SUCCESS
+   ```
+4. `journalctl -u ztp` on a clean cycle shows this sequence:
+   ```text
+   DHCPACK of <ip> from 192.168.10.1
+   Downloading provisioning data from http://10.90.90.205:8080/ztp.json to /var/run/ztp/ztp_data_opt67.json
+   Processing configuration section provisioning-script at ...
+   Processed Configuration section provisioning-script with result SUCCESS, exit code (0) at ...
+   Checking configuration section provisioning-script result: SUCCESS, ignore-result: False.
+   ZTP successfully completed at ...
+   ```
+5. Once `ZTP Service: Inactive` + `ZTP Status: SUCCESS`, verify the DHCP relay chain end-to-end from the DUT:
+   ```bash
+   ping -c3 192.168.10.1     # DUT -> relay gateway
+   ping -c3 10.90.90.205     # DUT -> DHCP/HTTP server, via the §5.2 route hook
+   ```
+
+### 10.6 Known failure mode during this SOP: repeated ZTP retries can re-trigger the Ethernet11 freeze/link-down from §8.7
+
+If the ztp.json served on cycle 1 has a schema error (§10.3) or any other reason ZTP doesn't reach `SUCCESS` immediately, ZTP retries roughly every 5-6 minutes. Each retry re-runs the AMAZON hook and can trigger `interfaces-config.service` restarts — the same VLAN/port churn pattern implicated in §8.7. **More retries before `SUCCESS` = more chances to hit the freeze.**
+
+Observed 2026-07-02: the first `ztp.json` had the schema bug above, so ZTP needed 3 cycles (~12 min) to reach `SUCCESS` (the fix was uploaded to the HTTP server mid-cycle-2). After cycle 3 completed, `Ethernet11` came up in kernel `state DOWN` even though `show interfaces status` reported `Oper up / Admin up` — a milder symptom than the full RX-freeze in §8.7 (LLDP was not lost, `ip -s link show` counters were not stuck). Recovery was a single `ip link set Ethernet11 up` (or `config interface startup Ethernet11`) — **check for this cheap fix first** before escalating to the full §8.7 forensics SOP / §5.4 `restart swss` recovery.
+
+See §8.7's added correction note for the (now code-confirmed) mechanism: the AMAZON hook only ever *adds* the CPU63 entry; `interfaces-config.service` restart is what actually toggles `Ethernet11`'s admin state and cycles the bridge port through `disabled -> blocking -> forwarding`.
+
+> [!WARNING]
+> **§8.7.1 is required reading once a DUT has reached this SOP's persisted `ZTP Status: SUCCESS`.** The standard §8.7 recovery (`restart swss` + `restart ztp`) silently stops working at that point, because `restart ztp` becomes a no-op (`ZTP already completed with result SUCCESS...`) and no longer re-runs the AMAZON hook that restores the CPU63 VLAN entry `restart swss` just wiped. Use §8.7.1's updated recovery decision tree (manually re-run `add_macentry.py` + `add_StaticFDBEntry_CPU63_from_iplink.py`) instead.
+
+### 10.7 Result Summary (2026-07-02)
+
+```text
+DUT:            192.168.80.174, Vlan951 192.168.10.108/24
+Relay:          192.168.80.179, unchanged from §7
+DHCP+HTTP:      192.168.80.161, Vlan2 10.90.90.205:8080
+ztp.json:       http://10.90.90.205:8080/ztp.json (option 67 / bootfile-name)
+ZTP result:     ZTP Status: SUCCESS, ZTP Service: Inactive, ZTP Source: dhcp-opt67 (Vlan951)
+                provisioning-script: SUCCESS
+Connectivity:   ping 192.168.10.1  0% loss
+                ping 10.90.90.205  0% loss
+```
+
+`config save -y` as the last step of the provisioning script is what lets ZTP treat itself as fully provisioned rather than re-entering the 300s "no startup config" wait loop described in §10.3.

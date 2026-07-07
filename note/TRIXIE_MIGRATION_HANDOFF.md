@@ -1,7 +1,7 @@
 # SONiC trixie/6.12 移植交接文件 — Wistron es1227_54ts_p2
 
 > 目的:讓另一個 session / AI 能接續完成。記錄**做了什麼改動、為什麼、目前進度、待辦、踩雷模式、如何續跑**。
-> 最後更新:2026-06-29。分支:`master-mrvl-prestera-0based-vlan-ztp`(merge commit `16a4f5d7e`）。
+> 最後更新:2026-07-02。分支:`wistron/es1227-54ts-p2-trixie-m1.0.2`,已 push 至 `WistronNetworking/sonic-buildimage:merge-mrvl-vlan-ztp-into-sai-1.17.1`(對 PR base `marvell-sai-1.17.1`)。§1-§10 為 build/移植階段(2026-06-22~30),§11 為 PR 準備 + build 環境排錯 + DUT DHCP 問題排錯(2026-07-01~02)。
 
 ---
 
@@ -502,6 +502,83 @@ Completion target:
 === IMAGE BUILD DONE rc=0 ...
 ARTIFACT OK
 ```
+
+---
+
+## 11. 2026-07-01~02 Update:PR 準備、build 環境排錯、DUT DHCP 問題
+
+### 11.1 Commit 拆分與 PR push
+
+依「非 platform 的都要用 patch」原則,把所有變動重新整理成 4 個 commit(platform/device 直接 commit,其餘走 `wistron_patches/`):
+
+```text
+1bc6b31fb [wistron][es1227_54ts_p2][ztp] update ZTP workaround patch for trixie/Python3.13
+b6b8302c7 [wistron][es1227_54ts_p2][mvsai] upgrade SAI to 1.17.1-2 for trixie
+317296f31 [wistron][es1227_54ts_p2] trixie/6.12 build and platform porting
+fbef3eb1e [wistron][es1227_54ts_p2][mvsai] add SAI 1.17.1-2 arm64 deb for reproducible build
+```
+
+- Commit 1:重新產生 `wistron_patches/ztp_workaround/0002-ztp-workaround-mac-table-added.patch`,**新增 `telnetlib.py` 作為新檔案**(§10.8 的修法只改了 5 支 script 加 `sys.path.insert`,沒把 vendored `telnetlib.py` 本身放進 patch;這次補上)。
+- Commit 2:`sai.mk` bump 1.17.1-2 + `wistron_patches/0013-trixie-mvsai-kernel-interface.patch`。
+- Commit 3:`one-image.mk`(排除 Nokia/AC5X)、`sonic_fit.its`(kernel 路徑)、`device/wistron/**`、`wistron_patches/0014-trixie-build-fixes.patch`(ENABLE_ZTP、cargo-tarpaulin pin、pip 預裝、grpcio 移除、supervisord-utilities-rs `--locked`、sonic-utilities 跳過 pytest)、`note/`。
+- Commit 4:`git add -f platform/marvell-prestera/mrvllibsai_1.17.1-2_arm64.deb`(13MB,`SONIC_COPY_DEBS` 需要本地 deb,無下載 URL,清空 clone 才能重現一致的 build)。
+
+**驗證所有 `wistron_patches/` 能 apply**:`apply_patches.sh`(default)+ `apply_patches.sh -z` 全部過(除了幾個跟本次改動無關的 pre-existing 失敗:`0001-sonic-kernel-modification-for-wistron.patch`/`0005-...board-device-tree...`因 submodule path 找不到、`0007-version_for_release.patch`/`0009-kdump-fix.patch` reversed-or-applied,皆非本次引入)。
+
+**Push 到 GitHub 卡點**:此開發機對 GitHub SSH port 22/443 皆被防火牆擋。解法:改用**跳板 proxy**(`~/.ssh/config` 內 `Host github.com` 加 `ProxyJump jump`),GitHub 帳號 `otiswistron` 的 public key 加到 jump 可達的路徑後 push 成功。最終 push:
+```bash
+git push origin wistron/es1227-54ts-p2-trixie-m1.0.2:merge-mrvl-vlan-ztp-into-sai-1.17.1
+```
+
+### 11.2 Build 環境排錯:port 80 被擋
+
+嘗試重新完整 build 驗證(確認 commit 拆分後 patch 仍能組出一樣的 image),踩到本機網路限制:
+
+**症狀**:`sonic-slave-bookworm`/`sonic-slave-trixie` 重建時(因 0014 patch 動了 Dockerfile,觸發合理重建)apt-get update 全部 `Connection refused`。
+
+**根因**:這台 build 機**對外 port 80 被防火牆全擋**(`http://deb.debian.org`、`http://debian-archive.trafficmanager.net`、甚至 `http://google.com` 都 HTTP 000),只有 port 443 通。docker buildkit 內建的 base image(`publicmirror.azurecr.io/debian:bookworm@sha256:...`)本身 sources 是乾淨 http trafficmanager,但 slave 重建時 apt 卡在 `https://deb.debian.org`(cert 驗證失敗,因早期 apt 階段 base image 還沒裝 `ca-certificates`),嘗試多輪(MIRROR_URLS override、buildkit cache 清除)都沒抓到真正原因是 port 80 被擋,而非 image/config 問題。
+
+**修法(兩段)**:
+1. **跳板 proxy 打通 target rootfs 的 http mirror**:`~/sonic_proxy.sh up` 拉起 SOCKS(127.0.0.1:1080)+ HTTP bridge(0.0.0.0:8118),`export http_proxy=http://<eth0-ip>:8118` 後 host 與 docker 容器都能連到 `debian-archive.trafficmanager.net:80`(經跳板)。
+2. **關閉 slave 早期 apt 的 https cert 驗證**(僅限本機 build 環境,不進 PR):`sonic-slave-bookworm/no-check-valid-until` 與 `sonic-slave-trixie/no-check-valid-until` 各加:
+   ```
+   Acquire::https::Verify-Peer "false";
+   Acquire::https::Verify-Host "false";
+   ```
+   標註 `LOCAL BUILD-ENV WORKAROUND (do NOT commit)`。這是**明確經使用者授權**的暫時弱化(443 直連得到真正的 deb.debian.org,只是缺 cert bundle;非 production 設定)。
+
+兩段修法疊加後,`make NOBUSTER=1 NOBULLSEYE=1 SONIC_BUILD_JOBS=3 target/sonic-marvell-prestera-arm64.bin` 完整跑完,`make exited 0`,產出 `target/sonic-marvell-prestera-arm64.bin`(849M,2026-07-01 17:57)。
+
+**驗證修正確實烤進這顆新 build**(抽包 `target/debs/trixie/sonic-ztp_1.0.0_all.deb`):
+```text
+telnetlib.py md5 = b9e1e1e5e70f8ffeb6b3b7baa8885085   (與 repo 原始碼一致)
+5/5 ZTP add_* scripts 皆含 sys.path.insert
+ztp-profile.sh 含 AMAZON_FLAG / hook_dhcp_for_vlans (4 處匹配)
+```
+
+### 11.3 DUT ping-drop 診斷:dhclient 卡死 + DHCP server 缺 T1/T2
+
+刷完新 image 後在 DUT `192.168.80.174` 上發現:**ping DHCP server 約 900~1200 秒(接近 lease-time)後斷線**。完整排錯鏈:
+
+1. **先確認不是 SAI/MAC-to-CPU 問題**:`tcpdump -i Ethernet11` 10 秒內收到 LLDP,證實 CPU RX 路徑正常(§8 Gate 7 修的問題沒有復發)。
+2. **鎖定是 `Vlan951` 的 DHCP lease 問題**:`ip -4 addr show Vlan951` 斷線後無 IPv4;lease 檔顯示 `renew`/`rebind`/`expire` **三個時間完全相同**(畸形 lease,見下)。dhclient process(`/sbin/dhclient ... Vlan951 -nw`)卡死 29 分鐘無任何 log 活動,沒有重試。
+3. **追到真正的 DHCP server**:lease 裡的 `dhcp-server-identifier 10.90.90.205` 只是 server 自己在 `Vlan2` 上的介面 IP(非獨立 relay),server 本體在 `192.168.80.161`(hostname `sonic`,也是一台 SONiC 裝置,跑 `isc-dhcp-server`)。
+4. **根因確認**:`192.168.80.161` 的 `/etc/dhcp/dhcpd.conf` 只設了 `default-lease-time`/`max-lease-time`,**沒有設定 `option dhcp-renewal-time`(T1)和 `option dhcp-rebinding-time`(T2)**。缺這兩個 option 時,DUT 的 dhclient 把 lease 檔的 `renew=rebind=expire` 全記成同一個到期時間點,**沒有提前續約的窗口、也沒有 broadcast rebind 的 fallback 窗口**——只能死等到期後整個重新 DISCOVER,而 DUT 端 dhclient 剛好在這個環節卡死不重試。Server log 也證實:同一個 unicast `DHCPREQUEST` 對 `10.90.90.205` 連續打了 15 次,一次 `DHCPACK` 都沒回。
+
+**修法**(`192.168.80.161`,已套用並驗證):
+```
+default-lease-time 1200;
+max-lease-time 1200;
+option dhcp-renewal-time 600;      # T1 = 50%
+option dhcp-rebinding-time 1050;   # T2 = 87.5%
+```
+`sudo dhcpd -t -cf /etc/dhcp/dhcpd.conf` 驗證語法 → `sudo systemctl restart isc-dhcp-server`。
+
+**驗證**(先用短 lease-time 180/90/150 快速跑兩輪確認,驗完已改回正式值 1200/600/1050):兩次 T1 續約都在時限內乾淨拿到 `DHCPACK`,`Vlan951` 的 IP 全程未斷。
+
+**注意**:此問題與 §5.2(`Kyoto ztp report.md`)的 route hook 是**不同的根因**——route hook 解的是 unicast RENEW 封包從錯的介面(`eth0`)發出;T1/T2 解的是 dhclient 根本沒有機會提前續約或 fallback。兩者都要有才能穩定跑長時間的 `Vlan951` lease。完整診斷過程與封包/log 證據見 `note/Kyoto ztp report.md` §8.5。
+
+**這是外部 lab 基礎設施(DHCP server)的設定問題,不是 image/SAI/ZTP source 的 bug,不需要改 repo 內任何東西。**
 
 ### 10.10 2026-06-30 18:15 Update: current build status
 
