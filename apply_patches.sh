@@ -6,10 +6,10 @@ set -e
 PATCH_DIR="wistron_patches"
 ZTP_DIR="$PATCH_DIR/ztp_workaround"
 ZTP_ACTION="disable"
+# 1-based port mapping, sfp-10G defaults and copp_cfg dhcp_l2 are committed in
+# source on this branch; retired to wistron_patches/attic/. Only the submodule-side
+# ZTP workarounds remain (sonic-swss / sonic-ztp cannot be pushed upstream).
 ZTP_PATCH_FILES=(
-    "$PATCH_DIR/1-based_port_mapping/0001-1-based-port-mapping.patch"
-    "$ZTP_DIR/0001-set-sfp-port-default-speed-to-10G.patch"
-    "$ZTP_DIR/0001-Add-dhcp_l2-dhcpv6_l2-to-copp_cfg.json.patch"
     "$ZTP_DIR/0002-Add-dhcp_l2-dhcpv6_l2-to-copp-supported-list.patch"
     "$ZTP_DIR/0002-ztp-workaround-mac-table-added.patch"
 )
@@ -22,8 +22,8 @@ while [[ "$#" -gt 0 ]]; do
         -h|--help) 
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
-            echo "  -z, --ztp, ZTP=yes    Enable 1-based port mapping and ZTP workaround patches"
-            echo "  ZTP=no                Revert 1-based port mapping and ZTP workaround patches if applied, and skip them"
+            echo "  -z, --ztp, ZTP=yes    Also apply the ZTP workaround patches (after the regular ones)"
+            echo "  ZTP=no                Revert ZTP workaround patches if applied, and skip them"
             echo "  -h, --help            Show this help message"
             echo "  (Default: Skip ZTP workaround patches without reverting)"
             exit 0
@@ -52,15 +52,15 @@ apply_patch_file() {
 
     # Check if the patch is already applied by doing a dry-run in reverse (-R).
     # If this succeeds, the patch is already present.
-    if patch -p1 -R --dry-run < "$patch_file" >/dev/null 2>&1; then
+    if patch -p1 -R --dry-run --batch < "$patch_file" >/dev/null 2>&1; then
         echo "[INFO] SKIP: $patch_file (Already applied)"
         echo "----------------------------------------"
         return 0
     fi
-    
+
     echo "[ACTION] APPLYING: $patch_file"
-    # Execute the patch command; trigger the else block if it fails
-    if patch -p1 < "$patch_file"; then
+    # --batch: never prompt interactively (a partially-merged patch used to hang here)
+    if patch -p1 --batch < "$patch_file"; then
         echo "[SUCCESS] DONE: $patch_file"
         echo "----------------------------------------"
     else
@@ -81,9 +81,9 @@ revert_patch_file() {
 
     # Check if the patch is already applied by doing a dry-run in reverse (-R).
     # If this succeeds, the patch is already present, meaning we can revert it.
-    if patch -p1 -R --dry-run < "$patch_file" >/dev/null 2>&1; then
+    if patch -p1 -R --dry-run --batch < "$patch_file" >/dev/null 2>&1; then
         echo "[ACTION] REVERTING: $patch_file"
-        if patch -p1 -R < "$patch_file"; then
+        if patch -p1 -R --batch < "$patch_file"; then
             echo "[SUCCESS] REVERTED: $patch_file"
             echo "----------------------------------------"
         else
@@ -99,24 +99,17 @@ revert_patch_file() {
 
 shopt -s nullglob
 
-# 2. Handle ZTP patches based on action
-if [ "$ZTP_ACTION" == "enable" ]; then
-    echo "[INFO] --- ZTP patches enabled ---"
-    echo "[INFO] Applying 1-based port mapping and ZTP workaround patches in fixed order..."
-    for patch_file in "${ZTP_PATCH_FILES[@]}"; do
-        apply_patch_file "$patch_file"
-    done
-    echo "[INFO] ZTP patch apply finished!"
-    exit 0
-elif [ "$ZTP_ACTION" == "revert" ]; then
+# 2. Handle ZTP patch revert first; with -z the ZTP patches are applied AFTER the
+# regular ones below (a single '-z' run now covers the full fresh-clone setup).
+if [ "$ZTP_ACTION" == "revert" ]; then
     echo "[INFO] --- Reverting ZTP patches ---"
-    echo "[INFO] Reverting 1-based port mapping and ZTP workaround patches in reverse fixed order..."
+    echo "[INFO] Reverting ZTP workaround patches in reverse fixed order..."
     for ((i=${#ZTP_PATCH_FILES[@]}-1; i>=0; i--)); do
         revert_patch_file "${ZTP_PATCH_FILES[$i]}"
     done
     echo "[INFO] ZTP patch revert finished!"
     exit 0
-else
+elif [ "$ZTP_ACTION" != "enable" ]; then
     echo "[INFO] --- ZTP patches disabled (uses default behavior, skipped) ---"
 fi
 
@@ -132,6 +125,15 @@ else
     for patch_file in "${patch_files[@]}"; do
         apply_patch_file "$patch_file"
     done
+fi
+
+# 5. ZTP workaround patches, after the regular ones
+if [ "$ZTP_ACTION" == "enable" ]; then
+    echo "[INFO] --- Applying ZTP workaround patches ---"
+    for patch_file in "${ZTP_PATCH_FILES[@]}"; do
+        apply_patch_file "$patch_file"
+    done
+    echo "[INFO] ZTP patch apply finished!"
 fi
 
 echo "[INFO] Patch execution finished!"

@@ -1,0 +1,32 @@
+debian/rules fixes for trixie builds of platform-marvell, sonic-bmp and
+sonic-host-services submodules.
+
+diff --git a/platform/marvell-prestera/sonic-platform-marvell/debian/rules b/platform/marvell-prestera/sonic-platform-marvell/debian/rules
+index 21a5bbc..a59efb8 100755
+--- a/platform/marvell-prestera/sonic-platform-marvell/debian/rules
++++ b/platform/marvell-prestera/sonic-platform-marvell/debian/rules
+@@ -44,7 +44,7 @@ build:
+ 		if [ $$mod = "rd98dx35xx_cn9131" ]; then \
+ 			make modules -C $(KERNEL_SRC)/build M=`pwd` CONFIG_KM_MVPCI=y CONFIG_KM_MVINT=y || exit 1; \
+         elif [ $$mod = "rd98dx35xx-x86" ];then \
+-			make modules -C $(KERNEL_SRC)/build M=`pwd` CONFIG_KM_MVPCI=y CONFIG_KM_MVINT=y CONFIG_KM_MVDMA2=y|| exit 1; \
++			make modules -C $(KERNEL_SRC)/build M=`pwd` CONFIG_KM_MVPCI=y CONFIG_KM_MVINT=y CONFIG_KM_MVDMA2=y CONFIG_KM_MVETH=y || exit 1; \
+ 		elif [ $$mod = "rd98dx35xx" ]; then \
+ 			make modules -C $(KERNEL_SRC)/build M=`pwd` CONFIG_KM_MVMBUS=y CONFIG_KM_MVINT=y || exit 1; \
+ 		elif [ $$mod = "db98cx8580-32cd" ]; then \
+diff --git a/src/sonic-bmp/debian/rules b/src/sonic-bmp/debian/rules
+old mode 100644
+new mode 100755
+diff --git a/src/sonic-host-services/debian/rules b/src/sonic-host-services/debian/rules
+index 937b2f1..85663d1 100755
+--- a/src/sonic-host-services/debian/rules
++++ b/src/sonic-host-services/debian/rules
+@@ -13,7 +13,7 @@ override_dh_auto_install:
+ 	# do nothing
+ 
+ override_dh_auto_build:
+-	cargo build --release --all
++	cargo build --release --all --locked
+ 
+ override_dh_auto_clean:
+ 	cargo clean --release
