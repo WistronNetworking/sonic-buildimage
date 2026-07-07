@@ -60,7 +60,9 @@ apply_patch_file() {
 
     echo "[ACTION] APPLYING: $patch_file"
     # --batch: never prompt interactively (a partially-merged patch used to hang here)
-    if patch -p1 --batch < "$patch_file"; then
+    # --forward: NEVER auto-reverse; --batch alone answers 'Assume -R?' with yes,
+    #            silently UN-applying an already-applied patch
+    if patch -p1 --batch --forward < "$patch_file"; then
         echo "[SUCCESS] DONE: $patch_file"
         echo "----------------------------------------"
     else
