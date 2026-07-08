@@ -52,7 +52,10 @@ apply_patch_file() {
 
     # Check if the patch is already applied by doing a dry-run in reverse (-R).
     # If this succeeds, the patch is already present.
-    if patch -p1 -R --dry-run --batch < "$patch_file" >/dev/null 2>&1; then
+    # --force (NOT --batch): --batch answers "Unreversed patch detected!" with
+    # "ignore -R" and retries FORWARD, so an unapplied patch that applies cleanly
+    # passes this reverse check and gets skipped as "already applied".
+    if patch -p1 -R --dry-run --force < "$patch_file" >/dev/null 2>&1; then
         echo "[INFO] SKIP: $patch_file (Already applied)"
         echo "----------------------------------------"
         return 0
@@ -83,7 +86,7 @@ revert_patch_file() {
 
     # Check if the patch is already applied by doing a dry-run in reverse (-R).
     # If this succeeds, the patch is already present, meaning we can revert it.
-    if patch -p1 -R --dry-run --batch < "$patch_file" >/dev/null 2>&1; then
+    if patch -p1 -R --dry-run --force < "$patch_file" >/dev/null 2>&1; then
         echo "[ACTION] REVERTING: $patch_file"
         if patch -p1 -R --batch < "$patch_file"; then
             echo "[SUCCESS] REVERTED: $patch_file"
