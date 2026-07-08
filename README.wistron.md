@@ -18,7 +18,7 @@ git checkout master-mrvl-prestera
 
 # Execute make init once after cloning the repo,
 # or after fetching remote repo with submodule updates
-make init
+time make init
 
 # Execute `apply_patches.sh` for platform specific modifications and issue fixing.
 # Usage & options:
@@ -32,10 +32,13 @@ make init
 ./apply_patches.sh -h
 
 # Execute make configure once to configure ASIC
-make configure PLATFORM=marvell-prestera PLATFORM_ARCH=arm64
+time make configure PLATFORM=marvell-prestera PLATFORM_ARCH=arm64
 
 # Build SONiC image with 3 jobs in parallel.
 # Note: You can set this higher, but 3 is a good number for most cases
 #       and is well-tested.
-make NOBUSTER=1 NOBULLSEYE=1 SONIC_BUILD_JOBS=3 target/sonic-marvell-prestera-arm64.bin
+
+time make NOJESSIE=1 NOSTRETCH=1 NOBUSTER=1 NOBULLSEYE=1 SONIC_BUILD_JOBS=8 \
+     target/sonic-marvell-prestera-arm64.bin
+
 ```
