@@ -9,7 +9,17 @@
 try:
     import sys
     import subprocess
-    from sonic_platform_base.component_base import ComponentBase
+    import re
+    from sonic_platform_base.component_base import (
+        ComponentBase,
+        FW_AUTO_SCHEDULED,
+        FW_AUTO_ERR_IMAGE,
+        FW_AUTO_INSTALLED,
+        FW_AUTO_ERR_BOOT_TYPE,
+        FW_AUTO_ERR_UNKNOWN
+    )
+    from . import eeprom
+    from sonic_platform_base.sonic_eeprom import eeprom_tlvinfo
 except ImportError as e:
     raise ImportError(str(e) + "- required module not found")
 
@@ -74,10 +84,35 @@ class Component(ComponentBase):
         """
 
         if self.index == 0:
-            cmdstatus, uboot_version = cmd.getstatusoutput('grep --null-data ^U-Boot /dev/mtd0 | tail -n 1 | cut -d" " -f2')
+            command = "grep -a 'U-Boot ' /dev/mtd0 | tail -n 1 | awk -F 'U-Boot' '{print $2}' | awk '{print $1}'"
+            cmdstatus, uboot_version = cmd.getstatusoutput(command)
             return uboot_version
 
         if self.index == 1:
+            # ONIE update appends the new version string at the end of the EEPROM.
+            # We parse the EEPROM binary directly to find the latest ONIE Version TLV,
+            # using dynamically imported paths and constants to avoid hardcoding.
+            try:
+                # Fetch path and TLV code dynamically
+                eeprom_path = eeprom.Tlv()._eeprom_path
+                onie_tlv_code = eeprom_tlvinfo.TlvInfoDecoder._TLV_CODE_ONIE_VERSION
+                
+                with open(eeprom_path, 'rb') as f:
+                    data = f.read()
+                versions = []
+                for i in range(len(data) - 2):
+                    if data[i] == onie_tlv_code:
+                        length = data[i+1]
+                        if 0 < length < 64 and i + 2 + length <= len(data):
+                            val = data[i+2 : i+2+length]
+                            if all(32 <= b < 127 for b in val):
+                                versions.append(val.decode('ascii'))
+                if versions:
+                    return versions[-1]
+            except Exception:
+                pass
+                
+            # Fallback to the original installation machine.conf
             cmdstatus, onie_version = cmd.getstatusoutput('grep ^onie_version /host/machine.conf | cut -f2 -d"="')
             return onie_version
 
@@ -95,6 +130,47 @@ class Component(ComponentBase):
         Returns:
             A boolean, True if install was successful, False if not
         """
+        if self.index == 0:
+            try:
+                cmd_uboot = "flashcp -v {} /dev/mtd0".format(image_path)
+                status, _ = cmd.getstatusoutput(cmd_uboot)
+                if status != 0:
+                    return False
+                return True
+            except Exception:
+                return False
+        elif self.index == 1:
+            try:
+                # 1. Copy file to staging area (ONIE Boot Partition)
+                cmd_copy = "cp -f {} /host/onie-updater".format(image_path)
+                status, _ = cmd.getstatusoutput(cmd_copy)
+                if status != 0:
+                    return False
+                
+                # 2. For Marvell platforms, the original onie_bootcmd is hardcoded to install mode.
+                # We dynamically fetch it and replace whatever the reason is with 'update'
+                status, output = cmd.getstatusoutput("fw_printenv -n onie_bootcmd")
+                if status != 0:
+                    return False
+                onie_update_cmd = re.sub(r"onie_boot_reason\s+\w+", "onie_boot_reason update", output.strip())
+                cmd_setenv_boot = "fw_setenv boot_once '{}'".format(onie_update_cmd)
+                status, _ = cmd.getstatusoutput(cmd_setenv_boot)
+                if status != 0:
+                    return False
+
+                return True
+            except Exception:
+                return False
+        elif self.index == 2:
+            try:
+                cmd_cpld = "updateCPLD 0x1 0x40 {}".format(image_path)
+                status, _ = cmd.getstatusoutput(cmd_cpld)
+                if status != 0:
+                    return False
+                return True
+            except Exception:
+                return False
+
         return False
 
     def get_presence(self):
@@ -183,4 +259,41 @@ class Component(ComponentBase):
         Raises:
             RuntimeError: update failed
         """
+        if self.index in [0, 1]:
+            if self.install_firmware(image_path):
+                cmd.getstatusoutput("reboot")
+                return True
+            return False
+        # CPLD (index 2) requires hard power cycle, software reboot is insufficient.
+        # Thus, it doesn't support the automated update_firmware flow.
         return False
+
+    def auto_update_firmware(self, image_path, boot_type):
+        """
+        Updates firmware of the component automatically based on boot_type.
+        """
+        if self.index in [0, 1]:
+            if boot_type not in ["cold", "none"]:
+                return FW_AUTO_ERR_BOOT_TYPE
+                
+            if self.install_firmware(image_path):
+                if boot_type == "none":
+                    return FW_AUTO_INSTALLED
+                return FW_AUTO_SCHEDULED
+            else:
+                return FW_AUTO_ERR_IMAGE
+                
+        elif self.index == 2:
+            # CPLD requires hard power cycle, so "cold" reboot (software) is invalid.
+            # We only support "none" (install only) for auto update, 
+            # and rely on the external PDU to perform the actual power cycle.
+            if boot_type != "none":
+                return FW_AUTO_ERR_BOOT_TYPE
+                
+            if self.install_firmware(image_path):
+                return FW_AUTO_INSTALLED
+            else:
+                return FW_AUTO_ERR_IMAGE
+        
+        return FW_AUTO_ERR_UNKNOWN
+
