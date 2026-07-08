@@ -132,7 +132,14 @@ else
     done
 fi
 
-# 5. ZTP workaround patches, after the regular ones
+# 5. Fixups that patch(1) cannot express: mode-only changes are silently skipped
+# (a diff with no content hunks patches nothing). dpkg-buildpackage requires an
+# executable debian/rules; the sonic-bmp fork commits it as 0644.
+if [ -f src/sonic-bmp/debian/rules ]; then
+    chmod +x src/sonic-bmp/debian/rules
+fi
+
+# 6. ZTP workaround patches, after the regular ones
 if [ "$ZTP_ACTION" == "enable" ]; then
     echo "[INFO] --- Applying ZTP workaround patches ---"
     for patch_file in "${ZTP_PATCH_FILES[@]}"; do
