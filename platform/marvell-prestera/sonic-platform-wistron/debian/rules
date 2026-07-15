@@ -12,9 +12,9 @@ endif
 KERNEL_SRC :=  /lib/modules/$(KVERSION)
 INSTALL_MOD_DIR := kernel/extra/
 MOD_SRC_DIR:= $(shell pwd)
-# Scope build to es1227_54ts_p2 only (trixie/6.12 migration); other boards' debs
-# are still emitted (empty) from debian/control to satisfy SONiC make deps.
-MODULE_DIRS:= es1227_54ts_p2
+# Build es1227_54ts_p2 + es1227_36ts_p for trixie/6.12. Other boards' debs are
+# still emitted (empty) from debian/control to satisfy SONiC make deps.
+MODULE_DIRS:= es1227_54ts_p2 es1227_36ts_p
 MODULE_DIR := modules
 UTILS_DIR := utils
 SERVICE_DIR := service

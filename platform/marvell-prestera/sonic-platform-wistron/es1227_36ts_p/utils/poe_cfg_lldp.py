@@ -21,42 +21,42 @@ lldp_power_sm = {}
 # value 1 is the PoE physical port
 # value 2 is the PoE type(NA/AT/BT)
 poe_config_dict = {
-    "Ethernet0": ["0", "AT"],
-    "Ethernet1": ["1", "AT"],
-    "Ethernet2": ["2", "AT"],
-    "Ethernet3": ["3", "AT"],
-    "Ethernet4": ["4", "AT"],
-    "Ethernet5": ["5", "AT"],
-    "Ethernet6": ["6", "AT"],
-    "Ethernet7": ["7", "AT"],
-    "Ethernet8": ["8", "AT"],
-    "Ethernet9": ["9", "AT"],
-    "Ethernet10": ["10", "AT"],
-    "Ethernet11": ["11", "AT"],
-    "Ethernet12": ["12", "AT"],
-    "Ethernet13": ["13", "AT"],
-    "Ethernet14": ["14", "AT"],
-    "Ethernet15": ["15", "AT"],
-    "Ethernet16": ["16", "AT"],
-    "Ethernet17": ["17", "AT"],
-    "Ethernet18": ["18", "AT"],
-    "Ethernet19": ["19", "AT"],
-    "Ethernet20": ["20", "AT"],
-    "Ethernet21": ["21", "AT"],
-    "Ethernet22": ["22", "AT"],
-    "Ethernet23": ["23", "AT"],
-    "Ethernet24": ["24", "NA"],
-    "Ethernet25": ["25", "NA"],
-    "Ethernet26": ["26", "NA"],
-    "Ethernet27": ["27", "NA"],
-    "Ethernet28": ["28", "NA"],
-    "Ethernet29": ["29", "NA"],
-    "Ethernet30": ["30", "NA"],
-    "Ethernet31": ["31", "NA"],
-    "Ethernet32": ["32", "NA"],
-    "Ethernet33": ["33", "NA"],
-    "Ethernet34": ["34", "NA"],
-    "Ethernet35": ["35", "NA"]
+    "Ethernet1": ["0", "AT"],
+    "Ethernet2": ["1", "AT"],
+    "Ethernet3": ["2", "AT"],
+    "Ethernet4": ["3", "AT"],
+    "Ethernet5": ["4", "AT"],
+    "Ethernet6": ["5", "AT"],
+    "Ethernet7": ["6", "AT"],
+    "Ethernet8": ["7", "AT"],
+    "Ethernet9": ["8", "AT"],
+    "Ethernet10": ["9", "AT"],
+    "Ethernet11": ["10", "AT"],
+    "Ethernet12": ["11", "AT"],
+    "Ethernet13": ["12", "AT"],
+    "Ethernet14": ["13", "AT"],
+    "Ethernet15": ["14", "AT"],
+    "Ethernet16": ["15", "AT"],
+    "Ethernet17": ["16", "AT"],
+    "Ethernet18": ["17", "AT"],
+    "Ethernet19": ["18", "AT"],
+    "Ethernet20": ["19", "AT"],
+    "Ethernet21": ["20", "AT"],
+    "Ethernet22": ["21", "AT"],
+    "Ethernet23": ["22", "AT"],
+    "Ethernet24": ["23", "AT"],
+    "Ethernet25": ["24", "NA"],
+    "Ethernet26": ["25", "NA"],
+    "Ethernet27": ["26", "NA"],
+    "Ethernet28": ["27", "NA"],
+    "Ethernet29": ["28", "NA"],
+    "Ethernet30": ["29", "NA"],
+    "Ethernet31": ["30", "NA"],
+    "Ethernet32": ["31", "NA"],
+    "Ethernet33": ["32", "NA"],
+    "Ethernet34": ["33", "NA"],
+    "Ethernet35": ["34", "NA"],
+    "Ethernet36": ["35", "NA"]
 }
 
 
@@ -284,7 +284,7 @@ def poe_cfg():
     # config_db.connect()
     # port_dict = config_db.get_table('PORT')
     # print(port_dict)
-    # command = "poeutil port-priority Ethernet0 low"
+    # command = "poeutil port-priority Ethernet1 low"
 
     # Check if poe cfg not in the config_db
     poe_in_config_db = False
@@ -398,7 +398,7 @@ def poe_cfg():
         log.log_error("try it again: " + result)
 
     while True:
-        key = "Ethernet0"
+        key = "Ethernet1"
         result = run_lldpcli_show_port_command(key)
         # print(result)
         match = parse_keyword(key, result)

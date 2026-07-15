@@ -258,7 +258,7 @@ def main():
     # config_db.connect()
     # port_dict = config_db.get_table('PORT')
     # print(port_dict)
-    # command = "poeutil port-priority Ethernet0 low"
+    # command = "poeutil port-priority Ethernet1 low"
 
     for key in port_dict:
         if port_dict[key]["poe_pri"] == "NA":
@@ -342,7 +342,7 @@ def main():
         log.log_error("try it again: " + result)
 
     while True:
-        key = "Ethernet0"
+        key = "Ethernet1"
         result = run_lldpcli_show_port_command(key)
         # print(result)
         match = parse_keyword(key, result)

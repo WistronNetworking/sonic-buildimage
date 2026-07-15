@@ -25,6 +25,7 @@ load_kernel_drivers() {
         insmod /usr/lib/modules/$(uname -r)/kernel/extra/mvcpss.ko
     fi
 
+    modprobe mvSai
     modprobe optoe
     modprobe jc42
 }

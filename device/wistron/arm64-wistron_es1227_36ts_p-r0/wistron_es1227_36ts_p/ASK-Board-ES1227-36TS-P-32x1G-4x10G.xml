@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2025-05-15-1.11" profile="Askboard" sid="e4650fda-5634-40b1-9d26-860af3e20dcf">
+<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2026-02-08-1.14" profile="Askboard" sid="2ace33cf-0e66-4389-9678-1d7eb2bcecfe">
   <askboardplt:ASK-Board xmlns:askboardplt="urn:marvell:askboard:yang">
     <askboardplt:typedefs>
       <askboardplt:typedef>
@@ -200,6 +200,12 @@ Ethernet Transceiver</askboardplt:description>
           <askboardplt:description>Specifies PHY identifier 88E2180, Integrated Octal 10/100/1000/2.5G/5GBASE-T
 Ethernet Transceiver</askboardplt:description>
           <askboardplt:value>9</askboardplt:value>
+        </askboardplt:enum>
+        <askboardplt:enum>
+          <askboardplt:name>alaska-CUX3520</askboardplt:name>
+          <askboardplt:description>Specifies PHY identifier CUX3520, Integrated Octal 10/100/1000/2.5G/5G/10GBASE-T
+Ethernet Transceiver</askboardplt:description>
+          <askboardplt:value>10</askboardplt:value>
         </askboardplt:enum>
       </askboardplt:typedef>
       <askboardplt:typedef>
@@ -673,7 +679,7 @@ Ethernet Transceiver</askboardplt:description>
       </askboardplt:typedef>
     </askboardplt:typedefs>
     <askboardplt:ASIC_Type askboardplt:type="asic-type">ASIC_AC5X</askboardplt:ASIC_Type>
-    <askboardplt:boardName askboardplt:type="std-string">ES1227-36TS-B-32x1G-4x10G-v1_11</askboardplt:boardName>
+    <askboardplt:boardName askboardplt:type="std-string">ASK-Board-ES1227-36TS-P-32x1G-4x10G</askboardplt:boardName>
     <askboardplt:osCallType askboardplt:type="board-callback-type">linux-static</askboardplt:osCallType>
     <askboardplt:extDrvCallType askboardplt:type="board-callback-type">linux-static</askboardplt:extDrvCallType>
     <askboardplt:mapType askboardplt:type="board-pp-map-type">autoscan</askboardplt:mapType>
@@ -683,8 +689,8 @@ Ethernet Transceiver</askboardplt:description>
     <askboardplt:device-list>
       <askboardplt:devNum askboardplt:type="device-id-type">0</askboardplt:devNum>
       <askboardplt:deviceId askboardplt:type="device-id-type">0</askboardplt:deviceId>
-      <askboardplt:pp-profile-name askboardplt:type="std-string">ASK-PP-ES1227-36TS-B-v1_11.xml</askboardplt:pp-profile-name>
-      <askboardplt:L1-profile-name askboardplt:type="std-string">ASK-L1-ES1227-36TS-B-32x1G-4x10G-v1_11.xml</askboardplt:L1-profile-name>
+      <askboardplt:pp-profile-name askboardplt:type="std-string">ASK-PP-ES1227-36TS-P-32x1G-4x10G.xml</askboardplt:pp-profile-name>
+      <askboardplt:L1-profile-name askboardplt:type="std-string">ASK-L1-ES1227-36TS-P-32x1G-4x10G.xml</askboardplt:L1-profile-name>
       <askboardplt:ledStreamType askboardplt:type="led-sip-type">sip6</askboardplt:ledStreamType>
       <askboardplt:portMap-list>
         <askboardplt:portNumber askboardplt:type="physical-port-num-type">0</askboardplt:portNumber>
@@ -1326,7 +1332,7 @@ Ethernet Transceiver</askboardplt:description>
         <askboardplt:portNumber askboardplt:type="physical-port-num-type">60</askboardplt:portNumber>
         <askboardplt:TXQueue>
           <askboardplt:mappingType askboardplt:type="port-mapping-type">cpu_sdma</askboardplt:mappingType>
-          <askboardplt:interfaceNum askboardplt:type="interface-num-type">55</askboardplt:interfaceNum>
+          <askboardplt:interfaceNum askboardplt:type="interface-num-type">54</askboardplt:interfaceNum>
           <askboardplt:reservePreemptiveChannel askboardplt:type="boolean-type">false</askboardplt:reservePreemptiveChannel>
         </askboardplt:TXQueue>
       </askboardplt:portMap-list>
@@ -1334,7 +1340,7 @@ Ethernet Transceiver</askboardplt:description>
         <askboardplt:portNumber askboardplt:type="physical-port-num-type">63</askboardplt:portNumber>
         <askboardplt:TXQueue>
           <askboardplt:mappingType askboardplt:type="port-mapping-type">cpu_sdma</askboardplt:mappingType>
-          <askboardplt:interfaceNum askboardplt:type="interface-num-type">54</askboardplt:interfaceNum>
+          <askboardplt:interfaceNum askboardplt:type="interface-num-type">55</askboardplt:interfaceNum>
           <askboardplt:reservePreemptiveChannel askboardplt:type="boolean-type">false</askboardplt:reservePreemptiveChannel>
         </askboardplt:TXQueue>
       </askboardplt:portMap-list>
@@ -1358,66 +1364,6 @@ Ethernet Transceiver</askboardplt:description>
         <askboardplt:mppNum askboardplt:type="mpp-num-type">45</askboardplt:mppNum>
         <askboardplt:mppSelValue askboardplt:type="mpp-select-type">1</askboardplt:mppSelValue>
       </askboardplt:MppSelect-list>
-      <askboardplt:laneList-list>
-        <askboardplt:laneNumber askboardplt:type="uint32">0</askboardplt:laneNumber>
-        <askboardplt:invertTx askboardplt:type="boolean-type">false</askboardplt:invertTx>
-        <askboardplt:invertRx askboardplt:type="boolean-type">false</askboardplt:invertRx>
-      </askboardplt:laneList-list>
-      <askboardplt:laneList-list>
-        <askboardplt:laneNumber askboardplt:type="uint32">1</askboardplt:laneNumber>
-        <askboardplt:invertTx askboardplt:type="boolean-type">false</askboardplt:invertTx>
-        <askboardplt:invertRx askboardplt:type="boolean-type">false</askboardplt:invertRx>
-      </askboardplt:laneList-list>
-      <askboardplt:laneList-list>
-        <askboardplt:laneNumber askboardplt:type="uint32">2</askboardplt:laneNumber>
-        <askboardplt:invertTx askboardplt:type="boolean-type">false</askboardplt:invertTx>
-        <askboardplt:invertRx askboardplt:type="boolean-type">false</askboardplt:invertRx>
-      </askboardplt:laneList-list>
-      <askboardplt:laneList-list>
-        <askboardplt:laneNumber askboardplt:type="uint32">3</askboardplt:laneNumber>
-        <askboardplt:invertTx askboardplt:type="boolean-type">false</askboardplt:invertTx>
-        <askboardplt:invertRx askboardplt:type="boolean-type">false</askboardplt:invertRx>
-      </askboardplt:laneList-list>
-      <askboardplt:laneList-list>
-        <askboardplt:laneNumber askboardplt:type="uint32">4</askboardplt:laneNumber>
-        <askboardplt:invertTx askboardplt:type="boolean-type">false</askboardplt:invertTx>
-        <askboardplt:invertRx askboardplt:type="boolean-type">false</askboardplt:invertRx>
-      </askboardplt:laneList-list>
-      <askboardplt:laneList-list>
-        <askboardplt:laneNumber askboardplt:type="uint32">5</askboardplt:laneNumber>
-        <askboardplt:invertTx askboardplt:type="boolean-type">false</askboardplt:invertTx>
-        <askboardplt:invertRx askboardplt:type="boolean-type">false</askboardplt:invertRx>
-      </askboardplt:laneList-list>
-      <askboardplt:laneList-list>
-        <askboardplt:laneNumber askboardplt:type="uint32">6</askboardplt:laneNumber>
-        <askboardplt:invertTx askboardplt:type="boolean-type">false</askboardplt:invertTx>
-        <askboardplt:invertRx askboardplt:type="boolean-type">false</askboardplt:invertRx>
-      </askboardplt:laneList-list>
-      <askboardplt:laneList-list>
-        <askboardplt:laneNumber askboardplt:type="uint32">7</askboardplt:laneNumber>
-        <askboardplt:invertTx askboardplt:type="boolean-type">false</askboardplt:invertTx>
-        <askboardplt:invertRx askboardplt:type="boolean-type">false</askboardplt:invertRx>
-      </askboardplt:laneList-list>
-      <askboardplt:laneList-list>
-        <askboardplt:laneNumber askboardplt:type="uint32">8</askboardplt:laneNumber>
-        <askboardplt:invertTx askboardplt:type="boolean-type">false</askboardplt:invertTx>
-        <askboardplt:invertRx askboardplt:type="boolean-type">false</askboardplt:invertRx>
-      </askboardplt:laneList-list>
-      <askboardplt:laneList-list>
-        <askboardplt:laneNumber askboardplt:type="uint32">9</askboardplt:laneNumber>
-        <askboardplt:invertTx askboardplt:type="boolean-type">false</askboardplt:invertTx>
-        <askboardplt:invertRx askboardplt:type="boolean-type">false</askboardplt:invertRx>
-      </askboardplt:laneList-list>
-      <askboardplt:laneList-list>
-        <askboardplt:laneNumber askboardplt:type="uint32">10</askboardplt:laneNumber>
-        <askboardplt:invertTx askboardplt:type="boolean-type">false</askboardplt:invertTx>
-        <askboardplt:invertRx askboardplt:type="boolean-type">false</askboardplt:invertRx>
-      </askboardplt:laneList-list>
-      <askboardplt:laneList-list>
-        <askboardplt:laneNumber askboardplt:type="uint32">11</askboardplt:laneNumber>
-        <askboardplt:invertTx askboardplt:type="boolean-type">false</askboardplt:invertTx>
-        <askboardplt:invertRx askboardplt:type="boolean-type">false</askboardplt:invertRx>
-      </askboardplt:laneList-list>
       <askboardplt:Ledstream-interface-list>
         <askboardplt:ledstream-interface-number askboardplt:type="led-interface-type">0</askboardplt:ledstream-interface-number>
         <askboardplt:ledstream-configSet>

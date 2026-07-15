@@ -21,6 +21,7 @@ update_modulelist()
     echo "# Module list to load during the boot" > $MODULE_FILE
     echo "mvcpss" >> $MODULE_FILE
     echo "psample" >> $MODULE_FILE
+    echo "mvSai" >> $MODULE_FILE
 }
 
 main()
