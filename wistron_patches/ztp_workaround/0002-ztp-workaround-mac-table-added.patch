@@ -1,0 +1,1922 @@
+diff --git a/src/sonic-ztp/src/usr/lib/ztp/add_StaticFDBEntry_CPU63_from_ConfigDB.py b/src/sonic-ztp/src/usr/lib/ztp/add_StaticFDBEntry_CPU63_from_ConfigDB.py
+new file mode 100644
+index 0000000..443340a
+--- /dev/null
++++ b/src/sonic-ztp/src/usr/lib/ztp/add_StaticFDBEntry_CPU63_from_ConfigDB.py
+@@ -0,0 +1,205 @@
++#!/usr/bin/env python3
++# -*- coding: utf-8 -*-
++"""
++Read VLAN IDs from kernel interfaces (ip link show), then for each VLAN:
++  1) Add static FDB (device MAC -> that VLAN, egress CPU port 63).
++  2) Add CPU port 63 as tagged VLAN member (cpssDxChBrgVlanMemberAdd).
++
++Requires: ip, sonic-cfggen, CPSS telnet on localhost:12345 (override with --host/--cpss-port).
++"""
++
++import argparse
++import os
++import re
++import subprocess
++import sys
++from typing import List
++
++sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
++from telnetlib import Telnet
++
++CPU_PORT = 63
++DEV_NUM = 0
++CPSS_HOST = "localhost"
++CPSS_PORT = 12345
++TELNET_TIMEOUT = 30
++READ_TIMEOUT = 5
++
++
++def get_device_mac():
++    result = subprocess.run(
++        ["sonic-cfggen", "-d", "-v", "DEVICE_METADATA.localhost.mac"],
++        capture_output=True,
++        text=True,
++        check=True,
++    )
++    mac = result.stdout.strip().lower()
++    if not re.fullmatch(r"([0-9a-f]{2}:){5}[0-9a-f]{2}", mac):
++        raise ValueError("Unexpected MAC format: {!r}".format(mac))
++    return mac
++
++
++def load_vlan_ids() -> List[int]:
++    result = subprocess.run(
++        ["ip", "link", "show"],
++        capture_output=True,
++        text=True,
++        check=True,
++    )
++    vlan_ids = {int(m) for m in re.findall(r"Vlan(\d+)", result.stdout)}
++    return sorted(vlan_ids)
++
++
++class CpssTelnet(object):
++    def __init__(self, host=CPSS_HOST, port=CPSS_PORT, timeout=TELNET_TIMEOUT):
++        self.tn = Telnet(host, port, timeout)
++
++    def close(self):
++        try:
++            self.tn.write(b"CLIexit\n")
++        except Exception:
++            pass
++        try:
++            self.tn.close()
++        except Exception:
++            pass
++
++    def add_static_mac_entry(self, mac, vlan_id, dev_num=DEV_NUM):
++        """
++        cpssDxChBrgFdbMacEntrySet - same interactive sequence as add_macentry.py.
++        CPU egress port fixed to CPU_PORT (63).
++        """
++        self.tn.write(
++            ("do cpss-api call cpssDxChBrgFdbMacEntrySet devNum {}\n".format(dev_num)).encode()
++        )
++        self.tn.read_until(b"entryType", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"vid1", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"key", READ_TIMEOUT)
++        self.tn.write(b"CPSS_MAC_ENTRY_EXT_KEY_MAC_VLAN_STC\n")
++        self.tn.read_until(b"macAddr", READ_TIMEOUT)
++        self.tn.write(mac.encode() + b"\n")
++        self.tn.read_until(b"vlanId", READ_TIMEOUT)
++        self.tn.write(str(vlan_id).encode() + b"\n")
++        self.tn.read_until(b"type", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"\\", READ_TIMEOUT)
++        self.tn.write(b"16\n")
++        self.tn.read_until(b"portNum", READ_TIMEOUT)
++        self.tn.write(str(CPU_PORT).encode() + b"\n")
++        self.tn.read_until(b"trunkId", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"vidx", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"vlanId", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"devNum", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"fabricVidx", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"index", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"age", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"isStatic", READ_TIMEOUT)
++        self.tn.write(b"true\n")
++        self.tn.read_until(b"daCommand", READ_TIMEOUT)
++        self.tn.write(b"CPSS_MAC_TABLE_CNTL_E\n")
++        self.tn.read_until(b"saCommand", READ_TIMEOUT)
++        self.tn.write(b"CPSS_MAC_TABLE_SOFT_DROP_E\n")
++        self.tn.read_until(b"daRoute", READ_TIMEOUT)
++        self.tn.write(b"*\n")
++
++    def add_cpu_port_vlan_member(
++        self,
++        vlan_id,
++        dev_num=DEV_NUM,
++        is_tagged=True,
++        port_tag_cmd="CPSS_DXCH_BRG_VLAN_PORT_TAG0_CMD_E",
++    ):
++        """cpssDxChBrgVlanMemberAdd - single line (non-interactive), port fixed 63."""
++        line = (
++            "do cpss-api call cpssDxChBrgVlanMemberAdd "
++            "devNum {d} vlanId {v} portNum {p} isTagged {t} portTaggingCmd {c}\n"
++        ).format(
++            d=dev_num,
++            v=vlan_id,
++            p=CPU_PORT,
++            t="true" if is_tagged else "false",
++            c=port_tag_cmd,
++        )
++        self.tn.write(line.encode())
++
++
++def main(argv=None):
++    parser = argparse.ArgumentParser(
++        description=(
++            "From ip link show (Vlan* interfaces): for each VLAN add static FDB "
++            "(device MAC) and CPU port {} as VLAN member."
++        ).format(CPU_PORT)
++    )
++    parser.add_argument(
++        "--host",
++        default=CPSS_HOST,
++        help="CPSS telnet host (default: {}).".format(CPSS_HOST),
++    )
++    parser.add_argument(
++        "--cpss-port",
++        type=int,
++        default=CPSS_PORT,
++        metavar="PORT",
++        help="CPSS telnet port (default: {}).".format(CPSS_PORT),
++    )
++    parser.add_argument(
++        "--dev",
++        type=int,
++        default=DEV_NUM,
++        help="CPSS devNum (default: {}).".format(DEV_NUM),
++    )
++    parser.add_argument(
++        "--dry-run",
++        action="store_true",
++        help="Only print VLAN IDs from ip link; no CPSS changes.",
++    )
++    args = parser.parse_args(argv)
++
++    try:
++        vlan_ids = load_vlan_ids()
++    except Exception as e:
++        print("{}: {}".format(type(e).__name__, e), file=sys.stderr)
++        return 1
++
++    mac = get_device_mac()
++    print("Device MAC: {}".format(mac))
++    print("CPU port (fixed): {}".format(CPU_PORT))
++    print("VLANs from ip link: {}".format(vlan_ids))
++
++    if not vlan_ids:
++        print("No VLAN IDs found.", file=sys.stderr)
++        return 1
++
++    if args.dry_run:
++        print("Dry-run: no CPSS changes.")
++        return 0
++
++    cpss = CpssTelnet(host=args.host, port=args.cpss_port)
++    try:
++        for vid in vlan_ids:
++            print("--- VLAN {} ---".format(vid))
++            print("Adding static MAC entry...")
++            cpss.add_static_mac_entry(mac=mac, vlan_id=vid, dev_num=args.dev)
++            print("Adding VLAN member (CPU port {}, tagged)...".format(CPU_PORT))
++            cpss.add_cpu_port_vlan_member(vlan_id=vid, dev_num=args.dev)
++        print("Done.")
++    except Exception as e:
++        print("{}: {}".format(type(e).__name__, e), file=sys.stderr)
++        return 1
++    finally:
++        cpss.close()
++
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/src/sonic-ztp/src/usr/lib/ztp/add_StaticFDBEntry_CPU63_from_iplink.py b/src/sonic-ztp/src/usr/lib/ztp/add_StaticFDBEntry_CPU63_from_iplink.py
+new file mode 100644
+index 0000000..3eeef96
+--- /dev/null
++++ b/src/sonic-ztp/src/usr/lib/ztp/add_StaticFDBEntry_CPU63_from_iplink.py
+@@ -0,0 +1,204 @@
++#!/usr/bin/env python3
++"""
++Read VLAN IDs from kernel interfaces (ip link show), then for each VLAN:
++  1) Add static FDB (device MAC -> that VLAN, egress CPU port 63).
++  2) Add CPU port 63 as tagged VLAN member (cpssDxChBrgVlanMemberAdd).
++
++Requires: ip, sonic-cfggen, CPSS telnet on localhost:12345 (override with --host/--cpss-port).
++"""
++
++import argparse
++import os
++import re
++import subprocess
++import sys
++from typing import List
++
++sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
++from telnetlib import Telnet
++
++CPU_PORT = 63
++DEV_NUM = 0
++CPSS_HOST = "localhost"
++CPSS_PORT = 12345
++TELNET_TIMEOUT = 30
++READ_TIMEOUT = 5
++
++
++def get_device_mac():
++    result = subprocess.run(
++        ["sonic-cfggen", "-d", "-v", "DEVICE_METADATA.localhost.mac"],
++        capture_output=True,
++        text=True,
++        check=True,
++    )
++    mac = result.stdout.strip().lower()
++    if not re.fullmatch(r"([0-9a-f]{2}:){5}[0-9a-f]{2}", mac):
++        raise ValueError("Unexpected MAC format: {!r}".format(mac))
++    return mac
++
++
++def load_vlan_ids() -> List[int]:
++    result = subprocess.run(
++        ["ip", "link", "show"],
++        capture_output=True,
++        text=True,
++        check=True,
++    )
++    vlan_ids = {int(m) for m in re.findall(r"Vlan(\d+)", result.stdout)}
++    return sorted(vlan_ids)
++
++
++class CpssTelnet(object):
++    def __init__(self, host=CPSS_HOST, port=CPSS_PORT, timeout=TELNET_TIMEOUT):
++        self.tn = Telnet(host, port, timeout)
++
++    def close(self):
++        try:
++            self.tn.write(b"CLIexit\n")
++        except Exception:
++            pass
++        try:
++            self.tn.close()
++        except Exception:
++            pass
++
++    def add_static_mac_entry(self, mac, vlan_id, dev_num=DEV_NUM):
++        """
++        cpssDxChBrgFdbMacEntrySet - same interactive sequence as add_macentry.py.
++        CPU egress port fixed to CPU_PORT (63).
++        """
++        self.tn.write(
++            ("do cpss-api call cpssDxChBrgFdbMacEntrySet devNum {}\n".format(dev_num)).encode()
++        )
++        self.tn.read_until(b"entryType", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"vid1", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"key", READ_TIMEOUT)
++        self.tn.write(b"CPSS_MAC_ENTRY_EXT_KEY_MAC_VLAN_STC\n")
++        self.tn.read_until(b"macAddr", READ_TIMEOUT)
++        self.tn.write(mac.encode() + b"\n")
++        self.tn.read_until(b"vlanId", READ_TIMEOUT)
++        self.tn.write(str(vlan_id).encode() + b"\n")
++        self.tn.read_until(b"type", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"\\", READ_TIMEOUT)
++        self.tn.write(b"16\n")
++        self.tn.read_until(b"portNum", READ_TIMEOUT)
++        self.tn.write(str(CPU_PORT).encode() + b"\n")
++        self.tn.read_until(b"trunkId", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"vidx", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"vlanId", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"devNum", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"fabricVidx", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"index", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"age", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"isStatic", READ_TIMEOUT)
++        self.tn.write(b"true\n")
++        self.tn.read_until(b"daCommand", READ_TIMEOUT)
++        self.tn.write(b"CPSS_MAC_TABLE_CNTL_E\n")
++        self.tn.read_until(b"saCommand", READ_TIMEOUT)
++        self.tn.write(b"CPSS_MAC_TABLE_SOFT_DROP_E\n")
++        self.tn.read_until(b"daRoute", READ_TIMEOUT)
++        self.tn.write(b"*\n")
++
++    def add_cpu_port_vlan_member(
++        self,
++        vlan_id,
++        dev_num=DEV_NUM,
++        is_tagged=True,
++        port_tag_cmd="CPSS_DXCH_BRG_VLAN_PORT_TAG0_CMD_E",
++    ):
++        """cpssDxChBrgVlanMemberAdd - single line (non-interactive), port fixed 63."""
++        line = (
++            "do cpss-api call cpssDxChBrgVlanMemberAdd "
++            "devNum {d} vlanId {v} portNum {p} isTagged {t} portTaggingCmd {c}\n"
++        ).format(
++            d=dev_num,
++            v=vlan_id,
++            p=CPU_PORT,
++            t="true" if is_tagged else "false",
++            c=port_tag_cmd,
++        )
++        self.tn.write(line.encode())
++
++
++def main(argv=None):
++    parser = argparse.ArgumentParser(
++        description=(
++            "From ip link show (Vlan* interfaces): for each VLAN add static FDB "
++            "(device MAC) and CPU port {} as VLAN member."
++        ).format(CPU_PORT)
++    )
++    parser.add_argument(
++        "--host",
++        default=CPSS_HOST,
++        help="CPSS telnet host (default: {}).".format(CPSS_HOST),
++    )
++    parser.add_argument(
++        "--cpss-port",
++        type=int,
++        default=CPSS_PORT,
++        metavar="PORT",
++        help="CPSS telnet port (default: {}).".format(CPSS_PORT),
++    )
++    parser.add_argument(
++        "--dev",
++        type=int,
++        default=DEV_NUM,
++        help="CPSS devNum (default: {}).".format(DEV_NUM),
++    )
++    parser.add_argument(
++        "--dry-run",
++        action="store_true",
++        help="Only print VLAN IDs from ip link; no CPSS changes.",
++    )
++    args = parser.parse_args(argv)
++
++    try:
++        vlan_ids = load_vlan_ids()
++    except Exception as e:
++        print("{}: {}".format(type(e).__name__, e), file=sys.stderr)
++        return 1
++
++    mac = get_device_mac()
++    print("Device MAC: {}".format(mac))
++    print("CPU port (fixed): {}".format(CPU_PORT))
++    print("VLANs from ip link: {}".format(vlan_ids))
++
++    if not vlan_ids:
++        print("No VLAN IDs found.", file=sys.stderr)
++        return 1
++
++    if args.dry_run:
++        print("Dry-run: no CPSS changes.")
++        return 0
++
++    cpss = CpssTelnet(host=args.host, port=args.cpss_port)
++    try:
++        for vid in vlan_ids:
++            print("--- VLAN {} ---".format(vid))
++            print("Adding static MAC entry...")
++            cpss.add_static_mac_entry(mac=mac, vlan_id=vid, dev_num=args.dev)
++            print("Adding VLAN member (CPU port {}, tagged)...".format(CPU_PORT))
++            cpss.add_cpu_port_vlan_member(vlan_id=vid, dev_num=args.dev)
++        print("Done.")
++    except Exception as e:
++        print("{}: {}".format(type(e).__name__, e), file=sys.stderr)
++        return 1
++    finally:
++        cpss.close()
++
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/src/sonic-ztp/src/usr/lib/ztp/add_StaticFDBEntry_CPU63_onVlan951.py b/src/sonic-ztp/src/usr/lib/ztp/add_StaticFDBEntry_CPU63_onVlan951.py
+new file mode 100644
+index 0000000..d2bede4
+--- /dev/null
++++ b/src/sonic-ztp/src/usr/lib/ztp/add_StaticFDBEntry_CPU63_onVlan951.py
+@@ -0,0 +1,147 @@
++#!/usr/bin/env python3
++# -*- coding: utf-8 -*-
++"""
++SONiC / CPSS helper: fixed VLAN 951 only.
++
++1) Static FDB: device MAC -> VLAN 951, egress port 63 .
++2) VLAN member: one-line cpssDxChBrgVlanMemberAdd for VLAN 951, port 63, tagged.
++
++Edit VLAN_ID / PORT_NUM / CPSS_HOST / CPSS_PORT at the top if needed.
++"""
++
++import os
++import re
++import subprocess
++import sys
++
++sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
++from telnetlib import Telnet
++
++# --- tunables ---
++VLAN_ID = 951
++PORT_NUM = 63
++DEV_NUM = 0
++CPSS_HOST = "localhost"
++CPSS_PORT = 12345
++TELNET_TIMEOUT = 30
++READ_TIMEOUT = 5
++
++
++def get_device_mac():
++    """Return lowercase MAC from SONiC config DB."""
++    result = subprocess.run(
++        ["sonic-cfggen", "-d", "-v", "DEVICE_METADATA.localhost.mac"],
++        capture_output=True,
++        text=True,
++        check=True,
++    )
++    mac = result.stdout.strip().lower()
++    if not re.fullmatch(r"([0-9a-f]{2}:){5}[0-9a-f]{2}", mac):
++        raise ValueError("Unexpected MAC format: {!r}".format(mac))
++    return mac
++
++
++class CpssTelnet(object):
++    def __init__(self, host=CPSS_HOST, port=CPSS_PORT, timeout=TELNET_TIMEOUT):
++        self.tn = Telnet(host, port, timeout)
++
++    def close(self):
++        try:
++            self.tn.write(b"CLIexit\n")
++        except Exception:
++            pass
++        try:
++            self.tn.close()
++        except Exception:
++            pass
++
++    def add_static_mac_entry(self, mac, vlan_id=VLAN_ID, port_num=PORT_NUM, dev_num=DEV_NUM):
++        """
++        cpssDxChBrgFdbMacEntrySet — step-by-step prompts (matches add_macentry.py).
++        """
++        self.tn.write(
++            ("do cpss-api call cpssDxChBrgFdbMacEntrySet devNum {}\n".format(dev_num)).encode()
++        )
++        self.tn.read_until(b"entryType", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"vid1", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"key", READ_TIMEOUT)
++        self.tn.write(b"CPSS_MAC_ENTRY_EXT_KEY_MAC_VLAN_STC\n")
++        self.tn.read_until(b"macAddr", READ_TIMEOUT)
++        self.tn.write(mac.encode() + b"\n")
++        self.tn.read_until(b"vlanId", READ_TIMEOUT)
++        self.tn.write(str(vlan_id).encode() + b"\n")
++        self.tn.read_until(b"type", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"\\", READ_TIMEOUT)
++        self.tn.write(b"16\n")
++        self.tn.read_until(b"portNum", READ_TIMEOUT)
++        self.tn.write(str(port_num).encode() + b"\n")
++        self.tn.read_until(b"trunkId", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"vidx", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"vlanId", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"devNum", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"fabricVidx", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"index", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"age", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"isStatic", READ_TIMEOUT)
++        self.tn.write(b"true\n")
++        self.tn.read_until(b"daCommand", READ_TIMEOUT)
++        self.tn.write(b"CPSS_MAC_TABLE_CNTL_E\n")
++        self.tn.read_until(b"saCommand", READ_TIMEOUT)
++        self.tn.write(b"CPSS_MAC_TABLE_SOFT_DROP_E\n")
++        self.tn.read_until(b"daRoute", READ_TIMEOUT)
++        self.tn.write(b"*\n")
++
++    def add_vlan_member(
++        self,
++        vlan_id=VLAN_ID,
++        port_num=PORT_NUM,
++        dev_num=DEV_NUM,
++        is_tagged=True,
++        port_tag_cmd="CPSS_DXCH_BRG_VLAN_PORT_TAG0_CMD_E",
++    ):
++        """
++        cpssDxChBrgVlanMemberAdd — single line (non-interactive).
++        """
++        line = (
++            "do cpss-api call cpssDxChBrgVlanMemberAdd "
++            "devNum {d} vlanId {v} portNum {p} isTagged {t} portTaggingCmd {c}\n"
++        ).format(
++            d=dev_num,
++            v=vlan_id,
++            p=port_num,
++            t="true" if is_tagged else "false",
++            c=port_tag_cmd,
++        )
++        self.tn.write(line.encode())
++
++
++def main():
++    mac = get_device_mac()
++    print("Device MAC: {}".format(mac))
++    print("VLAN (fixed): {}, CPU/port member: {}".format(VLAN_ID, PORT_NUM))
++
++    cpss = CpssTelnet()
++    try:
++        print("Adding static MAC entry (VLAN {})...".format(VLAN_ID))
++        cpss.add_static_mac_entry(mac=mac, vlan_id=VLAN_ID, port_num=PORT_NUM)
++
++        print("Adding VLAN {} member (port {}, tagged)...".format(VLAN_ID, PORT_NUM))
++        cpss.add_vlan_member(vlan_id=VLAN_ID, port_num=PORT_NUM)
++
++        print("Done.")
++    finally:
++        cpss.close()
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/src/sonic-ztp/src/usr/lib/ztp/add_StaticFDBEntry_CPU63_on_Vlan.py b/src/sonic-ztp/src/usr/lib/ztp/add_StaticFDBEntry_CPU63_on_Vlan.py
+new file mode 100644
+index 0000000..803084d
+--- /dev/null
++++ b/src/sonic-ztp/src/usr/lib/ztp/add_StaticFDBEntry_CPU63_on_Vlan.py
+@@ -0,0 +1,200 @@
++#!/usr/bin/env python3
++# -*- coding: utf-8 -*-
++"""
++SONiC / CPSS: static FDB for the switch MAC on a given VLAN, then add the CPU
++logical port (fixed 63) as a tagged VLAN member.
++
++VLAN ID is required on the command line. CPU port is always 63.
++"""
++
++import argparse
++import os
++import re
++import subprocess
++import sys
++
++sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
++from telnetlib import Telnet
++
++# CPU / logical port for FDB egress and VLAN member (fixed)
++CPU_PORT = 63
++
++DEV_NUM = 0
++CPSS_HOST = "localhost"
++CPSS_PORT = 12345
++TELNET_TIMEOUT = 30
++READ_TIMEOUT = 5
++
++
++def get_device_mac():
++    """Lowercase MAC from DEVICE_METADATA.localhost.mac."""
++    result = subprocess.run(
++        ["sonic-cfggen", "-d", "-v", "DEVICE_METADATA.localhost.mac"],
++        capture_output=True,
++        text=True,
++        check=True,
++    )
++    mac = result.stdout.strip().lower()
++    if not re.fullmatch(r"([0-9a-f]{2}:){5}[0-9a-f]{2}", mac):
++        raise ValueError("Unexpected MAC format: {!r}".format(mac))
++    return mac
++
++
++def validate_vlan_id(vid):
++    v = int(vid)
++    if v < 1 or v > 4094:
++        raise ValueError("VLAN ID must be 1..4094, got {}".format(v))
++    return v
++
++
++class CpssTelnet(object):
++    def __init__(self, host=CPSS_HOST, port=CPSS_PORT, timeout=TELNET_TIMEOUT):
++        self.tn = Telnet(host, port, timeout)
++
++    def close(self):
++        try:
++            self.tn.write(b"CLIexit\n")
++        except Exception:
++            pass
++        try:
++            self.tn.close()
++        except Exception:
++            pass
++
++    def add_static_mac_entry(self, mac, vlan_id, dev_num=DEV_NUM):
++        """
++        cpssDxChBrgFdbMacEntrySet: interactive sequence aligned with add_macentry.py.
++        Egress port is CPU_PORT (63).
++        """
++        self.tn.write(
++            ("do cpss-api call cpssDxChBrgFdbMacEntrySet devNum {}\n".format(dev_num)).encode()
++        )
++        self.tn.read_until(b"entryType", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"vid1", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"key", READ_TIMEOUT)
++        self.tn.write(b"CPSS_MAC_ENTRY_EXT_KEY_MAC_VLAN_STC\n")
++        self.tn.read_until(b"macAddr", READ_TIMEOUT)
++        self.tn.write(mac.encode() + b"\n")
++        self.tn.read_until(b"vlanId", READ_TIMEOUT)
++        self.tn.write(str(vlan_id).encode() + b"\n")
++        self.tn.read_until(b"type", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"\\", READ_TIMEOUT)
++        self.tn.write(b"16\n")
++        self.tn.read_until(b"portNum", READ_TIMEOUT)
++        self.tn.write(str(CPU_PORT).encode() + b"\n")
++        self.tn.read_until(b"trunkId", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"vidx", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"vlanId", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"devNum", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"fabricVidx", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"index", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"age", READ_TIMEOUT)
++        self.tn.write(b"\n")
++        self.tn.read_until(b"isStatic", READ_TIMEOUT)
++        self.tn.write(b"true\n")
++        self.tn.read_until(b"daCommand", READ_TIMEOUT)
++        self.tn.write(b"CPSS_MAC_TABLE_CNTL_E\n")
++        self.tn.read_until(b"saCommand", READ_TIMEOUT)
++        self.tn.write(b"CPSS_MAC_TABLE_SOFT_DROP_E\n")
++        self.tn.read_until(b"daRoute", READ_TIMEOUT)
++        self.tn.write(b"*\n")
++
++    def add_cpu_port_to_vlan(
++        self,
++        vlan_id,
++        dev_num=DEV_NUM,
++        is_tagged=True,
++        port_tag_cmd="CPSS_DXCH_BRG_VLAN_PORT_TAG0_CMD_E",
++    ):
++        """
++        cpssDxChBrgVlanMemberAdd: one line (non-interactive). Port fixed to CPU_PORT.
++        """
++        line = (
++            "do cpss-api call cpssDxChBrgVlanMemberAdd "
++            "devNum {d} vlanId {v} portNum {p} isTagged {t} portTaggingCmd {c}\n"
++        ).format(
++            d=dev_num,
++            v=vlan_id,
++            p=CPU_PORT,
++            t="true" if is_tagged else "false",
++            c=port_tag_cmd,
++        )
++        self.tn.write(line.encode())
++
++
++def run(vlan_id, host, cpss_port, dev_num=DEV_NUM):
++    mac = get_device_mac()
++    vlan_id = validate_vlan_id(vlan_id)
++
++    print("Device MAC: {}".format(mac))
++    print("VLAN: {}, CPU port (fixed): {}, devNum: {}".format(vlan_id, CPU_PORT, dev_num))
++
++    cpss = CpssTelnet(host=host, port=cpss_port)
++    try:
++        print("Adding static MAC entry...")
++        cpss.add_static_mac_entry(mac=mac, vlan_id=vlan_id, dev_num=dev_num)
++
++        print("Adding VLAN member (CPU port {}, tagged)...".format(CPU_PORT))
++        cpss.add_cpu_port_to_vlan(vlan_id=vlan_id, dev_num=dev_num)
++
++        print("Done.")
++    finally:
++        cpss.close()
++
++
++def main(argv=None):
++    parser = argparse.ArgumentParser(
++        description=(
++            "Static FDB for device MAC on the given VLAN + add CPU port {} "
++            "as VLAN member (CPSS). VLAN ID is required."
++        ).format(CPU_PORT)
++    )
++    parser.add_argument(
++        "vlan_id",
++        type=int,
++        help="VLAN ID (1..4094). Example: 951",
++    )
++    parser.add_argument(
++        "--dev",
++        type=int,
++        default=DEV_NUM,
++        help="CPSS devNum (default: {}).".format(DEV_NUM),
++    )
++    parser.add_argument(
++        "--host",
++        default=CPSS_HOST,
++        help="CPSS telnet host (default: {}).".format(CPSS_HOST),
++    )
++    parser.add_argument(
++        "--cpss-port",
++        type=int,
++        default=CPSS_PORT,
++        metavar="PORT",
++        help="CPSS telnet port (default: {}).".format(CPSS_PORT),
++    )
++    args = parser.parse_args(argv)
++
++    try:
++        run(
++            vlan_id=args.vlan_id,
++            host=args.host,
++            cpss_port=args.cpss_port,
++            dev_num=args.dev,
++        )
++    except Exception as e:
++        print("{}: {}".format(type(e).__name__, e), file=sys.stderr)
++        return 1
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/src/sonic-ztp/src/usr/lib/ztp/add_macentry.py b/src/sonic-ztp/src/usr/lib/ztp/add_macentry.py
+new file mode 100644
+index 0000000..33afd49
+--- /dev/null
++++ b/src/sonic-ztp/src/usr/lib/ztp/add_macentry.py
+@@ -0,0 +1,58 @@
++#python
++import os
++import sys
++
++sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
++from telnetlib import Telnet
++import subprocess
++
++# Grab system MAC address from SONiC Config DB
++result = subprocess.run(['sonic-cfggen', '-d', '-v', 'DEVICE_METADATA.localhost.mac'], capture_output=True, text=True, check=True)
++mac = result.stdout.strip()
++
++
++tn = Telnet()
++tn.open('localhost',12345,timeout=5000)
++
++tn.write(b'do cpss-api call cpssDxChBrgFdbMacEntrySet devNum 0\n')
++tn.read_until(b'entryType')
++tn.write(b'\n')
++tn.read_until(b'vid1')
++tn.write(b'\n')
++tn.read_until(b'key')
++tn.write(b'CPSS_MAC_ENTRY_EXT_KEY_MAC_VLAN_STC\n')
++tn.read_until(b'macAddr')
++tn.write(str.encode(mac))
++tn.write(b'\n')
++tn.read_until(b'vlanId')
++tn.write(b'1\n')
++tn.read_until(b'type')
++tn.write(b'\n')
++tn.read_until(b'devNum')
++tn.write(b'16\n')
++tn.read_until(b'portNum')
++tn.write(b'63\n')
++tn.read_until(b'trunkId')
++tn.write(b'\n')
++tn.read_until(b'vidx')
++tn.write(b'\n')
++tn.read_until(b'vlanId')
++tn.write(b'\n')
++tn.read_until(b'devNum')
++tn.write(b'\n')
++tn.read_until(b'fabricVidx')
++tn.write(b'\n')
++tn.read_until(b'index')
++tn.write(b'\n')
++tn.read_until(b'age')
++tn.write(b'\n')
++tn.read_until(b'isStatic')
++tn.write(b'true\n')
++tn.read_until(b'daCommand')
++tn.write(b'CPSS_MAC_TABLE_CNTL_E\n')
++tn.read_until(b'saCommand')
++tn.write(b'CPSS_MAC_TABLE_SOFT_DROP_E\n')
++tn.read_until(b'daRoute')
++tn.write(b'*\n')
++
++tn.write(b'CLIexit\n')
+diff --git a/src/sonic-ztp/src/usr/lib/ztp/telnetlib.py b/src/sonic-ztp/src/usr/lib/ztp/telnetlib.py
+new file mode 100644
+index 0000000..8ce053e
+--- /dev/null
++++ b/src/sonic-ztp/src/usr/lib/ztp/telnetlib.py
+@@ -0,0 +1,677 @@
++r"""TELNET client class.
++
++Based on RFC 854: TELNET Protocol Specification, by J. Postel and
++J. Reynolds
++
++Example:
++
++>>> from telnetlib import Telnet
++>>> tn = Telnet('www.python.org', 79)   # connect to finger port
++>>> tn.write(b'guido\r\n')
++>>> print(tn.read_all())
++Login       Name               TTY         Idle    When    Where
++guido    Guido van Rossum      pts/2        <Dec  2 11:10> snag.cnri.reston..
++
++>>>
++
++Note that read_all() won't read until eof -- it just reads some data
++-- but it guarantees to read at least one byte unless EOF is hit.
++
++It is possible to pass a Telnet object to a selector in order to wait until
++more data is available.  Note that in this case, read_eager() may return b''
++even if there was data on the socket, because the protocol negotiation may have
++eaten the data.  This is why EOFError is needed in some cases to distinguish
++between "no data" and "connection closed" (since the socket also appears ready
++for reading when it is closed).
++
++To do:
++- option negotiation
++- timeout should be intrinsic to the connection object instead of an
++  option on one of the read calls only
++
++"""
++
++
++# Imported modules
++import sys
++import socket
++import selectors
++from time import monotonic as _time
++
++__all__ = ["Telnet"]
++
++# Tunable parameters
++DEBUGLEVEL = 0
++
++# Telnet protocol defaults
++TELNET_PORT = 23
++
++# Telnet protocol characters (don't change)
++IAC  = bytes([255]) # "Interpret As Command"
++DONT = bytes([254])
++DO   = bytes([253])
++WONT = bytes([252])
++WILL = bytes([251])
++theNULL = bytes([0])
++
++SE  = bytes([240])  # Subnegotiation End
++NOP = bytes([241])  # No Operation
++DM  = bytes([242])  # Data Mark
++BRK = bytes([243])  # Break
++IP  = bytes([244])  # Interrupt process
++AO  = bytes([245])  # Abort output
++AYT = bytes([246])  # Are You There
++EC  = bytes([247])  # Erase Character
++EL  = bytes([248])  # Erase Line
++GA  = bytes([249])  # Go Ahead
++SB =  bytes([250])  # Subnegotiation Begin
++
++
++# Telnet protocol options code (don't change)
++# These ones all come from arpa/telnet.h
++BINARY = bytes([0]) # 8-bit data path
++ECHO = bytes([1]) # echo
++RCP = bytes([2]) # prepare to reconnect
++SGA = bytes([3]) # suppress go ahead
++NAMS = bytes([4]) # approximate message size
++STATUS = bytes([5]) # give status
++TM = bytes([6]) # timing mark
++RCTE = bytes([7]) # remote controlled transmission and echo
++NAOL = bytes([8]) # negotiate about output line width
++NAOP = bytes([9]) # negotiate about output page size
++NAOCRD = bytes([10]) # negotiate about CR disposition
++NAOHTS = bytes([11]) # negotiate about horizontal tabstops
++NAOHTD = bytes([12]) # negotiate about horizontal tab disposition
++NAOFFD = bytes([13]) # negotiate about formfeed disposition
++NAOVTS = bytes([14]) # negotiate about vertical tab stops
++NAOVTD = bytes([15]) # negotiate about vertical tab disposition
++NAOLFD = bytes([16]) # negotiate about output LF disposition
++XASCII = bytes([17]) # extended ascii character set
++LOGOUT = bytes([18]) # force logout
++BM = bytes([19]) # byte macro
++DET = bytes([20]) # data entry terminal
++SUPDUP = bytes([21]) # supdup protocol
++SUPDUPOUTPUT = bytes([22]) # supdup output
++SNDLOC = bytes([23]) # send location
++TTYPE = bytes([24]) # terminal type
++EOR = bytes([25]) # end or record
++TUID = bytes([26]) # TACACS user identification
++OUTMRK = bytes([27]) # output marking
++TTYLOC = bytes([28]) # terminal location number
++VT3270REGIME = bytes([29]) # 3270 regime
++X3PAD = bytes([30]) # X.3 PAD
++NAWS = bytes([31]) # window size
++TSPEED = bytes([32]) # terminal speed
++LFLOW = bytes([33]) # remote flow control
++LINEMODE = bytes([34]) # Linemode option
++XDISPLOC = bytes([35]) # X Display Location
++OLD_ENVIRON = bytes([36]) # Old - Environment variables
++AUTHENTICATION = bytes([37]) # Authenticate
++ENCRYPT = bytes([38]) # Encryption option
++NEW_ENVIRON = bytes([39]) # New - Environment variables
++# the following ones come from
++# http://www.iana.org/assignments/telnet-options
++# Unfortunately, that document does not assign identifiers
++# to all of them, so we are making them up
++TN3270E = bytes([40]) # TN3270E
++XAUTH = bytes([41]) # XAUTH
++CHARSET = bytes([42]) # CHARSET
++RSP = bytes([43]) # Telnet Remote Serial Port
++COM_PORT_OPTION = bytes([44]) # Com Port Control Option
++SUPPRESS_LOCAL_ECHO = bytes([45]) # Telnet Suppress Local Echo
++TLS = bytes([46]) # Telnet Start TLS
++KERMIT = bytes([47]) # KERMIT
++SEND_URL = bytes([48]) # SEND-URL
++FORWARD_X = bytes([49]) # FORWARD_X
++PRAGMA_LOGON = bytes([138]) # TELOPT PRAGMA LOGON
++SSPI_LOGON = bytes([139]) # TELOPT SSPI LOGON
++PRAGMA_HEARTBEAT = bytes([140]) # TELOPT PRAGMA HEARTBEAT
++EXOPL = bytes([255]) # Extended-Options-List
++NOOPT = bytes([0])
++
++
++# poll/select have the advantage of not requiring any extra file descriptor,
++# contrarily to epoll/kqueue (also, they require a single syscall).
++if hasattr(selectors, 'PollSelector'):
++    _TelnetSelector = selectors.PollSelector
++else:
++    _TelnetSelector = selectors.SelectSelector
++
++
++class Telnet:
++
++    """Telnet interface class.
++
++    An instance of this class represents a connection to a telnet
++    server.  The instance is initially not connected; the open()
++    method must be used to establish a connection.  Alternatively, the
++    host name and optional port number can be passed to the
++    constructor, too.
++
++    Don't try to reopen an already connected instance.
++
++    This class has many read_*() methods.  Note that some of them
++    raise EOFError when the end of the connection is read, because
++    they can return an empty string for other reasons.  See the
++    individual doc strings.
++
++    read_until(expected, [timeout])
++        Read until the expected string has been seen, or a timeout is
++        hit (default is no timeout); may block.
++
++    read_all()
++        Read all data until EOF; may block.
++
++    read_some()
++        Read at least one byte or EOF; may block.
++
++    read_very_eager()
++        Read all data available already queued or on the socket,
++        without blocking.
++
++    read_eager()
++        Read either data already queued or some data available on the
++        socket, without blocking.
++
++    read_lazy()
++        Read all data in the raw queue (processing it first), without
++        doing any socket I/O.
++
++    read_very_lazy()
++        Reads all data in the cooked queue, without doing any socket
++        I/O.
++
++    read_sb_data()
++        Reads available data between SB ... SE sequence. Don't block.
++
++    set_option_negotiation_callback(callback)
++        Each time a telnet option is read on the input flow, this callback
++        (if set) is called with the following parameters :
++        callback(telnet socket, command, option)
++            option will be chr(0) when there is no option.
++        No other action is done afterwards by telnetlib.
++
++    """
++
++    def __init__(self, host=None, port=0,
++                 timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
++        """Constructor.
++
++        When called without arguments, create an unconnected instance.
++        With a hostname argument, it connects the instance; port number
++        and timeout are optional.
++        """
++        self.debuglevel = DEBUGLEVEL
++        self.host = host
++        self.port = port
++        self.timeout = timeout
++        self.sock = None
++        self.rawq = b''
++        self.irawq = 0
++        self.cookedq = b''
++        self.eof = 0
++        self.iacseq = b'' # Buffer for IAC sequence.
++        self.sb = 0 # flag for SB and SE sequence.
++        self.sbdataq = b''
++        self.option_callback = None
++        if host is not None:
++            self.open(host, port, timeout)
++
++    def open(self, host, port=0, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
++        """Connect to a host.
++
++        The optional second argument is the port number, which
++        defaults to the standard telnet port (23).
++
++        Don't try to reopen an already connected instance.
++        """
++        self.eof = 0
++        if not port:
++            port = TELNET_PORT
++        self.host = host
++        self.port = port
++        self.timeout = timeout
++        sys.audit("telnetlib.Telnet.open", self, host, port)
++        self.sock = socket.create_connection((host, port), timeout)
++
++    def __del__(self):
++        """Destructor -- close the connection."""
++        self.close()
++
++    def msg(self, msg, *args):
++        """Print a debug message, when the debug level is > 0.
++
++        If extra arguments are present, they are substituted in the
++        message using the standard string formatting operator.
++
++        """
++        if self.debuglevel > 0:
++            print('Telnet(%s,%s):' % (self.host, self.port), end=' ')
++            if args:
++                print(msg % args)
++            else:
++                print(msg)
++
++    def set_debuglevel(self, debuglevel):
++        """Set the debug level.
++
++        The higher it is, the more debug output you get (on sys.stdout).
++
++        """
++        self.debuglevel = debuglevel
++
++    def close(self):
++        """Close the connection."""
++        sock = self.sock
++        self.sock = None
++        self.eof = True
++        self.iacseq = b''
++        self.sb = 0
++        if sock:
++            sock.close()
++
++    def get_socket(self):
++        """Return the socket object used internally."""
++        return self.sock
++
++    def fileno(self):
++        """Return the fileno() of the socket object used internally."""
++        return self.sock.fileno()
++
++    def write(self, buffer):
++        """Write a string to the socket, doubling any IAC characters.
++
++        Can block if the connection is blocked.  May raise
++        OSError if the connection is closed.
++
++        """
++        if IAC in buffer:
++            buffer = buffer.replace(IAC, IAC+IAC)
++        sys.audit("telnetlib.Telnet.write", self, buffer)
++        self.msg("send %r", buffer)
++        self.sock.sendall(buffer)
++
++    def read_until(self, match, timeout=None):
++        """Read until a given string is encountered or until timeout.
++
++        When no match is found, return whatever is available instead,
++        possibly the empty string.  Raise EOFError if the connection
++        is closed and no cooked data is available.
++
++        """
++        n = len(match)
++        self.process_rawq()
++        i = self.cookedq.find(match)
++        if i >= 0:
++            i = i+n
++            buf = self.cookedq[:i]
++            self.cookedq = self.cookedq[i:]
++            return buf
++        if timeout is not None:
++            deadline = _time() + timeout
++        with _TelnetSelector() as selector:
++            selector.register(self, selectors.EVENT_READ)
++            while not self.eof:
++                if selector.select(timeout):
++                    i = max(0, len(self.cookedq)-n)
++                    self.fill_rawq()
++                    self.process_rawq()
++                    i = self.cookedq.find(match, i)
++                    if i >= 0:
++                        i = i+n
++                        buf = self.cookedq[:i]
++                        self.cookedq = self.cookedq[i:]
++                        return buf
++                if timeout is not None:
++                    timeout = deadline - _time()
++                    if timeout < 0:
++                        break
++        return self.read_very_lazy()
++
++    def read_all(self):
++        """Read all data until EOF; block until connection closed."""
++        self.process_rawq()
++        while not self.eof:
++            self.fill_rawq()
++            self.process_rawq()
++        buf = self.cookedq
++        self.cookedq = b''
++        return buf
++
++    def read_some(self):
++        """Read at least one byte of cooked data unless EOF is hit.
++
++        Return b'' if EOF is hit.  Block if no data is immediately
++        available.
++
++        """
++        self.process_rawq()
++        while not self.cookedq and not self.eof:
++            self.fill_rawq()
++            self.process_rawq()
++        buf = self.cookedq
++        self.cookedq = b''
++        return buf
++
++    def read_very_eager(self):
++        """Read everything that's possible without blocking in I/O (eager).
++
++        Raise EOFError if connection closed and no cooked data
++        available.  Return b'' if no cooked data available otherwise.
++        Don't block unless in the midst of an IAC sequence.
++
++        """
++        self.process_rawq()
++        while not self.eof and self.sock_avail():
++            self.fill_rawq()
++            self.process_rawq()
++        return self.read_very_lazy()
++
++    def read_eager(self):
++        """Read readily available data.
++
++        Raise EOFError if connection closed and no cooked data
++        available.  Return b'' if no cooked data available otherwise.
++        Don't block unless in the midst of an IAC sequence.
++
++        """
++        self.process_rawq()
++        while not self.cookedq and not self.eof and self.sock_avail():
++            self.fill_rawq()
++            self.process_rawq()
++        return self.read_very_lazy()
++
++    def read_lazy(self):
++        """Process and return data that's already in the queues (lazy).
++
++        Raise EOFError if connection closed and no data available.
++        Return b'' if no cooked data available otherwise.  Don't block
++        unless in the midst of an IAC sequence.
++
++        """
++        self.process_rawq()
++        return self.read_very_lazy()
++
++    def read_very_lazy(self):
++        """Return any data available in the cooked queue (very lazy).
++
++        Raise EOFError if connection closed and no data available.
++        Return b'' if no cooked data available otherwise.  Don't block.
++
++        """
++        buf = self.cookedq
++        self.cookedq = b''
++        if not buf and self.eof and not self.rawq:
++            raise EOFError('telnet connection closed')
++        return buf
++
++    def read_sb_data(self):
++        """Return any data available in the SB ... SE queue.
++
++        Return b'' if no SB ... SE available. Should only be called
++        after seeing a SB or SE command. When a new SB command is
++        found, old unread SB data will be discarded. Don't block.
++
++        """
++        buf = self.sbdataq
++        self.sbdataq = b''
++        return buf
++
++    def set_option_negotiation_callback(self, callback):
++        """Provide a callback function called after each receipt of a telnet option."""
++        self.option_callback = callback
++
++    def process_rawq(self):
++        """Transfer from raw queue to cooked queue.
++
++        Set self.eof when connection is closed.  Don't block unless in
++        the midst of an IAC sequence.
++
++        """
++        buf = [b'', b'']
++        try:
++            while self.rawq:
++                c = self.rawq_getchar()
++                if not self.iacseq:
++                    if c == theNULL:
++                        continue
++                    if c == b"\021":
++                        continue
++                    if c != IAC:
++                        buf[self.sb] = buf[self.sb] + c
++                        continue
++                    else:
++                        self.iacseq += c
++                elif len(self.iacseq) == 1:
++                    # 'IAC: IAC CMD [OPTION only for WILL/WONT/DO/DONT]'
++                    if c in (DO, DONT, WILL, WONT):
++                        self.iacseq += c
++                        continue
++
++                    self.iacseq = b''
++                    if c == IAC:
++                        buf[self.sb] = buf[self.sb] + c
++                    else:
++                        if c == SB: # SB ... SE start.
++                            self.sb = 1
++                            self.sbdataq = b''
++                        elif c == SE:
++                            self.sb = 0
++                            self.sbdataq = self.sbdataq + buf[1]
++                            buf[1] = b''
++                        if self.option_callback:
++                            # Callback is supposed to look into
++                            # the sbdataq
++                            self.option_callback(self.sock, c, NOOPT)
++                        else:
++                            # We can't offer automatic processing of
++                            # suboptions. Alas, we should not get any
++                            # unless we did a WILL/DO before.
++                            self.msg('IAC %d not recognized' % ord(c))
++                elif len(self.iacseq) == 2:
++                    cmd = self.iacseq[1:2]
++                    self.iacseq = b''
++                    opt = c
++                    if cmd in (DO, DONT):
++                        self.msg('IAC %s %d',
++                            cmd == DO and 'DO' or 'DONT', ord(opt))
++                        if self.option_callback:
++                            self.option_callback(self.sock, cmd, opt)
++                        else:
++                            self.sock.sendall(IAC + WONT + opt)
++                    elif cmd in (WILL, WONT):
++                        self.msg('IAC %s %d',
++                            cmd == WILL and 'WILL' or 'WONT', ord(opt))
++                        if self.option_callback:
++                            self.option_callback(self.sock, cmd, opt)
++                        else:
++                            self.sock.sendall(IAC + DONT + opt)
++        except EOFError: # raised by self.rawq_getchar()
++            self.iacseq = b'' # Reset on EOF
++            self.sb = 0
++            pass
++        self.cookedq = self.cookedq + buf[0]
++        self.sbdataq = self.sbdataq + buf[1]
++
++    def rawq_getchar(self):
++        """Get next char from raw queue.
++
++        Block if no data is immediately available.  Raise EOFError
++        when connection is closed.
++
++        """
++        if not self.rawq:
++            self.fill_rawq()
++            if self.eof:
++                raise EOFError
++        c = self.rawq[self.irawq:self.irawq+1]
++        self.irawq = self.irawq + 1
++        if self.irawq >= len(self.rawq):
++            self.rawq = b''
++            self.irawq = 0
++        return c
++
++    def fill_rawq(self):
++        """Fill raw queue from exactly one recv() system call.
++
++        Block if no data is immediately available.  Set self.eof when
++        connection is closed.
++
++        """
++        if self.irawq >= len(self.rawq):
++            self.rawq = b''
++            self.irawq = 0
++        # The buffer size should be fairly small so as to avoid quadratic
++        # behavior in process_rawq() above
++        buf = self.sock.recv(50)
++        self.msg("recv %r", buf)
++        self.eof = (not buf)
++        self.rawq = self.rawq + buf
++
++    def sock_avail(self):
++        """Test whether data is available on the socket."""
++        with _TelnetSelector() as selector:
++            selector.register(self, selectors.EVENT_READ)
++            return bool(selector.select(0))
++
++    def interact(self):
++        """Interaction function, emulates a very dumb telnet client."""
++        if sys.platform == "win32":
++            self.mt_interact()
++            return
++        with _TelnetSelector() as selector:
++            selector.register(self, selectors.EVENT_READ)
++            selector.register(sys.stdin, selectors.EVENT_READ)
++
++            while True:
++                for key, events in selector.select():
++                    if key.fileobj is self:
++                        try:
++                            text = self.read_eager()
++                        except EOFError:
++                            print('*** Connection closed by remote host ***')
++                            return
++                        if text:
++                            sys.stdout.write(text.decode('ascii'))
++                            sys.stdout.flush()
++                    elif key.fileobj is sys.stdin:
++                        line = sys.stdin.readline().encode('ascii')
++                        if not line:
++                            return
++                        self.write(line)
++
++    def mt_interact(self):
++        """Multithreaded version of interact()."""
++        import _thread
++        _thread.start_new_thread(self.listener, ())
++        while 1:
++            line = sys.stdin.readline()
++            if not line:
++                break
++            self.write(line.encode('ascii'))
++
++    def listener(self):
++        """Helper for mt_interact() -- this executes in the other thread."""
++        while 1:
++            try:
++                data = self.read_eager()
++            except EOFError:
++                print('*** Connection closed by remote host ***')
++                return
++            if data:
++                sys.stdout.write(data.decode('ascii'))
++            else:
++                sys.stdout.flush()
++
++    def expect(self, list, timeout=None):
++        """Read until one from a list of a regular expressions matches.
++
++        The first argument is a list of regular expressions, either
++        compiled (re.Pattern instances) or uncompiled (strings).
++        The optional second argument is a timeout, in seconds; default
++        is no timeout.
++
++        Return a tuple of three items: the index in the list of the
++        first regular expression that matches; the re.Match object
++        returned; and the text read up till and including the match.
++
++        If EOF is read and no text was read, raise EOFError.
++        Otherwise, when nothing matches, return (-1, None, text) where
++        text is the text received so far (may be the empty string if a
++        timeout happened).
++
++        If a regular expression ends with a greedy match (e.g. '.*')
++        or if more than one expression can match the same input, the
++        results are undeterministic, and may depend on the I/O timing.
++
++        """
++        re = None
++        list = list[:]
++        indices = range(len(list))
++        for i in indices:
++            if not hasattr(list[i], "search"):
++                if not re: import re
++                list[i] = re.compile(list[i])
++        if timeout is not None:
++            deadline = _time() + timeout
++        with _TelnetSelector() as selector:
++            selector.register(self, selectors.EVENT_READ)
++            while not self.eof:
++                self.process_rawq()
++                for i in indices:
++                    m = list[i].search(self.cookedq)
++                    if m:
++                        e = m.end()
++                        text = self.cookedq[:e]
++                        self.cookedq = self.cookedq[e:]
++                        return (i, m, text)
++                if timeout is not None:
++                    ready = selector.select(timeout)
++                    timeout = deadline - _time()
++                    if not ready:
++                        if timeout < 0:
++                            break
++                        else:
++                            continue
++                self.fill_rawq()
++        text = self.read_very_lazy()
++        if not text and self.eof:
++            raise EOFError
++        return (-1, None, text)
++
++    def __enter__(self):
++        return self
++
++    def __exit__(self, type, value, traceback):
++        self.close()
++
++
++def test():
++    """Test program for telnetlib.
++
++    Usage: python telnetlib.py [-d] ... [host [port]]
++
++    Default host is localhost; default port is 23.
++
++    """
++    debuglevel = 0
++    while sys.argv[1:] and sys.argv[1] == '-d':
++        debuglevel = debuglevel+1
++        del sys.argv[1]
++    host = 'localhost'
++    if sys.argv[1:]:
++        host = sys.argv[1]
++    port = 0
++    if sys.argv[2:]:
++        portstr = sys.argv[2]
++        try:
++            port = int(portstr)
++        except ValueError:
++            port = socket.getservbyname(portstr, 'tcp')
++    with Telnet() as tn:
++        tn.set_debuglevel(debuglevel)
++        tn.open(host, port, timeout=0.5)
++        tn.interact()
++
++if __name__ == '__main__':
++    test()
+diff --git a/src/sonic-ztp/src/usr/lib/ztp/ztp-profile.sh b/src/sonic-ztp/src/usr/lib/ztp/ztp-profile.sh
+index d8afbe8..ec29c4b 100755
+--- a/src/sonic-ztp/src/usr/lib/ztp/ztp-profile.sh
++++ b/src/sonic-ztp/src/usr/lib/ztp/ztp-profile.sh
+@@ -22,8 +22,8 @@
+ # switch provisioning information.                                        #
+ #                                                                         #
+ ###########################################################################
+-
+-# Initalize constants
++ 
++# Initialize constants
+ RETRY_COUNT=24
+ RETRY_INTERVAL=5
+ ZTP_LIB_PATH=/usr/lib/ztp/
+@@ -37,24 +37,29 @@ SYSLOG_CONSOLE_CONF_FILE=/etc/rsyslog.d/10-ztp-console-logging.conf
+ CMD=$1
+ ZTP_ACTIVITY=/var/run/ztp/activity
+ 
++# Conditional flag to execute INBAND ZTP VLAN WORKROUND 
++AMAZON_FLAG=false 
++# Conditional flag to decide which VLAN(s) to hook
++HOOK_ALL_VLANS=true  # Change this to false to only hook VLAN 951
++ 
+ PLATFORM=`sonic-cfggen -H -v DEVICE_METADATA.localhost.platform`
+ PRESET=(`head -n 1 /usr/share/sonic/device/$PLATFORM/default_sku`)
+ HW_KEY=${PRESET[0]}
+-
++ 
+ # Command usage and help
+ usage()
+ {
+     cat << EOF
+  Usage:  ztp-profile.sh < create [destination_file] | install <discovery|resume> | remove [config-fallback] >
+-
+-         create  - Create ZTP configuration used to initialze switch ports
++ 
++         create  - Create ZTP configuration used to initialize switch ports
+          install - Create and load ZTP configuration used to initialize switch ports
+                    and start DHCP discovery
+          remove  - If the switch is running ZTP configuration, reload startup configuration
+                    or factory default configuration if startup configuration is missing.
+ EOF
+ }
+-
++ 
+ updateActivity()
+ {
+     if [ ! -e ${ZTP_ACTIVITY} ]; then
+@@ -62,7 +67,7 @@ updateActivity()
+     fi
+     echo "$(date '+%Y-%m-%d %H:%M:%S %Z' -u) | $1" > ${ZTP_ACTIVITY}
+ }
+-
++ 
+ # Get ztp profile information for Config DB
+ get_ztp_profile()
+ {
+@@ -70,16 +75,16 @@ get_ztp_profile()
+     INBAND=$(sonic-db-cli CONFIG_DB HGET "ZTP|mode" "inband")
+     IPV6=$(sonic-db-cli CONFIG_DB HGET "ZTP|mode" "ipv6")
+     IPV4=$(sonic-db-cli CONFIG_DB HGET "ZTP|mode" "ipv4")
+-
++ 
+     if [ "${ZTP_PROF_LOADED}" = "active" ]; then
+         ZTP_STRING="ztp;inband:${INBAND};ipv4:${IPV4};ipv6:${IPV6}"
+     else
+         ZTP_STRING="no-ztp"
+     fi
+-
++ 
+     echo $ZTP_STRING
+ }
+-
++ 
+ get_feature()
+ {
+     if ztp features | grep -q "$1" ; then
+@@ -88,13 +93,13 @@ get_feature()
+         echo "false"
+     fi
+ }
+-
++ 
+ # ztp profile string based on features enabled
+ get_ztp_feature_string()
+ {
+     echo "ztp;inband:$(get_feature inband);ipv4:$(get_feature ipv4);ipv6:$(get_feature ipv6)"
+ }
+-
++ 
+ # Create DHCP policy used by ifupdown2
+ dhcp_policy_create()
+ {
+@@ -107,7 +112,7 @@ dhcp_policy_create()
+             \"ZTP_IPV4\": \"$(get_feature ipv4)\", \"ZTP_IPV6\": \"$(get_feature ipv6)\"}" \
+            -p -t ${DHCP_POLICY_TEMPLATE} > ${DHCP_POLICY_FILE}
+ }
+-
++ 
+ # Create ZTP configuration
+ ztp_config_create()
+ {
+@@ -115,7 +120,7 @@ ztp_config_create()
+     if [ "$DEST_FILE" = "" ]; then
+         DEST_FILE=${TMP_ZTP_CONFIG_DB_JSON}
+     fi
+-
++ 
+     PRODUCT_NAME=$(decode-syseeprom  -p | tr -dc '[[:print:]]')
+     SERIAL_NO=$(decode-syseeprom  -s | tr -dc '[[:print:]]')
+     sonic-cfggen -H -k ${HW_KEY} -a "{\"ZTP_INBAND\": \"$(get_feature inband)\", \
+@@ -124,7 +129,7 @@ ztp_config_create()
+              -p -t ${ZTP_CONFIG_TEMPLATE} > ${DEST_FILE}
+     dhcp_policy_create
+ }
+-
++ 
+ # Create and load requested configuration profile
+ load_config()
+ {
+@@ -136,7 +141,7 @@ load_config()
+         DEST_FILE=${CONFIG_DB_JSON}
+         /usr/bin/config-setup factory ${CONFIG_DB_JSON}
+     fi
+-
++ 
+     if [ -e ${DEST_FILE} ]; then
+         config reload ${DEST_FILE} -y -f
+         rm -f ${TMP_ZTP_CONFIG_DB_JSON}
+@@ -146,13 +151,12 @@ load_config()
+     fi
+     return 1
+ }
+-
++ 
+ wait_for_system_online()
+ {
+     TRIES=${RETRY_COUNT}
+-    # Obtain the list of interfaces that may be created after some delay
+     HOTPLUG_LIST=$(sonic-db-cli CONFIG_DB KEYS "PORT*" | cut -f2 -d\|)
+-
++ 
+     while [ ${TRIES} -gt 0 ]
+     do
+         RETRY=0
+@@ -166,31 +170,122 @@ wait_for_system_online()
+         sleep ${RETRY_INTERVAL}
+         TRIES=`expr $TRIES - 1`
+     done
+-
++ 
+     if [ "${TRIES}" = "0" ]; then
+         return 1
+     fi
+     return 0
+ }
++ 
++# Check if VLAN 951 exists
++check_vlan951_exists() {
++    if ip link show | grep -q "Vlan951"; then
++        return 0
++    else
++        return 1
++    fi
++}
++ 
++hook_dhcp_for_vlans() {
++    if [ "$HOOK_ALL_VLANS" = true ]; then
++        for vlan in $(ip link show | grep -o 'Vlan[0-9]*' | sort -u); do
++            echo "Checking status of $vlan"
++            if ip link show "$vlan" | grep -q "state UP"; then
++                # Get the member ports directly from the VLAN configuration
++                vlan_info=$(show vlan brief | grep "$vlan")
++                echo "VLAN info: $vlan_info"  # Log the VLAN info for debugging
++
++                # Extract member ports
++                member_ports=$(show vlan config | awk -v v="$vlan" '$1 == v { print $3 }')
++                echo "Extracted member ports: $member_ports"  # Log the extracted member ports
++
++                # Check if member ports are empty
++                if [ -z "$member_ports" ]; then
++                    echo "No member ports found for $vlan."
++                    continue
++                fi
++
++                # Check each member port status using show interface status
++                found_up_member=false
++                for member_port in $member_ports; do
++                    member_oper=$(show interface status | awk -v p="$member_port" '$1 == p { print $8; exit }')
++                    echo "Member port: $member_port, Oper: $member_oper"
++
++                    if [ "$member_oper" = "up" ]; then
++                        echo "Found UP member port: $member_port"
++                        found_up_member=true
++                        break  # No need to check further if one is UP
++                    fi
++                done
++
++                if $found_up_member; then
++                    echo "Starting DHCP client on $vlan"
++                    dhclient -v "$vlan" &
++                else
++                    echo "Skipping $vlan: No member ports are up."
++                fi
++            else
++                echo "Skipping $vlan: Interface is down."
++            fi
++        done
++    else
++        # Check Vlan951
++        echo "Checking status of Vlan951"
++        if ip link show "Vlan951" | grep -q "state UP"; then
++            # Get the member ports directly from the VLAN configuration
++            vlan_info=$(show vlan brief | grep "Vlan951")
++            echo "VLAN info: $vlan_info"  # Log the VLAN info for debugging
++
++            member_ports=$(show vlan config | awk '$1 == "Vlan951" { print $3 }')
++            echo "Extracted member ports: $member_ports"  # Log the extracted member ports
++
++            if [ -z "$member_ports" ]; then
++                echo "No member ports found for Vlan951."
++                return
++            fi
+ 
++            found_up_member=false
++            for member_port in $member_ports; do
++                member_oper=$(show interface status | awk -v p="$member_port" '$1 == p { print $8; exit }')
++                echo "Member port: $member_port, Oper: $member_oper"
++
++                if [ "$member_oper" = "up" ]; then
++                    echo "Found UP member port: $member_port"
++                    found_up_member=true
++                    break  # No need to check further if one is UP
++                fi
++            done
++
++            if $found_up_member; then
++                echo "Starting DHCP client on Vlan951"
++                dhclient -v "Vlan951" &
++            else
++                echo "Skipping Vlan951: No member ports are up."
++            fi
++        else
++            echo "Skipping Vlan951: Interface is down."
++        fi
++    fi
++}
++ 
+ ### Execution starts here ###
+ CMD="$1"
+-
++ 
+ # Validate input
+ if [ "$CMD" = "" ]; then
+     usage
+     exit 1
+ fi
+-
++ 
+ # Process ZTP profile install request
+-if [ "$CMD" = "install" ] ; then
+-
++if [ "$CMD" = "install" ]; then
++ 
+     # Detect and create ZTP configuration profile if needed
+     FEATURE_STRING=$(get_ztp_feature_string)
+     ZTP_DB_PROFILE=$(get_ztp_profile)
+     if [ "${FEATURE_STRING}" != "${ZTP_DB_PROFILE}" ]; then
+         if [ ! -e ${CONFIG_DB_JSON} ] || [ "$2" = "discovery" ]; then
+-            # setup rsyslog forwarding
++            # Setup rsyslog forwarding
+             touch ${SYSLOG_CONF_FILE}
+             if [ "$(get_feature console-logging)" = "true" ]; then
+                 echo ":programname, contains, \"sonic-ztp\"  /dev/console" > ${SYSLOG_CONSOLE_CONF_FILE}
+@@ -200,14 +295,13 @@ if [ "$CMD" = "install" ] ; then
+             echo "Installing ZTP configuration profile to initiate ZTP discovery."
+             # Install DHCP policy for interfaces participating in ZTP
+             dhcp_policy_create
+-            # create and load ztp configuration
++            # Create and load ZTP configuration
+             updateActivity "Installing ZTP configuration profile"
+             load_config ztp
+         fi
+     fi
+-
++ 
+     # Wait for in-band interfaces to become available
+-    # Default max wait time is 2 minutes
+     updateActivity "Waiting for system online status before continuing ZTP"
+     echo "Waiting for system online status before continuing ZTP. (This may take 30--$(expr $RETRY_COUNT \* $RETRY_INTERVAL) seconds)."
+     wait_for_system_online
+@@ -216,10 +310,9 @@ if [ "$CMD" = "install" ] ; then
+     else
+         echo "System is ready to respond."
+     fi
+-
++ 
+     if [ "$2" = "resume" ] && [ "$(get_ztp_profile)" = "$(get_ztp_feature_string)" ]; then
+-        # Restart interface configuration again to pickup newly created interfaces
+-        # to start DHCP discovery
++        # Restart interface configuration again to pick up newly created interfaces
+         if [ "$(ztp status -c)" = "4:IN-PROGRESS" ]; then
+             echo "Restarting network configuration."
+             updateActivity "Restarting network configuration"
+@@ -227,16 +320,35 @@ if [ "$CMD" = "install" ] ; then
+             echo "Restarted network configuration."
+         fi
+     fi
+-fi
++ 
++    python3 /usr/lib/ztp/add_macentry.py
++ 
++    # Check if VLAN exists before running additional scripts
++    if [ "$AMAZON_FLAG" = true ]; then
++	    if [ "$HOOK_ALL_VLANS" = true ]; then
++	        echo "Create static MAC etnry for all vlan."
++	        python3 /usr/lib/ztp/add_StaticFDBEntry_CPU63_from_iplink.py
++	    else
++	        echo "Create static MAC etnry for Vlan951."
++	        python3 /usr/lib/ztp/add_StaticFDBEntry_CPU63_onVlan951.py
++	    fi
++	    
++	    # Hook DHCP client
++	    echo "Hook DHCP client."
++	    hook_dhcp_for_vlans
++	  
++	  fi
++
++    
+ 
+ # Process ZTP profile remove request
+-if [ "$CMD" = "remove" ] ; then
+-
++elif [ "$CMD" = "remove" ]; then
++ 
+     # Remove ZTP configuration profile if it still exists
+     if [ "$(get_ztp_profile)" != "no-ztp" ]; then
+         # Cleanup locks held by the ZTP session
+         rm -rf /var/run/ztp/ztp.lock
+-
++ 
+         if [ "$2" = "config-fallback" ]; then
+             updateActivity "Waiting for system online status before stopping ZTP"
+             echo "Waiting for system online status before stopping ZTP. (This may take 30--$(expr $RETRY_COUNT \* $RETRY_INTERVAL) seconds)."
+@@ -244,7 +356,7 @@ if [ "$CMD" = "remove" ] ; then
+             if [ "$?" != "0" ]; then
+                 echo "Error: System is not ready. Proceeding with stopping ZTP after waiting for $(expr $RETRY_COUNT \* $RETRY_INTERVAL) seconds."
+             fi
+-
++ 
+             if [ -e ${CONFIG_DB_JSON} ]; then
+                 updateActivity "Removing ZTP configuration profile and loading startup configuration"
+                 echo "Removing ZTP configuration profile. Loading startup configuration."
+@@ -258,26 +370,26 @@ if [ "$CMD" = "remove" ] ; then
+             # Remove ZTP configuration from config-db
+             sonic-db-cli CONFIG_DB DEL "ZTP|mode" > /dev/null
+         fi
+-
++ 
+         updateActivity "Restarting network configuration"
+         # Restart interface configuration to stop DHCP
+         systemctl restart interfaces-config
+     fi
+-
++ 
+     # Remove ZTP DHCP policy
+     rm -f ${DHCP_POLICY_FILE}
+-
++ 
+     # Remove syslog forwarding and console logging configuration
+     if [ -f /etc/dhcp/dhclient-exit-hooks.d/ztp-rsyslog ] || \
+-      [ -f ${SYSLOG_CONF_FILE} ] || \
+-      [ -f ${SYSLOG_CONSOLE_CONF_FILE} ]; then
++       [ -f ${SYSLOG_CONF_FILE} ] || \
++       [ -f ${SYSLOG_CONSOLE_CONF_FILE} ]; then
+         rm -f /etc/dhcp/dhclient-exit-hooks.d/ztp-rsyslog
+         rm -f ${SYSLOG_CONF_FILE} ${SYSLOG_CONSOLE_CONF_FILE}
+         # Restart rsyslog for syslog config changes to be applied
+         systemctl restart rsyslog
+     fi
+ fi
+-
++ 
+ # Create ZTP configuration
+ if [ "$CMD" = "create" ]; then
+     ztp_config_create $2
+@@ -287,5 +399,5 @@ if [ "$CMD" = "create" ]; then
+     fi
+     systemctl restart rsyslog
+ fi
+-
+-exit 0
++ 
++# End of script

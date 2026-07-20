@@ -235,6 +235,17 @@ sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get -y in
 # install libffi-dev to match utilities' dependency.
 sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get -y install libffi-dev
 
+# trixie pip 25.x hard-errors trying to uninstall RECORD-less apt python3-* packages
+# (uninstall-no-record-file) when the sonic-utilities wheel pulls newer versions.
+# Pre-install the pure-Python ones via pip (--ignore-installed creates a pip RECORD)
+# so the wheel install can manage them. Scoped to these packages, so SONiC inter-wheel
+# deps (sonic-py-common, ...) still resolve. Compiled pkgs (cryptography/cffi/...) stay apt.
+sudo https_proxy=$https_proxy LANG=C chroot $FILESYSTEM_ROOT pip3 install --ignore-installed regex click natsort enlighten
+# bcrypt/paramiko/scp also have RECORD-less apt versions the wheel upgrades; use
+# --no-deps so we only re-record these (not their compiled deps cryptography/pynacl,
+# which the wheel doesn't upgrade and which stay as the apt-provided versions).
+sudo https_proxy=$https_proxy LANG=C chroot $FILESYSTEM_ROOT pip3 install --ignore-installed --no-deps bcrypt paramiko scp
+
 # Install SONiC Utilities Python package
 install_pip_package {{sonic_utilities_py3_wheel_path}}
 

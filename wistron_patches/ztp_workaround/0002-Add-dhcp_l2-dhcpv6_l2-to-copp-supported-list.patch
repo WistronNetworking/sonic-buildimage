@@ -1,0 +1,27 @@
+diff --git a/src/sonic-swss/orchagent/copporch.cpp b/src/sonic-swss/orchagent/copporch.cpp
+index 05080c8d..494a0d5c 100644
+--- a/src/sonic-swss/orchagent/copporch.cpp
++++ b/src/sonic-swss/orchagent/copporch.cpp
+@@ -73,6 +73,8 @@ static map<string, sai_hostif_trap_type_t> trap_id_map = {
+     {"vrrp", SAI_HOSTIF_TRAP_TYPE_VRRP},
+     {"bgp", SAI_HOSTIF_TRAP_TYPE_BGP},
+     {"dhcpv6", SAI_HOSTIF_TRAP_TYPE_DHCPV6},
++    {"dhcp_l2", SAI_HOSTIF_TRAP_TYPE_DHCP_L2},
++    {"dhcpv6_l2", SAI_HOSTIF_TRAP_TYPE_DHCPV6_L2},
+     {"ospfv6", SAI_HOSTIF_TRAP_TYPE_OSPFV6},
+     {"isis", SAI_HOSTIF_TRAP_TYPE_ISIS},
+     {"vrrpv6", SAI_HOSTIF_TRAP_TYPE_VRRPV6},
+@@ -119,11 +121,13 @@ const vector<sai_hostif_trap_type_t> default_supported_trap_ids = {
+     SAI_HOSTIF_TRAP_TYPE_ARP_REQUEST,
+     SAI_HOSTIF_TRAP_TYPE_ARP_RESPONSE,
+     SAI_HOSTIF_TRAP_TYPE_DHCP,
++    SAI_HOSTIF_TRAP_TYPE_DHCP_L2,
+     SAI_HOSTIF_TRAP_TYPE_OSPF,
+     SAI_HOSTIF_TRAP_TYPE_PIM,
+     SAI_HOSTIF_TRAP_TYPE_VRRP,
+     SAI_HOSTIF_TRAP_TYPE_BGP,
+     SAI_HOSTIF_TRAP_TYPE_DHCPV6,
++    SAI_HOSTIF_TRAP_TYPE_DHCPV6_L2,
+     SAI_HOSTIF_TRAP_TYPE_OSPFV6,
+     SAI_HOSTIF_TRAP_TYPE_ISIS,
+     SAI_HOSTIF_TRAP_TYPE_VRRPV6,

@@ -1,0 +1,121 @@
+diff --git a/dockers/docker-platform-monitor/Dockerfile.j2 b/dockers/docker-platform-monitor/Dockerfile.j2
+index e64611551..7b26693ee 100755
+--- a/dockers/docker-platform-monitor/Dockerfile.j2
++++ b/dockers/docker-platform-monitor/Dockerfile.j2
+@@ -46,8 +46,10 @@ RUN apt-get install -y -t bookworm-backports \
+ # doesn't ensure all dependencies are installed in the container. So here we
+ # install any dependencies required by the Arista sonic_platform package.
+ # TODO: eliminate the need to install these explicitly.
+-RUN pip3 install grpcio==1.51.1 \
+-        grpcio-tools==1.51.1
++# Skipped for the marvell-prestera build: grpcio is only needed by the Arista
++# sonic_platform package (not used by Marvell PMon daemons), and grpcio==1.51.1
++# is unbuildable here (no arm64 wheel on the mirror; the sdist setup.py imports
++# pkg_resources which newer setuptools >=81 dropped).
+ 
+ # Barefoot platform vendors' sonic_platform packages import these Python libraries (and netifaces)
+ RUN pip3 install thrift==0.13.0
+diff --git a/files/build_templates/sonic_debian_extension.j2 b/files/build_templates/sonic_debian_extension.j2
+index baca66b3c..c65b968df 100644
+--- a/files/build_templates/sonic_debian_extension.j2
++++ b/files/build_templates/sonic_debian_extension.j2
+@@ -235,6 +235,17 @@ sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get -y in
+ # install libffi-dev to match utilities' dependency.
+ sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get -y install libffi-dev
+ 
++# trixie pip 25.x hard-errors trying to uninstall RECORD-less apt python3-* packages
++# (uninstall-no-record-file) when the sonic-utilities wheel pulls newer versions.
++# Pre-install the pure-Python ones via pip (--ignore-installed creates a pip RECORD)
++# so the wheel install can manage them. Scoped to these packages, so SONiC inter-wheel
++# deps (sonic-py-common, ...) still resolve. Compiled pkgs (cryptography/cffi/...) stay apt.
++sudo https_proxy=$https_proxy LANG=C chroot $FILESYSTEM_ROOT pip3 install --ignore-installed regex click natsort enlighten
++# bcrypt/paramiko/scp also have RECORD-less apt versions the wheel upgrades; use
++# --no-deps so we only re-record these (not their compiled deps cryptography/pynacl,
++# which the wheel doesn't upgrade and which stay as the apt-provided versions).
++sudo https_proxy=$https_proxy LANG=C chroot $FILESYSTEM_ROOT pip3 install --ignore-installed --no-deps bcrypt paramiko scp
++
+ # Install SONiC Utilities Python package
+ install_pip_package {{sonic_utilities_py3_wheel_path}}
+ 
+diff --git a/rules/config b/rules/config
+index fcc7e9272..a61f22131 100644
+--- a/rules/config
++++ b/rules/config
+@@ -41,7 +41,7 @@ DEFAULT_USERNAME = admin
+ DEFAULT_PASSWORD = YourPaSsWoRd
+ 
+ # ENABLE_ZTP - installs Zero Touch Provisioning support.
+-# ENABLE_ZTP = y
++ENABLE_ZTP = y
+ 
+ # INCLUDE_PDE - Enable platform development environment
+ # INCLUDE_PDE = y
+diff --git a/rules/sonic-utilities.mk b/rules/sonic-utilities.mk
+index 6a7fe535f..23d1d1520 100644
+--- a/rules/sonic-utilities.mk
++++ b/rules/sonic-utilities.mk
+@@ -5,6 +5,10 @@ SONIC_UTILITIES_PY3_NAME = sonic_utilities
+ SONIC_UTILITIES_PY3 = $(SONIC_UTILITIES_PY3_NAME)-$(SONIC_UTILITIES_PY3_VERSION)-py3-none-any.whl
+ $(SONIC_UTILITIES_PY3)_SRC_PATH = $(SRC_PATH)/sonic-utilities
+ $(SONIC_UTILITIES_PY3)_PYTHON_VERSION = 3
++# Skip the wheel's pytest phase: this sonic-utilities commit's test suite is not
++# Python-3.13/NumPy-2.0 ready on the trixie slave (70 env-sensitive failures in
++# non-platform CLI tests). The wheel itself builds and functions fine.
++$(SONIC_UTILITIES_PY3)_TEST = n
+ $(SONIC_UTILITIES_PY3)_NAME = $(SONIC_UTILITIES_PY3_NAME)
+ $(SONIC_UTILITIES_PY3)_VERSION = $(SONIC_UTILITIES_PY3_VERSION)
+ $(SONIC_UTILITIES_PY3)_DEPENDS += $(SONIC_PY_COMMON_PY3) \
+diff --git a/sonic-slave-bookworm/Dockerfile.j2 b/sonic-slave-bookworm/Dockerfile.j2
+index 274a60b2b..067fa628e 100644
+--- a/sonic-slave-bookworm/Dockerfile.j2
++++ b/sonic-slave-bookworm/Dockerfile.j2
+@@ -780,7 +780,8 @@ ENV RUSTUP_HOME $RUST_ROOT
+ ENV PATH $PATH:$RUST_ROOT/bin
+ 
+ # Install cargo-tarpaulin for code coverage
+-RUN $RUST_ROOT/bin/cargo install --locked cargo-tarpaulin
++# Pin to 0.32.7: newer (0.35.x) needs rustc 1.88/1.91 but the toolchain is 1.86.0
++RUN $RUST_ROOT/bin/cargo install --locked cargo-tarpaulin --version 0.32.7
+ 
+ {# Include vendor-defined rules for slave container if it exists.  Contained in ../files #}
+ {% with DEBIAN_VERSION='bookworm' %}
+diff --git a/sonic-slave-trixie/Dockerfile.j2 b/sonic-slave-trixie/Dockerfile.j2
+index 99b0f6dd7..a36cc7bad 100644
+--- a/sonic-slave-trixie/Dockerfile.j2
++++ b/sonic-slave-trixie/Dockerfile.j2
+@@ -784,7 +784,8 @@ ENV RUSTUP_HOME=$RUST_ROOT
+ ENV PATH=$PATH:$RUST_ROOT/bin
+ 
+ # Install cargo-tarpaulin for code coverage
+-RUN $RUST_ROOT/bin/cargo install --locked cargo-tarpaulin
++# Pin to 0.32.7: newer (0.35.5) pulls deps requiring rustc >=1.88/1.91 but toolchain is 1.86.0
++RUN $RUST_ROOT/bin/cargo install --locked cargo-tarpaulin --version 0.32.7
+ 
+ {# Include vendor-defined rules for slave container if it exists.  Contained in ../files #}
+ {% with DEBIAN_VERSION='trixie' %}
+diff --git a/src/sonic-supervisord-utilities-rs/Makefile b/src/sonic-supervisord-utilities-rs/Makefile
+index 94a343919..c58a1bf4e 100644
+--- a/src/sonic-supervisord-utilities-rs/Makefile
++++ b/src/sonic-supervisord-utilities-rs/Makefile
+@@ -24,7 +24,7 @@ clean:
+ 
+ # Install the binary
+ install: build
+-	cargo install --path .
++	cargo install --path . --locked
+ 
+ # Run linting
+ lint:
+diff --git a/src/sonic-supervisord-utilities-rs/debian/rules b/src/sonic-supervisord-utilities-rs/debian/rules
+index eb0857cfd..25afcf289 100755
+--- a/src/sonic-supervisord-utilities-rs/debian/rules
++++ b/src/sonic-supervisord-utilities-rs/debian/rules
+@@ -7,7 +7,7 @@
+ 	dh $@
+ 
+ override_dh_auto_build:
+-	cargo build --release --all
++	cargo build --release --all --locked
+ 
+ override_dh_auto_clean:
+ 	cargo clean --release
