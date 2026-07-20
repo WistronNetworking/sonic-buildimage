@@ -11,4 +11,7 @@ Obsolete for trixie/6.12 / M.1.0.2 (targeted the old 6.1 kernel layout or older 
 
 Never part of the validated M.1.0.2 build (failed to apply in the original tree; re-evaluate
 deliberately before resurrecting):
-- 0008-pmon-usb-mount-fix.patch, 0012-sonic-port-yang-add-poe-fields.patch
+- 0012-sonic-port-yang-add-poe-fields.patch
+
+Promoted to active wistron_patches/ (apply via apply_patches.sh):
+- 0008-pmon-usb-mount-fix.patch
