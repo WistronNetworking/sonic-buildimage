@@ -121,6 +121,8 @@ static ssize_t cpld_show_version(struct device *dev, struct device_attribute *at
         return mnr_ver;
     }
 
+    mutex_unlock(&list_lock);
+
     return sprintf(buf, "%d.%d\n", mjr_ver, mnr_ver);
 }
 
