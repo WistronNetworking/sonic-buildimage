@@ -38,43 +38,82 @@ class Sfp(SfpOptoeBase):
         54: 8,
     }
 
+    # Offsets within TCA6424/PCAL6524 @ i2c-5 addr 0x22 (label 5-0022).
+    # Absolute numbers used to be base+offset with base=488; on kernel 6.12
+    # the gpiochip base is dynamic (currently 512) — resolve at runtime.
+    _SFP_GPIO_CHIP_LABEL = "5-0022"
+    _gpio_base_cache = None
+
     PORT_PRESENT_GPIO_MAPPING = {
-        50: 488,
-        49: 492,
-        52: 496,
-        51: 500,
-        54: 504,
-        53: 508,
+        50: 0,
+        49: 4,
+        52: 8,
+        51: 12,
+        54: 16,
+        53: 20,
     }
 
     PORT_TX_DISABLE_GPIO_MAPPING = {
-        50: 489,
-        49: 493,
-        52: 497,
-        51: 501,
-        54: 505,
-        53: 509,
+        50: 1,
+        49: 5,
+        52: 9,
+        51: 13,
+        54: 17,
+        53: 21,
     }
 
     PORT_RX_LOS_GPIO_MAPPING = {
-        50: 490,
-        49: 494,
-        52: 498,
-        51: 502,
-        54: 506,
-        53: 510,
+        50: 2,
+        49: 6,
+        52: 10,
+        51: 14,
+        54: 18,
+        53: 22,
     }
 
     PORT_TX_FAULT_GPIO_MAPPING = {
-        50: 491,
-        49: 495,
-        52: 499,
-        51: 503,
-        54: 507,
-        53: 511,
+        50: 3,
+        49: 7,
+        52: 11,
+        51: 15,
+        54: 19,
+        53: 23,
     }
 
     port_to_i2c_mapping = 0
+
+    @classmethod
+    def _gpio_base(cls):
+        if cls._gpio_base_cache is not None:
+            return cls._gpio_base_cache
+        gpio_dir = "/sys/class/gpio"
+        try:
+            for name in os.listdir(gpio_dir):
+                if not name.startswith("gpiochip"):
+                    continue
+                label_path = os.path.join(gpio_dir, name, "label")
+                base_path = os.path.join(gpio_dir, name, "base")
+                try:
+                    with open(label_path, "r") as f:
+                        label = f.read().strip()
+                    if label != cls._SFP_GPIO_CHIP_LABEL:
+                        continue
+                    with open(base_path, "r") as f:
+                        cls._gpio_base_cache = int(f.read().strip())
+                        return cls._gpio_base_cache
+                except (OSError, ValueError):
+                    continue
+        except OSError:
+            pass
+        sonic_logger.log_error("gpiochip label {} not found".format(cls._SFP_GPIO_CHIP_LABEL))
+        cls._gpio_base_cache = -1
+        return cls._gpio_base_cache
+
+    def _gpio_num(self, offset):
+        base = self._gpio_base()
+        if base is None or base < 0:
+            return None
+        return base + offset
 
     def __init__(self, index, sfp_type):
         SfpOptoeBase.__init__(self)
@@ -138,7 +177,10 @@ class Sfp(SfpOptoeBase):
         if self.sfp_type == COPPER_TYPE:
             return False
         if self.sfp_type == SFP_TYPE:
-            cmdstatus, value = cmd.getstatusoutput('cat {}'.format(self.GPIO_PATH.format(self.PORT_RX_LOS_GPIO_MAPPING[self.index])))
+            gpio = self._gpio_num(self.PORT_RX_LOS_GPIO_MAPPING[self.index])
+            if gpio is None:
+                return False
+            cmdstatus, value = cmd.getstatusoutput('cat {}'.format(self.GPIO_PATH.format(gpio)))
             if cmdstatus:
                 sonic_logger.log_warning("sfp rx los cmdstatus get failed")
                 return False
@@ -162,7 +204,10 @@ class Sfp(SfpOptoeBase):
         if self.sfp_type == COPPER_TYPE:
             return False
         if self.sfp_type == SFP_TYPE:
-            cmdstatus, value = cmd.getstatusoutput('cat {}'.format(self.GPIO_PATH.format(self.PORT_TX_FAULT_GPIO_MAPPING[self.index])))
+            gpio = self._gpio_num(self.PORT_TX_FAULT_GPIO_MAPPING[self.index])
+            if gpio is None:
+                return False
+            cmdstatus, value = cmd.getstatusoutput('cat {}'.format(self.GPIO_PATH.format(gpio)))
             if cmdstatus:
                 sonic_logger.log_warning("sfp tx fault cmdstatus get failed")
                 return False
@@ -184,7 +229,10 @@ class Sfp(SfpOptoeBase):
         if self.sfp_type == COPPER_TYPE:
             return None
         else:
-            cmdstatus, value = cmd.getstatusoutput('cat {}'.format(self.GPIO_PATH.format(self.PORT_TX_DISABLE_GPIO_MAPPING[self.index])))
+            gpio = self._gpio_num(self.PORT_TX_DISABLE_GPIO_MAPPING[self.index])
+            if gpio is None:
+                return False
+            cmdstatus, value = cmd.getstatusoutput('cat {}'.format(self.GPIO_PATH.format(gpio)))
             if cmdstatus:
                 sonic_logger.log_warning("sfp present cmdstatus get failed")
                 return False
@@ -255,7 +303,10 @@ class Sfp(SfpOptoeBase):
         if self.sfp_type == COPPER_TYPE:
             return False
         if self.sfp_type == SFP_TYPE:
-            gpiopin = self.GPIO_PATH.format(self.PORT_TX_DISABLE_GPIO_MAPPING[self.index])
+            gpio = self._gpio_num(self.PORT_TX_DISABLE_GPIO_MAPPING[self.index])
+            if gpio is None:
+                return False
+            gpiopin = self.GPIO_PATH.format(gpio)
             cmdstatus, value = cmd.getstatusoutput('echo {} > {}'.format(tx_disable, gpiopin))
             if cmdstatus:
                 sonic_logger.log_warning("sfp tx_disable cmdstatus get failed")
@@ -325,7 +376,10 @@ class Sfp(SfpOptoeBase):
         if self.sfp_type == COPPER_TYPE:
             return False
         if self.sfp_type == SFP_TYPE:
-            cmdstatus, value = cmd.getstatusoutput('cat {}'.format(self.GPIO_PATH.format(self.PORT_PRESENT_GPIO_MAPPING[self.index])))
+            gpio = self._gpio_num(self.PORT_PRESENT_GPIO_MAPPING[self.index])
+            if gpio is None:
+                return False
+            cmdstatus, value = cmd.getstatusoutput('cat {}'.format(self.GPIO_PATH.format(gpio)))
             if cmdstatus:
                 sonic_logger.log_warning("sfp present cmdstatus get failed")
                 return False

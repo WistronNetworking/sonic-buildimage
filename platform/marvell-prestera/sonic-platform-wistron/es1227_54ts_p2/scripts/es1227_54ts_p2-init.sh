@@ -52,15 +52,27 @@ load_kernel_drivers
         echo optoe2 0x50 > /sys/bus/i2c/devices/i2c-$i/new_device
     done
 
-    local j
-    for j in {488..511}; do
-        echo $j > /sys/class/gpio/export 2>/dev/null
+    # TCA6424/PCAL6524 @5-0022 has 24 lines. Kernel 6.12 assigns a dynamic
+    # gpiochip base (was hardcoded 488 on older kernels) — look up by label.
+    gpio_base=""
+    for chip in /sys/class/gpio/gpiochip*; do
+        [ -f "$chip/label" ] || continue
+        if [ "$(cat "$chip/label")" = "5-0022" ]; then
+            gpio_base=$(cat "$chip/base")
+            break
+        fi
     done
+    if [ -n "$gpio_base" ]; then
+        for j in $(seq "$gpio_base" $((gpio_base + 23))); do
+            echo $j > /sys/class/gpio/export 2>/dev/null
+        done
 
-    local k
-    for k in $(seq 488 4 508); do
-        echo in > /sys/class/gpio/gpio$k/direction 2>/dev/null
-    done
+        for k in $(seq "$gpio_base" 4 $((gpio_base + 20))); do
+            echo in > /sys/class/gpio/gpio$k/direction 2>/dev/null
+        done
+    else
+        echo "WARNING: gpiochip label 5-0022 not found; skip SFP GPIO export" >&2
+    fi
 
     for i in {0..2};
     do

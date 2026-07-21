@@ -1,0 +1,32 @@
+[DTS] es1227-54ts: drop unused pca9555 @0x20 on i2c mux ch0.
+
+Re-apply of attic 0005 pca9555 half (RTC half is already active as 0020).
+The expander node is not used by platform code on this board; keep DTS
+aligned with the validated pre-1.17 board tree.
+
+--- a/src/sonic-linux-kernel/patches-sonic/0016-arm64-dts-marvell-Add-Wistron-ES-1227-54TS-board.patch
++++ b/src/sonic-linux-kernel/patches-sonic/0016-arm64-dts-marvell-Add-Wistron-ES-1227-54TS-board.patch
+@@ -112,7 +112,7 @@
+ index 000000000..e3f7c4e0b
+ --- /dev/null
+ +++ b/arch/arm64/boot/dts/marvell/es1227-54ts.dtsi
+-@@ -0,0 +1,318 @@
++@@ -0,0 +1,310 @@
+ +// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ +/*
+ + * Copyright (C) 2021 Marvell International Ltd.
+@@ -241,14 +241,6 @@
+ +				compatible = "ti,tmp75";
+ +				reg = <0x4b>;
+ +			};
+-+			expander0: pca953x@20 {
+-+				compatible = "nxp,pca9555";
+-+				pinctrl-names = "default";
+-+				gpio-controller;
+-+				#gpio-cells = <2>;
+-+				reg = <0x20>;
+-+				status = "okay";
+-+			};
+ +		};
+ +
+ +		i2c@1 {
