@@ -1,0 +1,13 @@
+diff --git a/src/sonic-swss/fdbsyncd/fdbsync.h b/src/sonic-swss/fdbsyncd/fdbsync.h
+index ab55b91a..6a535fe7 100644
+--- a/src/sonic-swss/fdbsyncd/fdbsync.h
++++ b/src/sonic-swss/fdbsyncd/fdbsync.h
+@@ -19,7 +19,7 @@
+  * for the interface entries to be recreated in kernel before attempting to 
+  * write the FDB data to kernel
+  */
+-#define INTF_RESTORE_MAX_WAIT_TIME 180
++#define INTF_RESTORE_MAX_WAIT_TIME 600
+ 
+ namespace swss {
+ 
