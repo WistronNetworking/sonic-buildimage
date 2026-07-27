@@ -1,0 +1,54 @@
+sonic-utilities wheel install on trixie: pip 25 cannot uninstall RECORD-less
+apt python3-* packages. Pre-install via pip --ignore-installed in the slave
+(slave.mk hook) and add requests to the existing rootfs preinstall block.
+
+diff --git a/files/build_templates/sonic_debian_extension.j2 b/files/build_templates/sonic_debian_extension.j2
+index c65b968df..444af2694 100644
+--- a/files/build_templates/sonic_debian_extension.j2
++++ b/files/build_templates/sonic_debian_extension.j2
+@@ -241,10 +241,10 @@ sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get -y in
+ # so the wheel install can manage them. Scoped to these packages, so SONiC inter-wheel
+ # deps (sonic-py-common, ...) still resolve. Compiled pkgs (cryptography/cffi/...) stay apt.
+ sudo https_proxy=$https_proxy LANG=C chroot $FILESYSTEM_ROOT pip3 install --ignore-installed regex click natsort enlighten
+-# bcrypt/paramiko/scp also have RECORD-less apt versions the wheel upgrades; use
++# bcrypt/paramiko/scp/requests also have RECORD-less apt versions the wheel upgrades; use
+ # --no-deps so we only re-record these (not their compiled deps cryptography/pynacl,
+ # which the wheel doesn't upgrade and which stay as the apt-provided versions).
+-sudo https_proxy=$https_proxy LANG=C chroot $FILESYSTEM_ROOT pip3 install --ignore-installed --no-deps bcrypt paramiko scp
++sudo https_proxy=$https_proxy LANG=C chroot $FILESYSTEM_ROOT pip3 install --ignore-installed --no-deps bcrypt paramiko scp requests
+ 
+ # Install SONiC Utilities Python package
+ install_pip_package {{sonic_utilities_py3_wheel_path}}
+diff --git a/rules/sonic-utilities.mk b/rules/sonic-utilities.mk
+index 23d1d1520..32ab33f1c 100644
+--- a/rules/sonic-utilities.mk
++++ b/rules/sonic-utilities.mk
+@@ -9,6 +9,13 @@ $(SONIC_UTILITIES_PY3)_PYTHON_VERSION = 3
+ # Python-3.13/NumPy-2.0 ready on the trixie slave (70 env-sensitive failures in
+ # non-platform CLI tests). The wheel itself builds and functions fine.
+ $(SONIC_UTILITIES_PY3)_TEST = n
++# trixie slave ships apt python3-{requests,paramiko,scp,bcrypt,click} without a
++# pip RECORD; pip 25 refuses to uninstall them when this wheel pins different
++# versions (uninstall-no-record-file). Pre-install via pip --ignore-installed so
++# a RECORD exists, then the wheel install can replace them. Same approach as
++# files/build_templates/sonic_debian_extension.j2 for the final image rootfs.
++$(SONIC_UTILITIES_PY3)_PIP_PREINSTALL = regex click natsort enlighten
++$(SONIC_UTILITIES_PY3)_PIP_PREINSTALL_NODEPS = bcrypt paramiko scp requests
+ $(SONIC_UTILITIES_PY3)_NAME = $(SONIC_UTILITIES_PY3_NAME)
+ $(SONIC_UTILITIES_PY3)_VERSION = $(SONIC_UTILITIES_PY3_VERSION)
+ $(SONIC_UTILITIES_PY3)_DEPENDS += $(SONIC_PY_COMMON_PY3) \
+diff --git a/slave.mk b/slave.mk
+index 8a327279b..ba67a50d6 100644
+--- a/slave.mk
++++ b/slave.mk
+@@ -1001,6 +1001,10 @@ $(SONIC_INSTALL_WHEELS) : $(PYTHON_WHEELS_PATH)/%-install : .platform $$(addsuff
+ 	while true; do
+ 	if mkdir $(PYTHON_WHEELS_PATH)/pip_lock &> /dev/null; then
+ ifneq ($(CROSS_BUILD_ENVIRON),y)
++	# Optional per-wheel preinstall: give RECORD-less apt python pkgs a pip RECORD
++	# so this wheel can replace them (trixie pip 25 uninstall-no-record-file).
++	if [ -n "$($*_PIP_PREINSTALL)" ]; then sudo -E SKIP_BUILD_HOOK=Y pip$($*_PYTHON_VERSION) install --ignore-installed $($*_PIP_PREINSTALL) $(LOG) || { rm -d $(PYTHON_WHEELS_PATH)/pip_lock && exit 1; }; fi
++	if [ -n "$($*_PIP_PREINSTALL_NODEPS)" ]; then sudo -E SKIP_BUILD_HOOK=Y pip$($*_PYTHON_VERSION) install --ignore-installed --no-deps $($*_PIP_PREINSTALL_NODEPS) $(LOG) || { rm -d $(PYTHON_WHEELS_PATH)/pip_lock && exit 1; }; fi
+ 	{ sudo -E SKIP_BUILD_HOOK=Y pip$($*_PYTHON_VERSION) install $(PYTHON_WHEELS_PATH)/$* $(LOG) && rm -d $(PYTHON_WHEELS_PATH)/pip_lock && break; } || { rm -d $(PYTHON_WHEELS_PATH)/pip_lock && exit 1 ; }
+ else
+ 	# Link python script and data expected location to the cross python virtual env istallation locations
