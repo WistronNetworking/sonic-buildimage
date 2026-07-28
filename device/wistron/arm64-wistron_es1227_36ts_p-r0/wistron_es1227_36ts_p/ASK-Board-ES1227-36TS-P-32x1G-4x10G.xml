@@ -1332,7 +1332,7 @@ Ethernet Transceiver</askboardplt:description>
         <askboardplt:portNumber askboardplt:type="physical-port-num-type">60</askboardplt:portNumber>
         <askboardplt:TXQueue>
           <askboardplt:mappingType askboardplt:type="port-mapping-type">cpu_sdma</askboardplt:mappingType>
-          <askboardplt:interfaceNum askboardplt:type="interface-num-type">54</askboardplt:interfaceNum>
+          <askboardplt:interfaceNum askboardplt:type="interface-num-type">55</askboardplt:interfaceNum>
           <askboardplt:reservePreemptiveChannel askboardplt:type="boolean-type">false</askboardplt:reservePreemptiveChannel>
         </askboardplt:TXQueue>
       </askboardplt:portMap-list>
@@ -1340,7 +1340,7 @@ Ethernet Transceiver</askboardplt:description>
         <askboardplt:portNumber askboardplt:type="physical-port-num-type">63</askboardplt:portNumber>
         <askboardplt:TXQueue>
           <askboardplt:mappingType askboardplt:type="port-mapping-type">cpu_sdma</askboardplt:mappingType>
-          <askboardplt:interfaceNum askboardplt:type="interface-num-type">55</askboardplt:interfaceNum>
+          <askboardplt:interfaceNum askboardplt:type="interface-num-type">54</askboardplt:interfaceNum>
           <askboardplt:reservePreemptiveChannel askboardplt:type="boolean-type">false</askboardplt:reservePreemptiveChannel>
         </askboardplt:TXQueue>
       </askboardplt:portMap-list>
