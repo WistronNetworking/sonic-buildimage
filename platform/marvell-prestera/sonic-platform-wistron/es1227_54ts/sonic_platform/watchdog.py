@@ -35,6 +35,7 @@ WD_SYSFS_PATH = "/sys/class/watchdog/{}/"
 WD_DEV_PATH = "/dev/{}"
 
 WD_COMMON_ERROR = -1
+MAX_WATCHDOG_TIMEOUT = 300
 
 sonic_logger = logger.Logger()
 
@@ -137,7 +138,7 @@ class WatchdogImplBase(WatchdogBase):
         """
         sonic_logger.log_info(" Debug arm watchdog4 ")
         ret = WD_COMMON_ERROR
-        if seconds < 0:
+        if seconds < 0 or seconds > MAX_WATCHDOG_TIMEOUT:
             return ret
 
         try:
