@@ -1,0 +1,28 @@
+[wistron][es1227] align LLDP CoPP CIR with Marvell policer quantum
+
+The Marvell Prestera packet policer programs rates in 125-PPS quanta.
+A CIR of 100 is truncated to zero, so queue4_group3 stops forwarding
+LLDP, DHCP, and UDLD packets after its initial CBS is exhausted.
+
+Raise CIR to the minimum non-zero hardware rate only for the Wistron
+ES1227 36TS-P and 54TS-P2 platforms. Keep common SONiC defaults intact
+for every other platform.
+
+Apply with ./apply_patches.sh; do not commit this change directly into
+the common source file.
+
+diff --git a/files/image_config/copp/copp_cfg.j2 b/files/image_config/copp/copp_cfg.j2
+index 520ae8a35..23355afe4
+--- a/files/image_config/copp/copp_cfg.j2
++++ b/files/image_config/copp/copp_cfg.j2
+@@ -37,6 +37,10 @@
+ {% if DEVICE_METADATA is defined and DEVICE_METADATA['localhost'] is defined and DEVICE_METADATA['localhost']['type'] is defined and 'Mgmt' in DEVICE_METADATA['localhost']['type'] %}
+ 		    "cir":"300",
+ 		    "cbs":"300",
++{% elif DEVICE_METADATA is defined and DEVICE_METADATA['localhost'] is defined and DEVICE_METADATA['localhost']['platform'] is defined and DEVICE_METADATA['localhost']['platform'] in ['arm64-wistron_es1227_36ts_p-r0', 'arm64-wistron_es1227_54ts_p2-r0'] %}
++{# Marvell packet policers use 125-PPS rate quanta; CIR=100 is rounded down to zero. #}
++		    "cir":"125",
++		    "cbs":"100",
+ {% else %}
+ 		    "cir":"100",
+ 		    "cbs":"100",
