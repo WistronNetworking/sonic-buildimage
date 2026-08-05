@@ -40,7 +40,6 @@ COFF_KB = {
     4: 60
 }
 
-'''
 class SetFanSpeedAction(ThermalPolicyActionBase):
     """
     Base thermal action class to set speed for fans
@@ -103,8 +102,9 @@ class SetFanSpeedAction(ThermalPolicyActionBase):
 
     @classmethod
     def power_down(cls):
-        chassis = cls().get_chassis()
-        chassis.power_down()
+        import os
+        if os.system('systemctl poweroff') != 0:
+            os.system('poweroff')
 
     @classmethod
     def get_temp(cls, thermal_info_dict):
@@ -170,12 +170,36 @@ class SwitchPolicyAction(ThermalPolicyActionBase):
                 sonic_logger.log_warning(
                     "Temp is over high critical threshold, system shutdown {} temperature is {}".format(key, temp_info[key]))
             import os
+            from sonic_platform.chassis import HOST_REBOOT_CAUSE_PATH, PMON_REBOOT_CAUSE_PATH, REBOOT_CAUSE_FILE
+
+            components = set()
+            for key in temp_info.keys():
+                ukey = key.upper()
+                if 'PSU' in ukey:
+                    components.add('PSU')
+                elif 'CPU' in ukey:
+                    components.add('CPU')
+                elif 'ASIC' in ukey:
+                    components.add('ASIC')
+                elif 'DIMM' in ukey:
+                    components.add('DIMM')
+                else:
+                    components.add(key.split()[0])
+
+            reboot_msg = "Thermal"
+            if components:
+                reboot_msg += " - " + "/".join(sorted(components))
+
+            host_path = HOST_REBOOT_CAUSE_PATH + REBOOT_CAUSE_FILE
+            pmon_path = PMON_REBOOT_CAUSE_PATH + REBOOT_CAUSE_FILE
+            os.system(f"sudo sh -c 'echo \"{reboot_msg}\" > {host_path}'")
+            os.system(f"sudo sh -c 'echo \"{reboot_msg}\" > {pmon_path}'")
             os.system('sync')
+            os.system('systemctl stop es1227_36ts_p-watchdog')
             SetFanSpeedAction.power_down()
         # import os
         # os.system('reboot')
 
-'''
 @thermal_json_object('fan.set_speed')
 class SetAllFanSpeedAction(SetFanSpeedAction):
     """
@@ -216,4 +240,3 @@ class ThermalOverHighThresholdAction(SetFanSpeedAction):
         :return:
         """
         SetFanSpeedAction.set_all_fan_speed(thermal_info_dict, self.high_temp_speed)
-'''
