@@ -43,6 +43,8 @@ GET_PLATFORM_CMD = "sonic-cfggen -d -v DEVICE_METADATA.localhost.platform"
 GET_HOST_HWSKU_CMD = 'grep ^onie_machine= /host/machine.conf | cut -f2 -d"="'
 GET_HOST_PLATFORM_CMD = 'grep ^onie_platform /host/machine.conf | cut -f2 -d"="'
 
+sonic_logger = logger.Logger()
+
 class Chassis(ChassisBase):
     """Platform-specific Chassis class"""
 
@@ -171,17 +173,27 @@ class Chassis(ChassisBase):
 
         reboot_cause_path = (HOST_REBOOT_CAUSE_PATH + REBOOT_CAUSE_FILE) if self.__is_host(
         ) else PMON_REBOOT_CAUSE_PATH + REBOOT_CAUSE_FILE
-        sw_reboot_cause = self.__read_txt_file(
-            reboot_cause_path) or "Unknown"
+
+        if os.path.exists("/tmp/notify_firstboot_to_platform"):
+            return (self.REBOOT_CAUSE_HARDWARE_OTHER, 'Unknown reason')
+
+        try:
+            subprocess.run(
+                ['/usr/local/bin/es1227_36ts_p-reboot-check'],
+                timeout=30, capture_output=True
+            )
+        except Exception:
+            pass
+
+        sw_reboot_cause = self.__read_txt_file(reboot_cause_path) or "Unknown"
+
+        if sw_reboot_cause.startswith("Thermal"):
+            return (self.REBOOT_CAUSE_THERMAL_OVERLOAD_OTHER, sw_reboot_cause)
 
         if sw_reboot_cause != "Unknown":
-            reboot_cause = self.REBOOT_CAUSE_NON_HARDWARE
-            description = sw_reboot_cause
-        else:
-            reboot_cause = self.REBOOT_CAUSE_HARDWARE_OTHER
-            description = 'Unknown reason'
+            return (self.REBOOT_CAUSE_NON_HARDWARE, sw_reboot_cause)
 
-        return (reboot_cause, description)
+        return (self.REBOOT_CAUSE_HARDWARE_OTHER, 'Watchdog or Unknown reason')
 
     def _get_sku_name(self):
         if self.__is_host():
@@ -299,11 +311,9 @@ class Chassis(ChassisBase):
         try:
             if self._watchdog is None:
                 from sonic_platform.watchdog import WatchdogImplBase
-                watchdog_device = "watchdog1"
+                watchdog_device = "watchdog0"
                 self._watchdog = WatchdogImplBase(watchdog_device)
         except Exception as e:
-            #.log_warning(" Fail to load watchdog {}".format(repr(e)))
-            sonic_logger = logger.Logger()
             sonic_logger.log_warning("Failed to load watchdog: {}".format(repr(e)))
 
         return self._watchdog
