@@ -1,0 +1,163 @@
+diff --git a/device/wistron/arm64-wistron_es1227_54ts-r0/plugins/ssd_util.py b/device/wistron/arm64-wistron_es1227_54ts-r0/plugins/ssd_util.py
+index 000000000..f197290aa
+--- /dev/null
++++ b/device/wistron/arm64-wistron_es1227_54ts-r0/plugins/ssd_util.py
+@@ -0,0 +1 @@
++from sonic_platform_base.sonic_storage.emmc import EmmcUtil as SsdUtil
+diff --git a/device/wistron/arm64-wistron_es1227_54ts_p2-r0/plugins/ssd_util.py b/device/wistron/arm64-wistron_es1227_54ts_p2-r0/plugins/ssd_util.py
+new file mode 100644
+index 000000000..f197290aa
+--- /dev/null
++++ b/device/wistron/arm64-wistron_es1227_54ts_p2-r0/plugins/ssd_util.py
+@@ -0,0 +1 @@
++from sonic_platform_base.sonic_storage.emmc import EmmcUtil as SsdUtil
+diff --git a/device/wistron/arm64-wistron_es2227_54ts-r0/plugins/ssd_util.py b/device/wistron/arm64-wistron_es2227_54ts-r0/plugins/ssd_util.py
+new file mode 100644
+index 000000000..f197290aa
+--- /dev/null
++++ b/device/wistron/arm64-wistron_es2227_54ts-r0/plugins/ssd_util.py
+@@ -0,0 +1 @@
++from sonic_platform_base.sonic_storage.emmc import EmmcUtil as SsdUtil
+diff --git a/device/wistron/arm64-wistron_es2227_54ts_p-r0/plugins/ssd_util.py b/device/wistron/arm64-wistron_es2227_54ts_p-r0/plugins/ssd_util.py
+new file mode 100644
+index 000000000..f197290aa
+--- /dev/null
++++ b/device/wistron/arm64-wistron_es2227_54ts_p-r0/plugins/ssd_util.py
+@@ -0,0 +1 @@
++from sonic_platform_base.sonic_storage.emmc import EmmcUtil as SsdUtil
+diff --git a/device/wistron/arm64-wistron_es1227_36ts_p-r0/plugins/ssd_util.py b/device/wistron/arm64-wistron_es1227_36ts_p-r0/plugins/ssd_util.py
+new file mode 100644
+index 000000000..f197290aa
+--- /dev/null
++++ b/device/wistron/arm64-wistron_es1227_36ts_p-r0/plugins/ssd_util.py
+@@ -0,0 +1 @@
++from sonic_platform_base.sonic_storage.emmc import EmmcUtil as SsdUtil
+diff --git a/src/sonic-platform-common/sonic_platform_base/sonic_storage/emmc.py b/src/sonic-platform-common/sonic_platform_base/sonic_storage/emmc.py
+index 92ada4a..269b852 100644
+--- a/src/sonic-platform-common/sonic_platform_base/sonic_storage/emmc.py
++++ b/src/sonic-platform-common/sonic_platform_base/sonic_storage/emmc.py
+@@ -7,6 +7,8 @@
+ 
+ try:
+     import os
++    import re
++    import subprocess
+     from .storage_common import StorageCommon
+ except ImportError as e:
+     raise ImportError(str(e) + "- required module not found")
+@@ -26,14 +28,64 @@ class EmmcUtil(StorageCommon):
+         except OSError:
+             return default
+ 
+-    def _is_slc(self):
+-        return bool(self._read_device_entry('enhanced_area_offset'))
++    def _run_mmc_extcsd(self):
++        """
++        Run 'mmc extcsd read <diskdev>' and return the output string.
++        Returns None if the command fails or times out.
++        """
++        try:
++            devpath = os.path.join('/dev', os.path.basename(self.diskdev))
++            result = subprocess.run(
++                ['mmc', 'extcsd', 'read', devpath],
++                stdout=subprocess.PIPE,
++                stderr=subprocess.DEVNULL,
++                timeout=30
++            )
++            if result.returncode == 0:
++                return result.stdout.decode('utf-8', errors='replace')
++        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
++            pass
++        return None
+ 
++    def _parse_extcsd_field(self, output, field_name):
++        """
++        Parse a hex value from 'mmc extcsd' output for the given field name.
++        Example line: "EXT_CSD_DEVICE_LIFE_TIME_EST_TYP_B [DEVICE_LIFE_TIME_EST_TYP_B]: 0x02"
++        Returns the integer value, or None if not found / unparseable.
++        """
++        if output is None:
++            return None
++        for line in output.splitlines():
++            if field_name in line and ':' in line:
++                hex_str = line.split(':')[-1].strip()
++                try:
++                    return int(hex_str, 0)
++                except (ValueError, TypeError):
++                    pass
++        return None
++
++    def _is_slc(self):
++        _EINVAL_ = (1 << 64) - 22  # 18446744073709551594
++        offset_str = self._read_device_entry('enhanced_area_offset')
++        try:
++            offset = int(offset_str)
++        except (ValueError, TypeError):
++            return False
++        return offset != _EINVAL_ and offset > 0
++    
+     def get_health(self):
+-        data = self._read_device_entry('life_time')
+-        if data is None:
+-            raise NotImplementedError
+-        value = int(data.split()[0 if self._is_slc() else 1], 0)
++        output = self._run_mmc_extcsd()
++        val_a = self._parse_extcsd_field(output, 'EXT_CSD_DEVICE_LIFE_TIME_EST_TYP_A')
++        val_b = self._parse_extcsd_field(output, 'EXT_CSD_DEVICE_LIFE_TIME_EST_TYP_B')
++
++        if val_a is not None and val_b is not None:
++            value = val_a if self._is_slc() else val_b
++        else:
++            data = self._read_device_entry('life_time') #/sys/block/mmcblk0/device/life_time ex: 0x01 0x02
++            if data is None:
++                raise NotImplementedError
++            value = int(data.split()[0 if self._is_slc() else 1], 0)
++
+         return float(100 - (10 * (value - 1)))
+ 
+     def get_temperature(self):
+diff --git a/dockers/docker-platform-monitor/Dockerfile.j2 b/dockers/docker-platform-monitor/Dockerfile.j2
+index 33dc56b4a..c61cbce6c 100755
+--- a/dockers/docker-platform-monitor/Dockerfile.j2
++++ b/dockers/docker-platform-monitor/Dockerfile.j2
+@@ -32,7 +32,8 @@ RUN apt-get update &&   \
+         pciutils        \
+         nvme-cli        \
+         ethtool         \
+-        xxd
++        xxd             \
++        mmc-utils
+ {% if sonic_asic_platform == 'mellanox' %}
+ RUN apt-get install -y dbus
+ {% endif %}
+diff --git a/src/sonic-utilities/scripts/log_ssd_health b/src/sonic-utilities/scripts/log_ssd_health
+index 3f9d6b22..51a26b0b 100755
+--- a/src/sonic-utilities/scripts/log_ssd_health
++++ b/src/sonic-utilities/scripts/log_ssd_health
+@@ -5,3 +5,12 @@ if [ -f /tmp/smartctl ];then
+     logger -f /tmp/smartctl
+ fi
+ 
++# Get eMMC data via "show platform ssdhealth"
++if [ -b /dev/mmcblk0 ]; then
++    output=$(timeout --foreground 30 show platform ssdhealth | grep Health  | sed 's/ \+:/: /')
++    if [ $? -eq 0 ] && [ -n "$output" ]; then
++        logger -t emmc_health "${output}"
++    else
++        logger -t emmc_health "Failed to read eMMC health from /dev/mmcblk0"
++    fi
++fi
+diff --git a/files/build_templates/sonic_debian_extension.j2 b/files/build_templates/sonic_debian_extension.j2
+index d92cb54c4..eef946587 100644
+--- a/files/build_templates/sonic_debian_extension.j2
++++ b/files/build_templates/sonic_debian_extension.j2
+@@ -392,6 +392,9 @@ sudo chmod 755 $FILESYSTEM_ROOT/usr/bin/control_plane_drop_check
+ sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get -y install -t bookworm-backports smartmontools
+ sudo cp $IMAGE_CONFIGS/smartmontools/smartmontools $FILESYSTEM_ROOT/etc/default/smartmontools
+ 
++# Install mmc-utils for eMMC storage health
++sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get -y install mmc-utils
++
+ # Install custom-built openssh sshd
+ sudo dpkg --root=$FILESYSTEM_ROOT -i $debs_path/openssh-server_${OPENSSH_VERSION_FULL}_*.deb $debs_path/openssh-client_${OPENSSH_VERSION_FULL}_*.deb $debs_path/openssh-sftp-server_${OPENSSH_VERSION_FULL}_*.deb
+
