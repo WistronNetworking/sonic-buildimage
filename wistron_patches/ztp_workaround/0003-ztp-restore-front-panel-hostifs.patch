@@ -1,0 +1,135 @@
+[wistron][ztp] restore front-panel hostifs after in-band cleanup
+
+When an in-band ZTP session finishes, ztp-profile removes ZTP from
+CONFIG_DB and restarts interfaces-config. The regenerated interfaces file
+no longer contains the ZTP Ethernet stanzas, so ifupdown leaves their Linux
+host interfaces administratively down. The ASIC ports remain operational
+and do not generate another SAI port-state transition to restore IFF_UP.
+
+During the ZTP teardown restart, snapshot only front-panel ports whose
+APPL_DB oper_status is up. After networking restarts, restore a candidate
+only when it still exists and its post-ZTP CONFIG_DB admin_status is up.
+Re-read CONFIG_DB after setting IFF_UP so a concurrent shutdown or breakout
+is not overridden.
+
+diff --git a/files/image_config/interfaces/interfaces-config.sh b/files/image_config/interfaces/interfaces-config.sh
+index 669d12849..4b8698318 100755
+--- a/files/image_config/interfaces/interfaces-config.sh
++++ b/files/image_config/interfaces/interfaces-config.sh
+@@ -1,5 +1,7 @@
+ #!/bin/bash
+ resolvconf_updates=true
++ZTP_DHCP_POLICY_FILE=/etc/network/ifupdown2/policy.d/ztp_dhcp.json
++ZTP_CLEANUP_PORTS=()
+ 
+ function wait_networking_service_done() {
+     local -i _WDOG_CNT="1"
+@@ -38,6 +40,89 @@ function resolvconf_updates_restore() {
+     fi
+ }
+ 
++# Snapshot only operational front-panel ports during ZTP teardown. The ZTP
++# profile is removed before this service is restarted, while its DHCP policy
++# remains present until this service returns.
++function snapshot_ztp_cleanup_ports() {
++    local oper_status
++    local port_key
++
++    [[ -e "${ZTP_DHCP_POLICY_FILE}" ]] || return 0
++    [[ "$(sonic-db-cli CONFIG_DB HGET "ZTP|mode" "profile")" != "active" ]] || return 0
++
++    while IFS= read -r port_key; do
++        [[ -n "${port_key}" ]] || continue
++
++        oper_status=$(sonic-db-cli APPL_DB HGET "${port_key}" "oper_status")
++        if [[ "${oper_status}" == "up" ]]; then
++            ZTP_CLEANUP_PORTS+=("${port_key#PORT_TABLE:}")
++        fi
++    done < <(sonic-db-cli APPL_DB KEYS "PORT_TABLE:Ethernet*")
++}
++
++# networking removes the old ZTP Ethernet stanzas with ifdown, which clears
++# IFF_UP on their SAI host interfaces. Restore only candidates which remain
++# administratively enabled in the post-ZTP CONFIG_DB.
++function restore_ztp_cleanup_ports() {
++    local admin_status
++    local failed=false
++    local missing
++    local port
++    local port_key
++    local retry
++
++    [[ "${#ZTP_CLEANUP_PORTS[@]}" -gt 0 ]] || return 0
++
++    # A config reload may recreate host interfaces asynchronously. Wait once
++    # for all still-enabled candidates, rather than waiting per port.
++    for ((retry = 0; retry < 30; retry++)); do
++        missing=false
++        for port in "${ZTP_CLEANUP_PORTS[@]}"; do
++            port_key="PORT|${port}"
++            admin_status=$(sonic-db-cli CONFIG_DB HGET "${port_key}" "admin_status")
++            if [[ "${admin_status}" == "up" && ! -e "/sys/class/net/${port}" ]]; then
++                missing=true
++                break
++            fi
++        done
++
++        [[ "${missing}" == false ]] && break
++        sleep 1
++    done
++
++    for port in "${ZTP_CLEANUP_PORTS[@]}"; do
++        port_key="PORT|${port}"
++        admin_status=$(sonic-db-cli CONFIG_DB HGET "${port_key}" "admin_status")
++
++        # Skip ports removed by breakout/config reload or explicitly shut down.
++        [[ "${admin_status}" == "up" ]] || continue
++
++        if [[ ! -e "/sys/class/net/${port}" ]]; then
++            echo "interfaces-config: ZTP cleanup could not find host interface ${port}"
++            failed=true
++            continue
++        fi
++
++        if ! ip link set dev "${port}" up; then
++            echo "interfaces-config: ZTP cleanup failed to restore host interface ${port}"
++            failed=true
++            continue
++        fi
++
++        # Do not override a concurrent admin-down or port deletion.
++        if [[ "$(sonic-db-cli CONFIG_DB HGET "${port_key}" "admin_status")" != "up" ]]; then
++            ip link set dev "${port}" down || true
++            continue
++        fi
++
++        echo "interfaces-config: restored host interface ${port} after ZTP cleanup"
++    done
++
++    [[ "${failed}" == false ]]
++}
++
++snapshot_ztp_cleanup_ports
++
+ # Do not run DNS configuration update during the shutdowning of the management interface. 
+ # This operation is redundant as there will be an update after the start of the interface.
+ resolvconf_updates_disable
+@@ -48,7 +133,7 @@ if [[ $(ifquery --running eth0) ]]; then
+ fi
+ 
+ # Check if ZTP DHCP policy has been installed
+-if [[ -e /etc/network/ifupdown2/policy.d/ztp_dhcp.json ]]; then
++if [[ -e "${ZTP_DHCP_POLICY_FILE}" ]]; then
+     # Obtain port operational state information
+     redis-dump -d 0 -k "PORT_TABLE:Ethernet*"  -y > /tmp/ztp_port_data.json
+ 
+@@ -88,5 +173,9 @@ sysctl -p /etc/sysctl.d/90-dhcp6-systcl.conf
+ 
+ systemctl restart networking
+ 
++if ! restore_ztp_cleanup_ports; then
++    echo "interfaces-config: one or more ZTP front-panel host interfaces were not restored"
++fi
++
+ # Clean-up created files
+ rm -f /tmp/ztp_input.json /tmp/ztp_port_data.json
