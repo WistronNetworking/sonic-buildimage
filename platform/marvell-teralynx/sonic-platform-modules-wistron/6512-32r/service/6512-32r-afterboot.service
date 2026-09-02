@@ -1,7 +1,7 @@
 [Unit]
 Description=Wistron 6512-32R execute after boot
 After=platform-modules-6512-32r.service
-Before=6512-32r-watchdog.service
+Before=6512-32r-watchdog.service determine-reboot-cause.service
 DefaultDependencies=no
 
 [Service]
