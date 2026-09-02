@@ -13,6 +13,7 @@ REBOOT_CAUSE_HARDWARE_CPU="Reset from CPU"
 REBOOT_CAUSE_HARDWARE_BUTTON="Push button"
 REBOOT_CAUSE_HARDWARE_RESET_FROM_ASIC="Reset from ASIC"
 REBOOT_CAUSE_NON_HARDWARE="Non-Hardware"
+CPU_PLATFORM_RESET="CPU Platform Reset"
 
 WATCHDOG_REBOOT_CHECK()
 {
@@ -48,10 +49,10 @@ WATCHDOG_REBOOT_CHECK()
                         reboot_reason=$REBOOT_CAUSE_THERMAL_OVERLOAD_OTHER
                 elif [[ $((reboot_cause & 0x40)) -ne 0 ]]; then
                         reboot_reason=$REBOOT_CAUSE_INSUFFICIENT_FAN_SPEED
-                elif [[ $((reboot_cause & 0x10)) -ne 0 ]]; then
-                        reboot_reason=$REBOOT_CAUSE_WATCHDOG
                 elif [[ $((reboot_cause & 0x20)) -ne 0 ]]; then
                         reboot_reason=$CPU_PLATFORM_RESET
+                elif [[ $((reboot_cause & 0x10)) -ne 0 ]]; then
+                        reboot_reason=$REBOOT_CAUSE_WATCHDOG
                 elif [[ $((reboot_cause & 0x08)) -ne 0 ]]; then
                         reboot_reason=$REBOOT_CAUSE_HARDWARE_BUTTON
                 elif [[ $((reboot_cause & 0x04)) -ne 0 ]]; then
