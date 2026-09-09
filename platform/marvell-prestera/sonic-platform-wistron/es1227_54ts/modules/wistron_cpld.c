@@ -2073,8 +2073,7 @@ static int _remove_client(struct i2c_client *client)
 }
 
 /* Probe I2C driver */
-static int wistron_i2c_cpld_probe(struct i2c_client *client,
-                                 const struct i2c_device_id *dev_id)
+static int wistron_i2c_cpld_probe(struct i2c_client *client)
 {
     int status;
 
