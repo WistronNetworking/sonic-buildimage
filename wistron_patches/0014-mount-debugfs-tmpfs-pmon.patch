@@ -1,0 +1,12 @@
+diff --git a/files/build_templates/docker_image_ctl.j2 b/files/build_templates/docker_image_ctl.j2
+index f9fcfc93e..248d701da 100644
+--- a/files/build_templates/docker_image_ctl.j2
++++ b/files/build_templates/docker_image_ctl.j2
+@@ -714,6 +714,7 @@ start() {
+ {%- endif %}
+ {%- if docker_container_name == "pmon" %}
+     -v /usr/share/sonic/firmware:/usr/share/sonic/firmware:rw \
++    $(if [[ "$PLATFORM" == *"wistron"* ]]; then echo "--mount type=tmpfs,destination=/sys/kernel/debug"; fi) \
+     $(if [ -e "/dev/i2c-0" ]; then echo "--device=/dev/i2c-0:/dev/i2c-0"; fi) \
+     $(if [ -e "/dev/ipmi0" ]; then echo "--device=/dev/ipmi0:/dev/ipmi0"; fi) \
+     $(if [ -e "/dev/sda" ]; then echo "--device=/dev/sda:/dev/sda"; fi) \
