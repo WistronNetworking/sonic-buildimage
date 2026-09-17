@@ -536,9 +536,11 @@ static int max31790_init_client(struct i2c_client *client,
 	return 0;
 }
 
-static int max31790_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static const struct i2c_device_id max31790_id[];
+
+static int max31790_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_match_id(max31790_id, client);
 	struct i2c_adapter *adapter = client->adapter;
 	struct device *dev = &client->dev;
 	struct max31790_data *data;
@@ -559,7 +561,7 @@ static int max31790_probe(struct i2c_client *client,
 	/*
 	 * Initialize the max31790 chip
 	 */
-	if (id->driver_data != 0) {
+	if (id && id->driver_data != 0) {
 		err =  max31790_init_setup(client, id->driver_data);
 	} else {
 		if (!strcmp(platform, "2227"))
