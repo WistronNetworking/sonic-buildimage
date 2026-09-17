@@ -1,0 +1,731 @@
+[wistron][ztp] preserve VLAN Option 67 across DHCP handoff
+
+SONiC publishes DHCP ZTP data through one global URL and owner lock. With
+eth0, front-panel and the Wistron VLAN DHCP client running concurrently, a
+VLAN BOUND can lose the lock race. A later STOP/RELEASE from the old owner
+then removes the only URL while the VLAN keeps its valid lease, leaving
+ztp-engine in discovery without another BOUND event.
+
+Keep an atomic per-interface DHCP candidate set under a flock. Prefer a
+valid Vlan candidate, and promote another candidate when the current owner
+exits. Accept TIMEOUT only while its leased address remains configured.
+
+Install a VLAN DHCP server route hook so an off-subnet DHCP server
+identifier is reached through the router learned on that VLAN before the
+Option 67 URL becomes visible. Store route data with each candidate so a
+promoted owner restores the matching route. Start the custom VLAN dhclient
+as a single owned instance with canonical per-interface PID and lease
+files, and serialize its lifecycle with a separate control lock.
+
+Close the lifecycle lock descriptor before launching dhclient. Otherwise
+the background daemon inherits fd 8 and holds the flock for its lifetime,
+causing later install/remove operations to time out.
+
+Enable this opt-in VLAN workaround for Wistron ES1227 36TS/54TS HWSKUs.
+During teardown, stop only the exact PID/start-time pair created by this
+workaround and clear discovery state after all DHCP exit hooks finish.
+
+Verification:
+- dash/bash syntax checks for all changed hooks and scripts
+- Ethernet11 BOUND, Vlan951 BOUND, Ethernet11 RELEASE retains the URL
+  with dhcp:Vlan951 as owner
+- 200 concurrent Vlan951 BOUND / Ethernet11 RELEASE handoffs
+- Vlan951 RELEASE removes the final URL, owner and candidate route
+- fake-ip route-hook checks for BOUND, TIMEOUT and terminal cleanup
+- launched DHCP child does not inherit lifecycle-lock fd 8
+
+diff --git a/src/sonic-ztp/src/etc/dhcp/dhclient-exit-hooks.d/vlan_dhcp_server_route b/src/sonic-ztp/src/etc/dhcp/dhclient-exit-hooks.d/vlan_dhcp_server_route
+new file mode 100755
+index 0000000..157028f
+--- /dev/null
++++ b/src/sonic-ztp/src/etc/dhcp/dhclient-exit-hooks.d/vlan_dhcp_server_route
+@@ -0,0 +1,61 @@
++#!/bin/sh
++
++# A relayed DHCP server identifier can be outside the client subnet. Ensure
++# renewals and ZTP downloads use the router learned on the same VLAN before the
++# later "ztp" exit hook publishes DHCP Option 67 to ztp-engine.
++ztp_vlan_route_lease_usable() {
++    [ "${reason:-}" != "TIMEOUT" ] && return 0
++    [ -n "${new_ip_address:-}" ] || return 1
++
++    ip -4 -o addr show dev "${interface}" 2>/dev/null | \
++        grep -Fq " ${new_ip_address}/"
++}
++
++ztp_vlan_route_delete() {
++    ztp_vlan_route_old_server=${old_dhcp_server_identifier:-}
++    ztp_vlan_route_old_server=${ztp_vlan_route_old_server%% *}
++    ztp_vlan_route_old_gateway=${old_routers:-}
++    ztp_vlan_route_old_gateway=${ztp_vlan_route_old_gateway%% *}
++
++    if [ -n "${ztp_vlan_route_old_server}" ] && \
++       [ -n "${ztp_vlan_route_old_gateway}" ]; then
++        ip route del "${ztp_vlan_route_old_server}/32" \
++            via "${ztp_vlan_route_old_gateway}" dev "${interface}" \
++            proto dhcp 2>/dev/null || true
++    fi
++}
++
++case "${reason:-}" in
++    BOUND|RENEW|REBIND|REBOOT|TIMEOUT)
++        case "${interface:-}" in
++            Vlan*)
++                if ! ztp_vlan_route_lease_usable; then
++                    ztp_vlan_route_delete
++                elif [ -n "${new_dhcp_server_identifier:-}" ] && \
++                     [ -n "${new_routers:-}" ]; then
++                    ztp_vlan_route_server=${new_dhcp_server_identifier%% *}
++                    ztp_vlan_route_gateway=${new_routers%% *}
++
++                    if [ "${old_dhcp_server_identifier:-}" != "${new_dhcp_server_identifier:-}" ] || \
++                       [ "${old_routers:-}" != "${new_routers:-}" ]; then
++                        ztp_vlan_route_delete
++                    fi
++
++                    if ! ip route replace "${ztp_vlan_route_server}/32" \
++                        via "${ztp_vlan_route_gateway}" dev "${interface}" \
++                        proto dhcp; then
++                        logger -t sonic-ztp \
++                            "Failed to install DHCP server route ${ztp_vlan_route_server}/32 via ${ztp_vlan_route_gateway} dev ${interface}"
++                    fi
++                fi
++                ;;
++        esac
++        ;;
++    EXPIRE|FAIL|RELEASE|STOP)
++        case "${interface:-}" in
++            Vlan*) ztp_vlan_route_delete ;;
++        esac
++        ;;
++esac
++
++:
+diff --git a/src/sonic-ztp/src/usr/lib/ztp/dhcp/ztp b/src/sonic-ztp/src/usr/lib/ztp/dhcp/ztp
+index b2d452c..7a59af5 100755
+--- a/src/sonic-ztp/src/usr/lib/ztp/dhcp/ztp
++++ b/src/sonic-ztp/src/usr/lib/ztp/dhcp/ztp
+@@ -19,7 +19,7 @@
+ #               These are used for Zero Touch Provisioning.
+ #
+ 
+-ZTP_RUN_DIR=/var/run/ztp
++ZTP_RUN_DIR=${ZTP_RUN_DIR:-/var/run/ztp}
+ GRAPH_URL=${ZTP_RUN_DIR}/dhcp_graph_url
+ ACL_URL=${ZTP_RUN_DIR}/dhcp_acl_url
+ PROVISIONING_SCRIPT_URL_FILE=${ZTP_RUN_DIR}/dhcp_239-provisioning-script_url
+@@ -29,27 +29,33 @@ ZTP_JSON_URL6_FILE=${ZTP_RUN_DIR}/dhcp6_59-ztp_data_url
+ ZTP_TFTP_SERVER_FILE=${ZTP_RUN_DIR}/dhcp_66-ztp_tftp_server
+ LOCK_DIR=${ZTP_RUN_DIR}/ztp.lock
+ LOCK_ID_FILE=${LOCK_DIR}/interface
++DHCP_CANDIDATE_DIR=${ZTP_RUN_DIR}/dhcp-candidates
++DHCP_STATE_LOCK=${ZTP_RUN_DIR}/dhcp-state.lock
++
++atomic_write() {
++    dst_file=$1
++    dst_value=$2
++    tmp_file="${dst_file}.$$"
++
++    printf '%s\n' "$dst_value" > "$tmp_file" && mv -f "$tmp_file" "$dst_file"
++}
+ 
+ read_lock() {
+     lock_id=""
+-    if [ -d ${LOCK_DIR} ]; then
++    if [ -f "${LOCK_ID_FILE}" ]; then
+         lock_id=$(cat "${LOCK_ID_FILE}")
+     fi
+-    echo $lock_id
++    printf '%s\n' "$lock_id"
+ }
+ 
+ take_lock() {
+     rv=1
+     proto=$1
+ 
+-    if [ ! -d ${ZTP_RUN_DIR} ]; then
+-        mkdir -p ${ZTP_RUN_DIR}
+-    fi
+-
+-    if [ ! -d ${LOCK_DIR} ]; then
+-        mkdir ${LOCK_DIR}  > /dev/null 2>&1
++    if [ ! -d "${LOCK_DIR}" ]; then
++        mkdir "${LOCK_DIR}" > /dev/null 2>&1
+         rv=$?
+-        [ "$rv" = "0" ] && echo "$proto:$interface" > ${LOCK_ID_FILE}
++        [ "$rv" = "0" ] && atomic_write "${LOCK_ID_FILE}" "$proto:$interface"
+     else
+         [ "$(read_lock)" = "$proto:$interface" ] && rv=0
+     fi
+@@ -64,6 +70,220 @@ give_lock() {
+     fi
+ }
+ 
++valid_dhcp_interface() {
++    interface_index=""
++    case "$interface" in
++        eth*) interface_index=${interface#eth} ;;
++        Ethernet*) interface_index=${interface#Ethernet} ;;
++        Vlan*) interface_index=${interface#Vlan} ;;
++        *) return 1 ;;
++    esac
++
++    case "$interface_index" in
++        ""|*[!0-9]*) return 1 ;;
++        *) return 0 ;;
++    esac
++}
++
++candidate_has_data() {
++    candidate_path=$1
++
++    [ -s "${candidate_path}/ztp-json-url" ] || \
++    [ -s "${candidate_path}/provisioning-script-url" ] || \
++    [ -s "${candidate_path}/graph-url" ]
++}
++
++dhcp_lease_is_usable() {
++    [ "$reason" != "TIMEOUT" ] && return 0
++    [ -n "${new_ip_address:-}" ] || return 1
++
++    ip -4 -o addr show dev "$interface" 2>/dev/null | \
++        grep -Fq " ${new_ip_address}/"
++}
++
++set_candidate_value() {
++    candidate_file=$1
++    candidate_value=$2
++
++    if [ -n "$candidate_value" ]; then
++        atomic_write "$candidate_file" "$candidate_value"
++    else
++        rm -f "$candidate_file"
++    fi
++}
++
++update_dhcp_candidate() {
++    candidate_server=${new_dhcp_server_identifier:-}
++    candidate_server=${candidate_server%% *}
++    candidate_router=${new_routers:-}
++    candidate_router=${candidate_router%% *}
++
++    valid_dhcp_interface || return 1
++    dhcp_lease_is_usable || return 1
++
++    candidate_path="${DHCP_CANDIDATE_DIR}/${interface}"
++    mkdir -p "$candidate_path" || return 1
++
++    set_candidate_value "${candidate_path}/ztp-json-url" "${new_bootfile_name:-}"
++    set_candidate_value "${candidate_path}/tftp-server" "${new_tftp_server_name:-}"
++    set_candidate_value "${candidate_path}/provisioning-script-url" "${new_provisioning_script_url:-}"
++    set_candidate_value "${candidate_path}/graph-url" "${new_minigraph_url:-}"
++    set_candidate_value "${candidate_path}/acl-url" "${new_acl_url:-}"
++    set_candidate_value "${candidate_path}/dhcp-server" "$candidate_server"
++    set_candidate_value "${candidate_path}/router" "$candidate_router"
++
++    if ! candidate_has_data "$candidate_path"; then
++        rm -rf "$candidate_path"
++        return 1
++    fi
++
++    return 0
++}
++
++clear_published_dhcp_data() {
++    rm -f "$PROVISIONING_SCRIPT_URL_FILE"
++    rm -f "$ZTP_JSON_URL_FILE"
++    rm -f "$ZTP_TFTP_SERVER_FILE"
++    rm -f "$GRAPH_URL"
++    rm -f "$ACL_URL"
++}
++
++publish_candidate_file() {
++    candidate_file=$1
++    published_file=$2
++
++    if [ -s "$candidate_file" ]; then
++        candidate_value=$(cat "$candidate_file")
++        atomic_write "$published_file" "$candidate_value"
++    fi
++}
++
++install_candidate_route() {
++    candidate_interface=$1
++    candidate_path="${DHCP_CANDIDATE_DIR}/${candidate_interface}"
++
++    case "$candidate_interface" in
++        Vlan[0-9]*) ;;
++        *) return 0 ;;
++    esac
++
++    [ -s "${candidate_path}/dhcp-server" ] || return 0
++    [ -s "${candidate_path}/router" ] || return 0
++
++    candidate_server=$(cat "${candidate_path}/dhcp-server")
++    candidate_router=$(cat "${candidate_path}/router")
++    if ! ip route replace "${candidate_server}/32" via "$candidate_router" \
++        dev "$candidate_interface" proto dhcp; then
++        logger -t sonic-ztp \
++            "Failed to install DHCP server route ${candidate_server}/32 via ${candidate_router} dev ${candidate_interface}"
++        return 1
++    fi
++}
++
++delete_candidate_route() {
++    candidate_interface=$1
++    candidate_path="${DHCP_CANDIDATE_DIR}/${candidate_interface}"
++
++    case "$candidate_interface" in
++        Vlan[0-9]*) ;;
++        *) return 0 ;;
++    esac
++
++    [ -s "${candidate_path}/dhcp-server" ] || return 0
++    [ -s "${candidate_path}/router" ] || return 0
++
++    candidate_server=$(cat "${candidate_path}/dhcp-server")
++    candidate_router=$(cat "${candidate_path}/router")
++    ip route del "${candidate_server}/32" via "$candidate_router" \
++        dev "$candidate_interface" proto dhcp 2>/dev/null || true
++}
++
++publish_dhcp_candidate() {
++    candidate_interface=$1
++    candidate_path="${DHCP_CANDIDATE_DIR}/${candidate_interface}"
++
++    candidate_has_data "$candidate_path" || return 1
++    install_candidate_route "$candidate_interface" || return 1
++
++    clear_published_dhcp_data
++    mkdir -p "$LOCK_DIR" || return 1
++    atomic_write "$LOCK_ID_FILE" "dhcp:${candidate_interface}" || return 1
++
++    # Publish ancillary data before the primary discovery URLs. The route hook
++    # is ordered before this hook by run-parts, so a visible URL is reachable.
++    publish_candidate_file "${candidate_path}/tftp-server" "$ZTP_TFTP_SERVER_FILE"
++    publish_candidate_file "${candidate_path}/acl-url" "$ACL_URL"
++    publish_candidate_file "${candidate_path}/ztp-json-url" "$ZTP_JSON_URL_FILE"
++    publish_candidate_file "${candidate_path}/provisioning-script-url" "$PROVISIONING_SCRIPT_URL_FILE"
++    publish_candidate_file "${candidate_path}/graph-url" "$GRAPH_URL"
++}
++
++select_dhcp_candidate() {
++    # Prefer a VLAN lease over eth0/front-panel leases. The Wistron workaround
++    # deliberately starts DHCP on Vlan interfaces after in-band connectivity is
++    # available.
++    for candidate_path in "${DHCP_CANDIDATE_DIR}"/Vlan*; do
++        [ -d "$candidate_path" ] || continue
++        candidate_has_data "$candidate_path" || continue
++        basename "$candidate_path"
++        return 0
++    done
++
++    for candidate_path in "${DHCP_CANDIDATE_DIR}"/*; do
++        [ -d "$candidate_path" ] || continue
++        case "$(basename "$candidate_path")" in
++            Vlan*) continue ;;
++        esac
++        candidate_has_data "$candidate_path" || continue
++        basename "$candidate_path"
++        return 0
++    done
++
++    return 1
++}
++
++promote_dhcp_candidate() {
++    candidate_interface=$(select_dhcp_candidate) || return 1
++    publish_dhcp_candidate "$candidate_interface"
++}
++
++cleanup_dhcp_candidate() {
++    valid_dhcp_interface || return 0
++
++    delete_candidate_route "$interface"
++    rm -rf "${DHCP_CANDIDATE_DIR}/${interface}"
++
++    if [ "$(read_lock)" != "dhcp:${interface}" ]; then
++        return 0
++    fi
++
++    if ! promote_dhcp_candidate; then
++        clear_published_dhcp_data
++        give_lock dhcp
++    fi
++}
++
++process_dhcp_success() {
++    if [ "$reason" = "TIMEOUT" ] && ! dhcp_lease_is_usable; then
++        cleanup_dhcp_candidate
++        return 0
++    fi
++
++    update_dhcp_candidate || return 0
++
++    current_owner=$(read_lock)
++    if [ -z "$current_owner" ] || [ "$current_owner" = "dhcp:${interface}" ]; then
++        publish_dhcp_candidate "$interface"
++        return
++    fi
++
++    # A valid VLAN lease supersedes an eth0/Ethernet owner. Later STOP/RELEASE
++    # events from the old owner cannot delete the VLAN candidate.
++    case "$interface:$current_owner" in
++        Vlan*:dhcp:*) publish_dhcp_candidate "$interface" ;;
++    esac
++}
++
+ # Check if updategraph service is administratively enabled
+ updategraph_is_enabled()
+ {
+@@ -75,57 +295,53 @@ updategraph_is_enabled()
+     return $rv
+ }
+ 
+-if [ "$reason" != BOUND ] && [ "$reason" != RENEW ] \
+-   && [ "$reason" != REBIND ] && [ "$reason" != REBOOT ] \
+-   && [ "$reason" != BOUND6 ] && [ "$reason" != RENEW6 ] \
+-   && [ "$reason" != REBIND6 ]
+-then
+-    proto_num=$(echo -n $reason | tail -c -1)
+-    if [ "$proto_num" != "6" ]; then
+-        take_lock dhcp
+-        if [ $? -eq 0 ]; then
+-            rm -f $PROVISIONING_SCRIPT_URL_FILE
+-            rm -f $ZTP_JSON_URL_FILE
+-            rm -f $ZTP_TFTP_SERVER_FILE
+-            rm -f ${GRAPH_URL}
+-            rm -f ${ACL_URL}
+-            give_lock dhcp
+-        fi
+-    else
+-        take_lock dhcp6
+-        if [ $? -eq 0 ]; then
+-            rm -f $PROVISIONING_SCRIPT_URL6_FILE
+-            rm -f $ZTP_JSON_URL6_FILE
+-            give_lock dhcp6
+-        fi
+-    fi
+-fi
+-
+-if [ "$(ztp status -c)" != "0:DISABLED" ]; then
+-    if [ -n "$new_bootfile_name" ]; then
+-        take_lock dhcp && echo $new_bootfile_name > $ZTP_JSON_URL_FILE
+-        if [ -n "$new_tftp_server_name" ]; then
+-            take_lock dhcp && echo $new_tftp_server_name > $ZTP_TFTP_SERVER_FILE
+-        fi
+-    fi
+-
+-    if [ -n "$new_dhcp6_boot_file_url" ]; then
+-        take_lock dhcp6 && echo $new_dhcp6_boot_file_url > $ZTP_JSON_URL6_FILE
+-    fi
++process_ztp_dhcp_hook() {
++    case "$reason" in
++        EXPIRE|FAIL|RELEASE|STOP)
++            cleanup_dhcp_candidate
++            ;;
++        BOUND6|RENEW6|REBIND6)
++            ;;
++        *6)
++            if take_lock dhcp6; then
++                rm -f "$PROVISIONING_SCRIPT_URL6_FILE"
++                rm -f "$ZTP_JSON_URL6_FILE"
++                give_lock dhcp6
++                [ -d "$LOCK_DIR" ] || promote_dhcp_candidate || true
++            fi
++            ;;
++    esac
+ 
+-    if [ -n "$new_provisioning_script_url" ]; then
+-        take_lock dhcp && echo $new_provisioning_script_url > $PROVISIONING_SCRIPT_URL_FILE
++    if [ "$(ztp status -c)" = "0:DISABLED" ]; then
++        return 0
+     fi
+ 
+-    if [ -n "$new_dhcp6_provisioning_script_url" ]; then
+-        take_lock dhcp6 && echo $new_dhcp6_provisioning_script_url > $PROVISIONING_SCRIPT_URL6_FILE
+-    fi
++    case "$reason" in
++        BOUND|RENEW|REBIND|REBOOT|TIMEOUT)
++            process_dhcp_success
++            ;;
++        BOUND6|RENEW6|REBIND6)
++            if [ -n "${new_dhcp6_boot_file_url:-}" ]; then
++                take_lock dhcp6 && atomic_write "$ZTP_JSON_URL6_FILE" "$new_dhcp6_boot_file_url"
++            fi
+ 
+-    if [ -n "$new_minigraph_url" ]; then
+-        take_lock dhcp && echo $new_minigraph_url > ${GRAPH_URL}
++            if [ -n "${new_dhcp6_provisioning_script_url:-}" ]; then
++                take_lock dhcp6 && atomic_write "$PROVISIONING_SCRIPT_URL6_FILE" "$new_dhcp6_provisioning_script_url"
++            fi
++            ;;
++    esac
++}
+ 
+-        if [ -n "$new_acl_url" ]; then
+-            take_lock dhcp && echo $new_acl_url > ${ACL_URL}
++if mkdir -p "$ZTP_RUN_DIR" "$DHCP_CANDIDATE_DIR"; then
++    (
++        if ! flock -w 10 -x 9; then
++            logger -t sonic-ztp "Timed out waiting for the DHCP discovery state lock"
++            exit 0
+         fi
+-    fi
++        process_ztp_dhcp_hook
++    ) 9>"$DHCP_STATE_LOCK"
++else
++    logger -t sonic-ztp "Failed to create the DHCP discovery runtime directory"
+ fi
++
++:
+diff --git a/src/sonic-ztp/src/usr/lib/ztp/ztp-profile.sh b/src/sonic-ztp/src/usr/lib/ztp/ztp-profile.sh
+index ec29c4b..aa4ad64 100755
+--- a/src/sonic-ztp/src/usr/lib/ztp/ztp-profile.sh
++++ b/src/sonic-ztp/src/usr/lib/ztp/ztp-profile.sh
+@@ -36,6 +36,8 @@ SYSLOG_CONF_FILE=/etc/rsyslog.d/10-ztp-log-forwarding.conf
+ SYSLOG_CONSOLE_CONF_FILE=/etc/rsyslog.d/10-ztp-console-logging.conf
+ CMD=$1
+ ZTP_ACTIVITY=/var/run/ztp/activity
++VLAN_DHCLIENT_MARKER_DIR=/run/ztp/vlan-dhclient
++VLAN_DHCLIENT_CONTROL_LOCK=/run/ztp/vlan-dhclient-control.lock
+ 
+ # Conditional flag to execute INBAND ZTP VLAN WORKROUND 
+ AMAZON_FLAG=false 
+@@ -45,6 +47,10 @@ HOOK_ALL_VLANS=true  # Change this to false to only hook VLAN 951
+ PLATFORM=`sonic-cfggen -H -v DEVICE_METADATA.localhost.platform`
+ PRESET=(`head -n 1 /usr/share/sonic/device/$PLATFORM/default_sku`)
+ HW_KEY=${PRESET[0]}
++
++case "${HW_KEY}" in
++    wistron_es1227_36ts*|wistron_es1227_54ts*) AMAZON_FLAG=true ;;
++esac
+  
+ # Command usage and help
+ usage()
+@@ -185,7 +191,163 @@ check_vlan951_exists() {
+         return 1
+     fi
+ }
+- 
++
++vlan_dhclient_process_matches() {
++    local cmdline
++    local executable
++    local pid
++    local vlan=$1
++    pid=$2
++
++    [[ "${pid}" =~ ^[0-9]+$ ]] || return 1
++    kill -0 "${pid}" 2>/dev/null || return 1
++    [[ -r "/proc/${pid}/cmdline" ]] || return 1
++    executable=$(readlink -f "/proc/${pid}/exe" 2>/dev/null) || return 1
++    [[ "${executable##*/}" == "dhclient" ]] || return 1
++
++    cmdline=$(tr '\0' ' ' < "/proc/${pid}/cmdline")
++    [[ "${cmdline}" == *dhclient* && " ${cmdline} " == *" ${vlan} "* ]]
++}
++
++vlan_dhclient_pid() {
++    local pid
++    local pid_file
++    local vlan=$1
++
++    pid_file="/run/dhclient.${vlan}.pid"
++    [[ -s "${pid_file}" ]] || return 1
++
++    pid=$(<"${pid_file}")
++    vlan_dhclient_process_matches "${vlan}" "${pid}" || return 1
++    printf '%s\n' "${pid}"
++}
++
++vlan_dhclient_starttime() {
++    local pid=$1
++
++    [[ -r "/proc/${pid}/stat" ]] || return 1
++    awk '{print $22}' "/proc/${pid}/stat"
++}
++
++start_vlan_dhclient_locked() {
++    local lease_file
++    local marker_file
++    local marker_tmp
++    local pid
++    local pid_file
++    local retry
++    local starttime
++    local vlan=$1
++
++    pid_file="/run/dhclient.${vlan}.pid"
++    lease_file="/var/lib/dhcp/dhclient.${vlan}.leases"
++    marker_file="${VLAN_DHCLIENT_MARKER_DIR}/${vlan}"
++
++    if pid=$(vlan_dhclient_pid "${vlan}"); then
++        echo "DHCP client is already running on ${vlan} (pid ${pid})"
++        return 0
++    fi
++
++    # Remove only a stale PID file. A live process must pass the interface
++    # command-line check above before it is treated as this VLAN's client.
++    rm -f "${pid_file}"
++
++    echo "Starting DHCP client on ${vlan}"
++    if dhclient -nw -v -pf "${pid_file}" -lf "${lease_file}" "${vlan}" 8>&-; then
++        for ((retry = 0; retry < 50; retry++)); do
++            if pid=$(vlan_dhclient_pid "${vlan}") && \
++               starttime=$(vlan_dhclient_starttime "${pid}"); then
++                marker_tmp="${marker_file}.$$"
++                if printf '%s %s\n' "${pid}" "${starttime}" > "${marker_tmp}" && \
++                   mv -f "${marker_tmp}" "${marker_file}"; then
++                    return 0
++                fi
++                rm -f "${marker_tmp}"
++            fi
++            sleep 0.1
++        done
++    fi
++
++    echo "Failed to start or identify DHCP client on ${vlan}"
++    return 1
++}
++
++start_vlan_dhclient() {
++    local vlan=$1
++
++    mkdir -p "${VLAN_DHCLIENT_MARKER_DIR}"
++    (
++        if ! flock -w 10 -x 8; then
++            echo "Timed out waiting to start DHCP client on ${vlan}"
++            exit 1
++        fi
++        start_vlan_dhclient_locked "${vlan}"
++    ) 8>"${VLAN_DHCLIENT_CONTROL_LOCK}"
++}
++
++stop_vlan_dhclients_locked() {
++    local current_pid
++    local current_starttime
++    local marker_file
++    local owned_pid
++    local owned_starttime
++    local pid_file
++    local retry
++    local stop_failed=false
++    local vlan
++
++    for marker_file in "${VLAN_DHCLIENT_MARKER_DIR}"/Vlan*; do
++        [[ -e "${marker_file}" ]] || continue
++
++        vlan=${marker_file##*/}
++        pid_file="/run/dhclient.${vlan}.pid"
++        read -r owned_pid owned_starttime < "${marker_file}" || true
++
++        current_pid=$(vlan_dhclient_pid "${vlan}" 2>/dev/null || true)
++        current_starttime=""
++        if [[ -n "${current_pid}" ]]; then
++            current_starttime=$(vlan_dhclient_starttime "${current_pid}" 2>/dev/null || true)
++        fi
++
++        if [[ "${current_pid}" == "${owned_pid}" && \
++              "${current_starttime}" == "${owned_starttime}" && \
++              -n "${owned_pid}" ]]; then
++            echo "Stopping DHCP client on ${vlan} (pid ${owned_pid})"
++            kill "${owned_pid}" 2>/dev/null || true
++
++            for ((retry = 0; retry < 20; retry++)); do
++                kill -0 "${owned_pid}" 2>/dev/null || break
++                sleep 0.1
++            done
++
++            if kill -0 "${owned_pid}" 2>/dev/null; then
++                echo "Failed to stop DHCP client on ${vlan} (pid ${owned_pid})"
++                stop_failed=true
++                continue
++            fi
++        fi
++
++        # Do not remove a PID file that may now belong to another dhclient.
++        if [[ -s "${pid_file}" && "$(<"${pid_file}")" == "${owned_pid}" ]]; then
++            rm -f "${pid_file}"
++        fi
++        rm -f "${marker_file}"
++    done
++
++    [[ "${stop_failed}" == false ]]
++}
++
++stop_vlan_dhclients() {
++    mkdir -p "${VLAN_DHCLIENT_MARKER_DIR}"
++    (
++        if ! flock -w 10 -x 8; then
++            echo "Timed out waiting to stop ZTP VLAN DHCP clients"
++            exit 1
++        fi
++        stop_vlan_dhclients_locked
++    ) 8>"${VLAN_DHCLIENT_CONTROL_LOCK}"
++}
++
+ hook_dhcp_for_vlans() {
+     if [ "$HOOK_ALL_VLANS" = true ]; then
+         for vlan in $(ip link show | grep -o 'Vlan[0-9]*' | sort -u); do
+@@ -219,8 +381,7 @@ hook_dhcp_for_vlans() {
+                 done
+ 
+                 if $found_up_member; then
+-                    echo "Starting DHCP client on $vlan"
+-                    dhclient -v "$vlan" &
++                    start_vlan_dhclient "$vlan"
+                 else
+                     echo "Skipping $vlan: No member ports are up."
+                 fi
+@@ -257,8 +418,7 @@ hook_dhcp_for_vlans() {
+             done
+ 
+             if $found_up_member; then
+-                echo "Starting DHCP client on Vlan951"
+-                dhclient -v "Vlan951" &
++                start_vlan_dhclient "Vlan951"
+             else
+                 echo "Skipping Vlan951: No member ports are up."
+             fi
+@@ -343,12 +503,12 @@ if [ "$CMD" = "install" ]; then
+ 
+ # Process ZTP profile remove request
+ elif [ "$CMD" = "remove" ]; then
++    if ! stop_vlan_dhclients; then
++        echo "Warning: one or more ZTP VLAN DHCP clients did not stop cleanly."
++    fi
+  
+     # Remove ZTP configuration profile if it still exists
+     if [ "$(get_ztp_profile)" != "no-ztp" ]; then
+-        # Cleanup locks held by the ZTP session
+-        rm -rf /var/run/ztp/ztp.lock
+- 
+         if [ "$2" = "config-fallback" ]; then
+             updateActivity "Waiting for system online status before stopping ZTP"
+             echo "Waiting for system online status before stopping ZTP. (This may take 30--$(expr $RETRY_COUNT \* $RETRY_INTERVAL) seconds)."
+@@ -378,6 +538,24 @@ elif [ "$CMD" = "remove" ]; then
+  
+     # Remove ZTP DHCP policy
+     rm -f ${DHCP_POLICY_FILE}
++
++    # Remove runtime discovery state after all managed DHCP clients and network
++    # interfaces have completed their exit hooks. Keep the flock inode in place
++    # so another hook cannot lock a newly-created inode during this cleanup.
++    mkdir -p /var/run/ztp
++    (
++        if ! flock -w 10 -x 9; then
++            echo "Warning: timed out waiting to clean ZTP DHCP discovery state."
++            exit 0
++        fi
++        rm -rf /var/run/ztp/dhcp-candidates /var/run/ztp/ztp.lock
++        rm -f /var/run/ztp/dhcp_239-provisioning-script_url
++        rm -f /var/run/ztp/dhcp6_239-provisioning-script_url
++        rm -f /var/run/ztp/dhcp_67-ztp_data_url
++        rm -f /var/run/ztp/dhcp6_59-ztp_data_url
++        rm -f /var/run/ztp/dhcp_66-ztp_tftp_server
++        rm -f /var/run/ztp/dhcp_graph_url /var/run/ztp/dhcp_acl_url
++    ) 9>/var/run/ztp/dhcp-state.lock
+  
+     # Remove syslog forwarding and console logging configuration
+     if [ -f /etc/dhcp/dhclient-exit-hooks.d/ztp-rsyslog ] || \

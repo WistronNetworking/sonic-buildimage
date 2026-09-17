@@ -12,6 +12,8 @@ ZTP_ACTION="disable"
 ZTP_PATCH_FILES=(
     "$ZTP_DIR/0002-Add-dhcp_l2-dhcpv6_l2-to-copp-supported-list.patch"
     "$ZTP_DIR/0002-ztp-workaround-mac-table-added.patch"
+    "$ZTP_DIR/0003-ztp-restore-front-panel-hostifs.patch"
+    "$ZTP_DIR/0004-ztp-vlan-dhcp-option67-race.patch"
 )
 
 # Parse arguments for simpler execution
