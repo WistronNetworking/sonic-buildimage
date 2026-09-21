@@ -12,6 +12,8 @@ ZTP_ACTION="disable"
 ZTP_PATCH_FILES=(
     "$ZTP_DIR/0002-Add-dhcp_l2-dhcpv6_l2-to-copp-supported-list.patch"
     "$ZTP_DIR/0002-ztp-workaround-mac-table-added.patch"
+    "$ZTP_DIR/0003-ztp-restore-front-panel-hostifs.patch"
+    "$ZTP_DIR/0004-ztp-vlan-dhcp-option67-race.patch"
 )
 
 # Parse arguments for simpler execution
@@ -41,6 +43,43 @@ if [ ! -d "$PATCH_DIR" ]; then
     exit 1
 fi
 
+# Later ZTP patches can change the context of earlier patches. Check an
+# earlier patch against a disposable copy with those later layers removed;
+# never reverse patches in the user's working tree just to detect state.
+ztp_patch_is_applied() (
+    local requested=$1
+    local scratch
+    local patch_file
+    local path
+    local index
+    local found=false
+
+    for patch_file in "${ZTP_PATCH_FILES[@]}"; do
+        [[ "$patch_file" == "$requested" ]] && found=true
+    done
+    [[ "$found" == true ]] || return 1
+
+    scratch=$(mktemp -d) || return 1
+    trap 'rm -rf -- "$scratch"' EXIT
+    while IFS= read -r path; do
+        if [[ -f "$path" ]]; then
+            cp --parents -p -- "$path" "$scratch/" || return 1
+        fi
+    done < <(awk '/^diff --git / {sub(/^b\//, "", $4); print $4}' "${ZTP_PATCH_FILES[@]}" | sort -u)
+
+    for ((index=${#ZTP_PATCH_FILES[@]}-1; index>=0; index--)); do
+        patch_file=${ZTP_PATCH_FILES[$index]}
+        if [[ "$patch_file" == "$requested" ]]; then
+            patch -d "$scratch" -p1 -R --dry-run --force < "$patch_file" >/dev/null 2>&1
+            return $?
+        fi
+        if patch -d "$scratch" -p1 -R --dry-run --force < "$patch_file" >/dev/null 2>&1; then
+            patch -d "$scratch" -p1 -R --force < "$patch_file" >/dev/null 2>&1 || return 1
+        fi
+    done
+    return 1
+)
+
 # Function to apply a single patch
 apply_patch_file() {
     local patch_file="$1"
@@ -55,7 +94,8 @@ apply_patch_file() {
     # --force (NOT --batch): --batch answers "Unreversed patch detected!" with
     # "ignore -R" and retries FORWARD, so an unapplied patch that applies cleanly
     # passes this reverse check and gets skipped as "already applied".
-    if patch -p1 -R --dry-run --force < "$patch_file" >/dev/null 2>&1; then
+    if patch -p1 -R --dry-run --force < "$patch_file" >/dev/null 2>&1 ||
+       ztp_patch_is_applied "$patch_file"; then
         echo "[INFO] SKIP: $patch_file (Already applied)"
         echo "----------------------------------------"
         return 0
