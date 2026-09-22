@@ -1,3 +1,5 @@
+import math
+
 from sonic_platform_base.sonic_thermal_control.thermal_info_base import ThermalPolicyInfoBase
 from sonic_platform_base.sonic_thermal_control.thermal_json_object import thermal_json_object
 
@@ -91,6 +93,7 @@ class ThermalInfo(ThermalPolicyInfoBase):
         self.critical_high_thres = False
         self.warm_up_thres = False
         self._temp_dict = {}
+        self._shutdown_temp_dict = {}
 
     def collect(self, chassis):
         """
@@ -108,47 +111,59 @@ class ThermalInfo(ThermalPolicyInfoBase):
         self.high_thres = False
         self.critical_high_thres = False
         self.warm_up_thres = False
+        self._temp_dict = {}
+        self._shutdown_temp_dict = {}
 
         # Collect the information
         for index in range(num_of_thermals):
-            if not chassis.get_thermal(index).get_presence():
+            thermal = chassis.get_thermal(index)
+            previous_state = self._state[index]
+            self._state[index] = "n/a"
+            self._enter_warm_up_state[index] = False
+
+            if not thermal.get_presence():
                 continue
 
-            # Store the temperature in the DB
-            name = chassis.get_thermal(index).get_name()
-            temp = chassis.get_thermal(index).get_temperature()
+            # This SKU exposes the standard high and high-critical threshold
+            # APIs. Ignore unavailable or invalid samples so stale alarms do
+            # not trigger a shutdown.
+            try:
+                temp = float(thermal.get_temperature())
+                high_temp = float(thermal.get_high_threshold())
+                critical_high_temp = float(thermal.get_high_critical_threshold())
+            except (TypeError, ValueError):
+                continue
+
+            if not all(math.isfinite(value) for value in
+                       (temp, high_temp, critical_high_temp)):
+                continue
+
+            name = thermal.get_name()
             self._temp_dict[name] = temp
 
-            # Get the threshold
-            normal_temp = chassis.get_thermal(index).get_high_threshold()
-            high_temp = chassis.get_thermal(index).get_caution2_threshold()
-            critical_high_temp = chassis.get_thermal(index).get_high_critical_threshold()
-
-            # Check if the temperature is over the threshold
-            if temp < normal_temp:
-                self._state[index] = "n/a"
-            elif normal_temp <= temp < high_temp:
-                self._state[index] = "normal"
-            elif high_temp <= temp < critical_high_temp:
-                if self._state[index] == "high":
-                    self._enter_warm_up_state[index] = True
-                self._state[index] = "high"
-            elif temp >= critical_high_temp:
+            if temp >= critical_high_temp:
                 self._state[index] = "critical"
-
-            # Check the system status
-            if self._state[index] == "critical":
                 self.critical_high_thres = True
-            elif self._state[index] == "high":
+                self._shutdown_temp_dict[name] = temp
+            elif temp >= high_temp:
+                self._state[index] = "high"
                 self.high_thres = True
-            elif self._state[index] == "normal":
+                # Preserve the existing policy: a second consecutive high
+                # sample after the cooling interval requests shutdown.
+                if previous_state == "high":
+                    self._enter_warm_up_state[index] = True
+                    self.warm_up_thres = True
+                    self._shutdown_temp_dict[name] = temp
+            else:
+                self._state[index] = "normal"
                 self.normal_thres = True
-
-            if self._enter_warm_up_state[index]:
-                self.warm_up_thres = True
 
     def get_temp_dict(self):
         return self._temp_dict
+
+    def get_shutdown_temp_dict(self):
+        """Return sensors which currently justify the shutdown policy."""
+        return self._shutdown_temp_dict
 
     def is_over_high_threshold(self):
         """

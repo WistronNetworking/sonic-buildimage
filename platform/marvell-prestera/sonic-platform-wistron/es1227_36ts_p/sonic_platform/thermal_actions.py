@@ -1,6 +1,7 @@
 from sonic_platform_base.sonic_thermal_control.thermal_action_base import ThermalPolicyActionBase
 from sonic_platform_base.sonic_thermal_control.thermal_json_object import thermal_json_object
 import math
+import os
 import time
 import sonic_platform.platform
 try:
@@ -101,9 +102,14 @@ class SetFanSpeedAction(ThermalPolicyActionBase):
         return fan_speed
 
     @classmethod
-    def power_down(cls):
-        chassis = cls().get_chassis()
-        chassis.power_down()
+    def power_down(cls, chassis):
+        try:
+            if chassis.power_down():
+                return True
+        except Exception as error:
+            sonic_logger.log_error("CPLD power-down raised an error: {}".format(error))
+        sonic_logger.log_error("Thermal shutdown failed; watchdog remains enabled")
+        return False
 
     @classmethod
     def get_temp(cls, thermal_info_dict):
@@ -159,16 +165,17 @@ class SwitchPolicyAction(ThermalPolicyActionBase):
         :param thermal_info_dict: A dictionary stores all thermal information.
         :return:
         """
-        from .thermal_infos import ThermalInfo
+        from .thermal_infos import ChassisInfo, ThermalInfo
         if ThermalInfo.INFO_NAME in thermal_info_dict and \
                 isinstance(thermal_info_dict[ThermalInfo.INFO_NAME], ThermalInfo):
 
             thermal_info_obj = thermal_info_dict[ThermalInfo.INFO_NAME]
-            temp_info = thermal_info_obj.get_temp_dict()
+            temp_info = thermal_info_obj.get_shutdown_temp_dict()
+            if not temp_info:
+                return False
             for key in temp_info:
                 sonic_logger.log_warning(
                     "Temp is over high critical threshold, system shutdown {} temperature is {}".format(key, temp_info[key]))
-            import os
             from sonic_platform.chassis import HOST_REBOOT_CAUSE_PATH, PMON_REBOOT_CAUSE_PATH, REBOOT_CAUSE_FILE
 
             components = set()
@@ -191,12 +198,30 @@ class SwitchPolicyAction(ThermalPolicyActionBase):
 
             host_path = HOST_REBOOT_CAUSE_PATH + REBOOT_CAUSE_FILE
             pmon_path = PMON_REBOOT_CAUSE_PATH + REBOOT_CAUSE_FILE
-            os.system(f"sudo sh -c 'echo \"{reboot_msg}\" > {host_path}'")
-            os.system(f"sudo sh -c 'echo \"{reboot_msg}\" > {pmon_path}'")
-            os.system('sync')
-            SetFanSpeedAction.power_down()
+            for path in (host_path, pmon_path):
+                try:
+                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                    with open(path, 'w') as cause_file:
+                        cause_file.write(reboot_msg + '\n')
+                except OSError as error:
+                    sonic_logger.log_error(
+                        "Failed to record thermal cause in {}: {}".format(path, error))
+            os.sync()
+
+            chassis_info = thermal_info_dict.get(ChassisInfo.INFO_NAME)
+            if isinstance(chassis_info, ChassisInfo):
+                chassis = chassis_info.get_chassis()
+            else:
+                chassis = None
+            if chassis is None:
+                chassis = self._get_chassis()
+            return SetFanSpeedAction.power_down(chassis)
         # import os
         # os.system('reboot')
+
+    @staticmethod
+    def _get_chassis():
+        return sonic_platform.platform.Platform().get_chassis()
 
 @thermal_json_object('fan.set_speed')
 class SetAllFanSpeedAction(SetFanSpeedAction):

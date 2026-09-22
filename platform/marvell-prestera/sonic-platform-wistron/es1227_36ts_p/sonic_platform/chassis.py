@@ -435,8 +435,16 @@ class Chassis(ChassisBase):
         raise NotImplementedError
 
     def power_down(self):
-        power_down_path="{}/system_power_down".format(CPLD_SYSFS_DIR)
-        self.__write_txt_file(power_down_path, str(0))
+        """Request CPLD power-down, including when called from pmon."""
+        power_down_path = "{}/system_power_down".format(CPLD_SYSFS_DIR)
+        try:
+            with open(power_down_path, 'w') as power_down_file:
+                power_down_file.write('0')
+            return True
+        except OSError as error:
+            sonic_logger.log_error(
+                "Failed to request CPLD power-down: {}".format(error))
+            return False
 
     def set_sysled_red(self):
         sysled_path="{}/sys_led".format(CPLD_SYSFS_DIR)
