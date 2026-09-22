@@ -2,6 +2,7 @@ es1227_54ts/scripts/es1227_54ts_plt_setup.sh usr/local/bin
 es1227_54ts/scripts/entropy.py etc/
 es1227_54ts/scripts/fw_env.config etc/
 es1227_54ts/scripts/es1227_54ts-init.sh usr/local/bin
+es1227_54ts/sonic_platform-1.0-py3-none-any.whl usr/share/sonic/device/arm64-wistron_es1227_54ts-r0
 es1227_54ts/service/es1227_54ts-init.service etc/systemd/system
 es1227_54ts/service/es1227_54ts-sysled.service etc/systemd/system
 es1227_54ts/service/es1227_54ts-rst_button.service etc/systemd/system

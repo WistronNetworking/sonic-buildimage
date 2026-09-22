@@ -195,8 +195,7 @@ struct pmbus_driver_info wistron_psu_info = {
         PMBUS_HAVE_POUT,
 };
 
-static int pmbus_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int pmbus_probe(struct i2c_client *client)
 {
     struct device *dev = &client->dev;
     int ret;
