@@ -102,9 +102,8 @@ class SetFanSpeedAction(ThermalPolicyActionBase):
 
     @classmethod
     def power_down(cls):
-        import os
-        if os.system('systemctl poweroff') != 0:
-            os.system('poweroff')
+        chassis = cls().get_chassis()
+        chassis.power_down()
 
     @classmethod
     def get_temp(cls, thermal_info_dict):
@@ -195,7 +194,6 @@ class SwitchPolicyAction(ThermalPolicyActionBase):
             os.system(f"sudo sh -c 'echo \"{reboot_msg}\" > {host_path}'")
             os.system(f"sudo sh -c 'echo \"{reboot_msg}\" > {pmon_path}'")
             os.system('sync')
-            os.system('systemctl stop es1227_36ts_p-watchdog')
             SetFanSpeedAction.power_down()
         # import os
         # os.system('reboot')
