@@ -1094,11 +1094,11 @@ static ssize_t power_down_write(struct device *dev, struct device_attribute *att
 
     val |= (res << bit);
 
-    i2c_smbus_write_byte_data(client, command, val);
+    res = i2c_smbus_write_byte_data(client, command, val);
 
     mutex_unlock(&list_lock);
 
-    return count;
+    return res < 0 ? res : count;
 }
 
 static ssize_t sfp_port_ctrl_read(struct device *dev, struct device_attribute *attr, char *buf)
