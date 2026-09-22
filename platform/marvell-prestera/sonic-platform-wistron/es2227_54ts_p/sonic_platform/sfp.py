@@ -106,8 +106,9 @@ class Sfp(SfpOptoeBase):
         except OSError:
             pass
         sonic_logger.log_error("gpiochip label {} not found".format(cls._SFP_GPIO_CHIP_LABEL))
-        cls._gpio_base_cache = -1
-        return cls._gpio_base_cache
+        # A driver may not be ready yet. Cache only successful lookups so
+        # later polls can recover without restarting xcvrd.
+        return None
 
     def _gpio_num(self, offset):
         base = self._gpio_base()
