@@ -1,0 +1,181 @@
+[wistron][es1227] port I2C lock recovery to Linux 6.12
+
+Port the I2C lock prevention from 99c8b74 onto the 202511 Linux 6.12
+quilt stack. Enable GPIO arbitration-loss recovery for both ES1227-54TS
+and ES1227-36TS-P, disable mv78230 Transaction Generator offload, and
+clear the mv78230 slave-enable bit through a guarded register layout.
+
+Keep these kernel changes as Wistron overlays; do not update the
+sonic-linux-kernel gitlink.
+
+diff --git a/src/sonic-linux-kernel/patches-sonic/0031-arm64-dts-marvell-es1227-enable-i2c-arb-lost-recovery.patch b/src/sonic-linux-kernel/patches-sonic/0031-arm64-dts-marvell-es1227-enable-i2c-arb-lost-recovery.patch
+new file mode 100644
+--- /dev/null
++++ b/src/sonic-linux-kernel/patches-sonic/0031-arm64-dts-marvell-es1227-enable-i2c-arb-lost-recovery.patch
+@@ -0,0 +1,83 @@
++From: otis <otis_lai@wistron.com>
++Date: Tue, 22 Sep 2026 00:00:00 +0800
++Subject: [PATCH] arm64: dts: marvell: enable I2C arb-lost recovery on ES1227
++
++The mv64xxx arbitration-loss recovery path requires a GPIO pinctrl state
++and SCL/SDA GPIO descriptors. Add those definitions for both ES1227
++boards so the driver can clock a stuck slave and restore the I2C pins.
++
++I2C0 uses MPP37/38 (cp0_gpio2 lines 5/6), and I2C1 uses MPP35/36
++(cp0_gpio2 lines 3/4).
++
++Signed-off-by: otis <otis_lai@wistron.com>
++---
++diff --git a/arch/arm64/boot/dts/marvell/es1227-36ts-p.dtsi b/arch/arm64/boot/dts/marvell/es1227-36ts-p.dtsi
++--- a/arch/arm64/boot/dts/marvell/es1227-36ts-p.dtsi
+++++ b/arch/arm64/boot/dts/marvell/es1227-36ts-p.dtsi
++@@ -101,2 +101,5 @@
++-	pinctrl-names = "default";
++-	pinctrl-0 = <&cp0_i2c0_pins>;
+++	pinctrl-names = "default", "gpio";
+++	pinctrl-0 = <&cp0_i2c0_pins>;
+++	pinctrl-1 = <&cp0_i2c0_gpio_pins>;
+++	scl-gpios = <&cp0_gpio2 5 GPIO_ACTIVE_HIGH>;
+++	sda-gpios = <&cp0_gpio2 6 GPIO_ACTIVE_HIGH>;
++@@ -188,2 +191,5 @@
++-	pinctrl-names = "default";
++-	pinctrl-0 = <&cp0_i2c1_pins>;
+++	pinctrl-names = "default", "gpio";
+++	pinctrl-0 = <&cp0_i2c1_pins>;
+++	pinctrl-1 = <&cp0_i2c1_gpio_pins>;
+++	scl-gpios = <&cp0_gpio2 4 GPIO_ACTIVE_HIGH>;
+++	sda-gpios = <&cp0_gpio2 3 GPIO_ACTIVE_HIGH>;
++@@ -254 +260,6 @@
++-		};
+++		};
+++
+++		cp0_i2c0_gpio_pins: cp0-i2c-gpio-pins-0 {
+++			marvell,pins = "mpp37", "mpp38";
+++			marvell,function = "gpio";
+++		};
++@@ -259 +270,6 @@
++-		};
+++		};
+++
+++		cp0_i2c1_gpio_pins: cp0-i2c-gpio-pins-1 {
+++			marvell,pins = "mpp35", "mpp36";
+++			marvell,function = "gpio";
+++		};
++diff --git a/arch/arm64/boot/dts/marvell/es1227-54ts.dtsi b/arch/arm64/boot/dts/marvell/es1227-54ts.dtsi
++--- a/arch/arm64/boot/dts/marvell/es1227-54ts.dtsi
+++++ b/arch/arm64/boot/dts/marvell/es1227-54ts.dtsi
++@@ -101,2 +101,5 @@
++-	pinctrl-names = "default";
++-	pinctrl-0 = <&cp0_i2c0_pins>;
+++	pinctrl-names = "default", "gpio";
+++	pinctrl-0 = <&cp0_i2c0_pins>;
+++	pinctrl-1 = <&cp0_i2c0_gpio_pins>;
+++	scl-gpios = <&cp0_gpio2 5 GPIO_ACTIVE_HIGH>;
+++	sda-gpios = <&cp0_gpio2 6 GPIO_ACTIVE_HIGH>;
++@@ -188,2 +191,5 @@
++-	pinctrl-names = "default";
++-	pinctrl-0 = <&cp0_i2c1_pins>;
+++	pinctrl-names = "default", "gpio";
+++	pinctrl-0 = <&cp0_i2c1_pins>;
+++	pinctrl-1 = <&cp0_i2c1_gpio_pins>;
+++	scl-gpios = <&cp0_gpio2 4 GPIO_ACTIVE_HIGH>;
+++	sda-gpios = <&cp0_gpio2 3 GPIO_ACTIVE_HIGH>;
++@@ -254 +260,6 @@
++-		};
+++		};
+++
+++		cp0_i2c0_gpio_pins: cp0-i2c-gpio-pins-0 {
+++			marvell,pins = "mpp37", "mpp38";
+++			marvell,function = "gpio";
+++		};
++@@ -259 +270,6 @@
++-		};
+++		};
+++
+++		cp0_i2c1_gpio_pins: cp0-i2c-gpio-pins-1 {
+++			marvell,pins = "mpp35", "mpp36";
+++			marvell,function = "gpio";
+++		};
+diff --git a/src/sonic-linux-kernel/patches-sonic/0032-i2c-mv64xxx-disable-slave-and-offload.patch b/src/sonic-linux-kernel/patches-sonic/0032-i2c-mv64xxx-disable-slave-and-offload.patch
+new file mode 100644
+--- /dev/null
++++ b/src/sonic-linux-kernel/patches-sonic/0032-i2c-mv64xxx-disable-slave-and-offload.patch
+@@ -0,0 +1,70 @@
++From: otis <otis_lai@wistron.com>
++Date: Tue, 22 Sep 2026 00:00:00 +0800
++Subject: [PATCH] i2c: mv64xxx: disable mv78230 slave and offload modes
++
++Clear config_debug BIT(18) whenever the controller is initialized or
++recovered so it cannot respond as an I2C slave. Disable the Transaction
++Generator for marvell,mv78230-i2c and use the classic TWSI FSM, retaining
++the existing standard-mode erratum delay.
++
++Use a dedicated mv78230 register layout and guard the optional register
++offset so generic mv64xxx and Allwinner controllers are unaffected.
++
++Signed-off-by: otis <otis_lai@wistron.com>
++---
++diff --git a/drivers/i2c/busses/i2c-mv64xxx.c b/drivers/i2c/busses/i2c-mv64xxx.c
++--- a/drivers/i2c/busses/i2c-mv64xxx.c
+++++ b/drivers/i2c/busses/i2c-mv64xxx.c
++@@ -120 +120,2 @@
++-	u8	soft_reset;
+++	u8	soft_reset;
+++	u8	config_debug;
++@@ -172 +173,12 @@
++-};
+++};
+++
+++static struct mv64xxx_i2c_regs mv64xxx_i2c_regs_mv78230 = {
+++	.addr		= 0x00,
+++	.ext_addr	= 0x10,
+++	.data		= 0x04,
+++	.control	= 0x08,
+++	.status		= 0x0c,
+++	.clock		= 0x0c,
+++	.soft_reset	= 0x1c,
+++	.config_debug	= 0x8c,
+++};
++@@ -217,6 +229,15 @@
++ static void
++ mv64xxx_i2c_hw_init(struct mv64xxx_i2c_data *drv_data)
++-{
+++{
+++	u32 config_debug;
+++
+++	if (drv_data->reg_offsets.config_debug) {
+++		config_debug = readl(drv_data->reg_base +
+++				     drv_data->reg_offsets.config_debug);
+++		config_debug &= ~BIT(18);
+++		writel(config_debug, drv_data->reg_base +
+++		       drv_data->reg_offsets.config_debug);
+++	}
++ 	if (drv_data->offload_enabled) {
++ 		writel(0, drv_data->reg_base + MV64XXX_I2C_REG_BRIDGE_CONTROL);
++ 		writel(0, drv_data->reg_base + MV64XXX_I2C_REG_BRIDGE_TIMING);
++@@ -881,2 +902,2 @@
++-	{ .compatible = "marvell,mv78230-i2c", .data = &mv64xxx_i2c_regs_mv64xxx},
++-	{ .compatible = "marvell,mv78230-a0-i2c", .data = &mv64xxx_i2c_regs_mv64xxx},
+++	{ .compatible = "marvell,mv78230-i2c", .data = &mv64xxx_i2c_regs_mv78230},
+++	{ .compatible = "marvell,mv78230-a0-i2c", .data = &mv64xxx_i2c_regs_mv78230},
++@@ -970,6 +991,6 @@
++-	/*
++-	 * For controllers embedded in new SoCs activate the
++-	 * Transaction Generator support and the errata fix.
++-	 */
++-	if (of_device_is_compatible(np, "marvell,mv78230-i2c")) {
++-		drv_data->offload_enabled = true;
+++	/*
+++	 * The mv78230 uses the classic TWSI FSM with the standard-mode
+++	 * repeated-start timing erratum workaround.
+++	 */
+++	if (of_device_is_compatible(np, "marvell,mv78230-i2c")) {
+++		drv_data->offload_enabled = false;
+diff --git a/src/sonic-linux-kernel/patches-sonic/series b/src/sonic-linux-kernel/patches-sonic/series
+--- a/src/sonic-linux-kernel/patches-sonic/series
++++ b/src/sonic-linux-kernel/patches-sonic/series
+@@ -165,1 +165,3 @@
+-# TODO(trixie): update for current version
++# TODO(trixie): update for current version
++0031-arm64-dts-marvell-es1227-enable-i2c-arb-lost-recovery.patch
++0032-i2c-mv64xxx-disable-slave-and-offload.patch
