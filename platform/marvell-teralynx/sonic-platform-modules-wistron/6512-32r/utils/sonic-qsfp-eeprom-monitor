@@ -787,7 +787,7 @@ bmc_qsfp_eeprom_read()
 		fi
 
 		if [ $board_ver == 0 ]; then
-        		port_init[$port]=1
+			port_init[$port]=1
 			if [ $port -lt 16 ];then
 				cpld_path="/sys/bus/i2c/devices/0-0006/"
 			else
