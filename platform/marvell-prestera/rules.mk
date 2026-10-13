@@ -8,6 +8,8 @@ include $(PLATFORM_PATH)/platform-marvell.mk
 ifeq ($(CONFIGURED_ARCH),$(filter $(CONFIGURED_ARCH),arm64 armhf))
 include $(PLATFORM_PATH)/mrvl-prestera.mk
 include $(PLATFORM_PATH)/platform-nokia.mk
+endif
+ifeq ($(CONFIGURED_ARCH),arm64)
 include $(PLATFORM_PATH)/platform-wistron.mk
 endif
 
