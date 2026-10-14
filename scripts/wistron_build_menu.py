@@ -4,6 +4,7 @@
 import argparse
 import dataclasses
 import datetime
+import errno
 import fcntl
 import hashlib
 import json
@@ -546,15 +547,18 @@ class Runner:
         repositories = manifest["repositories"]
         for repo in repositories:
             self.prepare_repository(repo)
-        for relative in set(previous["files"]) - set(manifest["files"]):
+        removed = set(previous["files"]) - set(manifest["files"])
+        removed.update(relative for relative, record in manifest["files"].items()
+                       if record["kind"] == "missing")
+        for relative in sorted(removed):
             self.remove_file(workspace / safe_relative(relative))
+        self.prune_source_directories(removed, repositories)
         for relative, record in sorted(manifest["files"].items()):
+            if record["kind"] == "missing":
+                continue
             dest = workspace / relative
             original = self.settings.source / relative
             require(dest.parent.resolve().is_relative_to(workspace), f"Destination parent path is outside the build directory: {relative}")
-            if record["kind"] == "missing":
-                self.remove_file(dest)
-                continue
             dest.parent.mkdir(parents=True, exist_ok=True)
             if record["kind"] == "link":
                 if dest.is_symlink() and os.readlink(dest) == record["link"]:
@@ -620,6 +624,26 @@ class Runner:
         require(not path.is_dir() or path.is_symlink(), f"Cannot remove a source directory as a file: {path}")
         if path.exists() or path.is_symlink():
             path.unlink()
+
+    def prune_source_directories(self, removed, repositories):
+        # Git records files, not directories. Remove only empty ancestors of
+        # stale source entries, deepest first; never recurse into build output.
+        workspace = self.settings.workspace
+        roots = {workspace / repo["path"] for repo in repositories}
+        directories = {workspace / str(parent)
+                       for relative in removed
+                       for parent in PurePosixPath(safe_relative(relative)).parents
+                       if str(parent) != "."}
+        for path in sorted(directories, key=lambda path: len(path.parts), reverse=True):
+            if path in roots or path.is_symlink() or not path.is_dir():
+                continue
+            require(inside(path, workspace) and path.resolve() == path,
+                    f"Cannot prune a directory outside its snapshot path: {path}")
+            try:
+                path.rmdir()
+            except OSError as error:
+                if error.errno not in (errno.ENOTEMPTY, errno.EEXIST, errno.ENOENT):
+                    raise
 
     def clean(self, manifest):
         workspace = self.settings.workspace
@@ -816,45 +840,60 @@ def check_ztp_status(status_text, listings, enabled):
             "non_runtime_definitions": definitions}
 
 
+class PayloadReader:
+    """Expose only the bytes covered by the ONIE payload checksum."""
+
+    def __init__(self, source, size):
+        self.source = source
+        self.remaining = size
+
+    def read(self, size=-1):
+        size = self.remaining if size < 0 else min(size, self.remaining)
+        block = self.source.read(size)
+        self.remaining -= len(block)
+        return block
+
+
 def verify_installer(installer, enabled, expected_version=None):
     # ONIE's shell launcher contains a bounded tar payload, whose fs.zip
     # contains the squashfs. Never execute the installer or extract paths
     # supplied by an archive; stream the two expected files to fixed names.
     with tempfile.TemporaryDirectory(prefix="wbm-image-check-", dir=installer.parent) as temp:
         temp = Path(temp)
-        payload_zip = installer
-        if not zipfile.is_zipfile(installer):
-            payload_zip = temp / "fs.zip"
-            with installer.open("rb") as source:
-                header = source.read(256 * 1024)
-                marker = b"\nexit_marker\n"
-                offset = header.find(marker)
-                require(offset >= 0, "Cannot verify the installer: exit_marker is missing.")
-                offset += len(marker)
-                size_match = re.search(rb"^payload_image_size=(\d+)\s*$", header[:offset], re.MULTILINE)
-                sha_match = re.search(rb"^payload_sha1=([0-9a-fA-F]{40})\s*$", header[:offset], re.MULTILINE)
-                require(size_match and sha_match, "The installer is missing its payload size or checksum.")
-                size = int(size_match.group(1))
-                require(0 < size <= installer.stat().st_size - offset, "Invalid installer payload size.")
-                source.seek(offset)
-                digest = hashlib.sha1()
-                remaining = size
-                while remaining:
-                    block = source.read(min(1024 * 1024, remaining))
-                    require(block, "The installer payload is incomplete.")
-                    digest.update(block)
-                    remaining -= len(block)
-                require(digest.hexdigest() == sha_match.group(1).decode().lower(), "Invalid installer payload checksum.")
-                source.seek(offset)
-                with tarfile.open(fileobj=source, mode="r|") as outer:
-                    found = False
-                    for member in outer:
-                        if member.isfile() and PurePosixPath(member.name).name == "fs.zip":
-                            require(not found, "The installer contains duplicate fs.zip files.")
-                            with outer.extractfile(member) as data, payload_zip.open("wb") as output:
-                                shutil.copyfileobj(data, output)
-                            found = True
-                    require(found, "The installer tar payload is missing fs.zip.")
+        payload_zip = temp / "fs.zip"
+        with installer.open("rb") as source:
+            # An ONIE .bin can also pass is_zipfile() because of its embedded
+            # ZIP. Always verify the shell launcher before opening that ZIP.
+            header = source.read(256 * 1024)
+            require(header.startswith(b"#!"), "The installer is missing its ONIE shell header.")
+            marker = b"\nexit_marker\n"
+            offset = header.find(marker)
+            require(offset >= 0, "Cannot verify the installer: exit_marker is missing.")
+            offset += len(marker)
+            size_match = re.search(rb"^payload_image_size=(\d+)\s*$", header[:offset], re.MULTILINE)
+            sha_match = re.search(rb"^payload_sha1=([0-9a-fA-F]{40})\s*$", header[:offset], re.MULTILINE)
+            require(size_match and sha_match, "The installer is missing its payload size or checksum.")
+            size = int(size_match.group(1))
+            require(0 < size <= installer.stat().st_size - offset, "Invalid installer payload size.")
+            source.seek(offset)
+            digest = hashlib.sha1()
+            remaining = size
+            while remaining:
+                block = source.read(min(1024 * 1024, remaining))
+                require(block, "The installer payload is incomplete.")
+                digest.update(block)
+                remaining -= len(block)
+            require(digest.hexdigest() == sha_match.group(1).decode().lower(), "Invalid installer payload checksum.")
+            source.seek(offset)
+            with tarfile.open(fileobj=PayloadReader(source, size), mode="r|") as outer:
+                found = False
+                for member in outer:
+                    if member.isfile() and PurePosixPath(member.name).name == "fs.zip":
+                        require(not found, "The installer contains duplicate fs.zip files.")
+                        with outer.extractfile(member) as data, payload_zip.open("wb") as output:
+                            shutil.copyfileobj(data, output)
+                        found = True
+                require(found, "The installer tar payload is missing fs.zip.")
         with zipfile.ZipFile(payload_zip) as archive:
             members = [name for name in archive.namelist() if name.endswith("fs.squashfs")]
             require(len(members) == 1, "The installer must contain exactly one squashfs.")

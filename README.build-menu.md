@@ -195,8 +195,13 @@ Customer workspaces are `workspaces/arm64/amazon` and
 Each run stores its installer, checksum, full and component logs, source
 manifest, result JSON, and backups in `runs/<run-id>/`. Backups are retained.
 
-Starting another build refreshes that customer's source snapshot. To
-manually remove package outputs, use the customer build directory displayed
+Starting another build refreshes that customer's source snapshot.
+Synchronization removes stale files and their empty parent directories
+before copying current source, allowing a directory to become a file.
+Unrelated directories, Git metadata, and nonempty generated directories are
+preserved; a remaining file/directory conflict stops the build safely.
+
+To manually remove package outputs, use the customer build directory displayed
 by the menu. Removing outputs from the original checkout's target does not
 affect the separate build workspace.
 
@@ -233,8 +238,14 @@ Requirements: Python 3.10+, Git, make, patch, Docker, and unsquashfs. Only one
 menu build may run for this source at a time. An existing sonic-slave build
 also prevents a new build from starting.
 
-Success requires all four build stages to exit with code 0, a new installer,
-a valid payload checksum, the expected ZTP package and runtime-file state
+Success requires all four build stages to exit with code 0, a new ONIE
+installer, a valid shell header, payload size and SHA-1 checksum, and the
+expected ZTP package and runtime-file state
 inside the final squashfs, matching SHA-256 after copying, and unchanged
 slave image IDs. These checks do not constitute DUT installation or hardware
 functional validation.
+
+The embedded ZIP never bypasses ONIE validation. Its enclosing tar is read
+only within the checksummed payload size. An invalid installer is retained
+in the build workspace for diagnosis, but no downloadable installer or
+SHA-256 file is published for the failed run.

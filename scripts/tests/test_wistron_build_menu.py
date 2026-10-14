@@ -96,7 +96,28 @@ else:
             info.size = len(data)
             archive.addfile(info, io.BytesIO(data))
         data = payload.getvalue()
-        header = '#!/bin/sh\npayload_image_size=' + str(len(data)) + '\npayload_sha1=' + hashlib.sha1(data).hexdigest() + '\nexit_marker\n'
+        fault = os.environ.get('FAKE_INSTALLER_FAULT')
+        size = len(data)
+        checksum = hashlib.sha1(data).hexdigest()
+        if fault == 'checksum':
+            checksum = '0' * 40
+        elif fault == 'zero-size':
+            size = 0
+        elif fault == 'oversized':
+            size += 1
+        elif fault == 'undersized':
+            size -= 1
+        elif fault == 'unverified-tar':
+            size = 512
+            checksum = hashlib.sha1(data[:size]).hexdigest()
+        header = '#!/bin/sh\npayload_image_size=' + str(size) + '\npayload_sha1=' + checksum + '\nexit_marker\n'
+        if fault == 'missing-marker':
+            header = header.replace('exit_marker', 'invalid_marker')
+        elif fault == 'missing-checksum':
+            header = header.replace('payload_sha1=', 'invalid_sha1=')
+        elif fault == 'raw-zip':
+            pathlib.Path(target).write_bytes(inner.getvalue())
+            sys.exit(0)
         pathlib.Path(target).write_bytes(header.encode() + data)
 '''
 
@@ -246,6 +267,101 @@ class BuildMenuTests(unittest.TestCase):
         workspace = Path(first['workspace'])
         self.assertFalse((workspace / 'uncommitted.py').exists())
         self.assertEqual((workspace / 'src/sonic-ztp/local.py').read_text(), 'local_change = 2\n')
+
+    def directory_to_file(self, mode, tracked=False, generated=False):
+        directory = self.source / ('old-' + mode + ('-tracked' if tracked else ''))
+        old_file = directory / 'nested/old.txt'
+        old_file.parent.mkdir(parents=True)
+        old_file.write_text('old source\n')
+        if tracked:
+            self.git(self.source, 'add', str(old_file.relative_to(self.source)))
+            self.git(self.source, 'commit', '-qm', 'tracked directory fixture')
+        settings = menu.Settings(self.source, self.root / ('state-' + directory.name),
+                                 flavor='wistron', mode=mode)
+        first = self.execute(settings)
+        self.assertEqual(first['status'], 'success', first.get('error'))
+        workspace = Path(first['workspace'])
+        sentinel = workspace / 'target/keep-generated'
+        sentinel.write_text('keep this\n')
+        if generated:
+            generated_file = workspace / directory.name / 'generated-output'
+            generated_file.write_text('do not delete\n')
+        old_file.unlink()
+        old_file.parent.rmdir()
+        directory.rmdir()
+        directory.write_text('new source file\n')
+        current_source = menu.inventory(self.source)['sha256']
+        if tracked:
+            self.assertEqual(menu.inventory(self.source)['files'][str(old_file.relative_to(self.source))]['kind'],
+                             'missing')
+        second = self.execute(settings)
+        self.assertEqual(menu.inventory(self.source)['sha256'], current_source)
+        if generated:
+            self.assertEqual(second['status'], 'failed')
+            self.assertIn('File and directory conflict', second['error'])
+            self.assertEqual(generated_file.read_text(), 'do not delete\n')
+            self.assertTrue(sentinel.is_file())
+        else:
+            self.assertEqual(second['status'], 'success', second.get('error'))
+            self.assertEqual((workspace / directory.name).read_text(), 'new source file\n')
+            if mode == 'normal':
+                self.assertTrue(sentinel.is_file())
+            else:
+                self.assertFalse(sentinel.exists())
+                self.assertTrue((Path(second['log']).parent / 'backup/target/keep-generated').is_file())
+
+    def test_untracked_directory_to_file_refresh_in_clean_and_normal_modes(self):
+        for mode in ('clean', 'normal'):
+            with self.subTest(mode=mode):
+                self.directory_to_file(mode)
+
+    def test_tracked_directory_to_file_refresh_with_unstaged_deletions(self):
+        for mode in ('clean', 'normal'):
+            with self.subTest(mode=mode):
+                self.directory_to_file(mode, tracked=True)
+
+    def test_directory_to_file_conflict_preserves_nonempty_generated_outputs(self):
+        for mode in ('clean', 'normal'):
+            with self.subTest(mode=mode):
+                self.directory_to_file(mode, generated=True)
+
+    def test_pruning_removes_only_obsolete_empty_source_directories(self):
+        old = self.source / 'obsolete/nested/old.txt'
+        old.parent.mkdir(parents=True)
+        old.write_text('old source\n')
+        first = self.execute(self.settings())
+        self.assertEqual(first['status'], 'success', first.get('error'))
+        workspace = Path(first['workspace'])
+        (workspace / 'unrelated-empty').mkdir()
+        old.unlink()
+        old.parent.rmdir()
+        old.parent.parent.rmdir()
+        second = self.execute(self.settings())
+        self.assertEqual(second['status'], 'success', second.get('error'))
+        self.assertFalse((workspace / 'obsolete').exists())
+        self.assertTrue((workspace / 'unrelated-empty').is_dir())
+        self.assertTrue((workspace / '.git').is_dir())
+        self.assertTrue((workspace / 'src/sonic-ztp/.git').is_dir())
+
+    def test_stale_source_removal_rejects_directory_symlink_escape(self):
+        old = self.source / 'obsolete/old.txt'
+        old.parent.mkdir()
+        old.write_text('old source\n')
+        first = self.execute(self.settings())
+        self.assertEqual(first['status'], 'success', first.get('error'))
+        workspace = Path(first['workspace'])
+        external = self.root / 'external'
+        external.mkdir()
+        (external / 'old.txt').write_text('outside the snapshot\n')
+        (workspace / 'obsolete/old.txt').unlink()
+        (workspace / 'obsolete').rmdir()
+        (workspace / 'obsolete').symlink_to(external, target_is_directory=True)
+        old.unlink()
+        old.parent.rmdir()
+        second = self.execute(self.settings())
+        self.assertEqual(second['status'], 'failed')
+        self.assertIn('outside the build directory', second['error'])
+        self.assertEqual((external / 'old.txt').read_text(), 'outside the snapshot\n')
 
     def test_remote_branch_and_symbolic_refs_survive_snapshot(self):
         sub = self.source / 'src/sonic-ztp'
@@ -462,6 +578,53 @@ class BuildMenuTests(unittest.TestCase):
         self.assertIn("does not match 'Wistron_M.1.0.3'", result['error'])
         self.assertTrue(Path(result['log']).is_file())
         self.assertTrue(result['slave_images_unchanged'])
+
+    def assert_installer_not_published(self, result):
+        self.assertEqual(result['status'], 'failed', result.get('error'))
+        self.assertNotIn('artifact', result)
+        self.assertNotIn('sha256', result)
+        folder = Path(result['log']).parent
+        self.assertFalse(list(folder.glob('*.bin')))
+        self.assertFalse(list(folder.glob('*.sha256')))
+        self.assertTrue(Path(result['log']).is_file())
+        self.assertTrue((folder / 'component-logs/debs/trixie/swss_1.0.0_arm64.deb.log').is_file())
+        self.assertTrue(result['slave_images_unchanged'])
+        saved = json.loads((folder / 'result.json').read_text())
+        self.assertEqual(saved['status'], 'failed')
+        self.assertNotIn('artifact', saved)
+
+    def test_onie_checksum_failure_stops_both_customers_before_publication(self):
+        for customer in ('amazon', 'wistron'):
+            with self.subTest(customer=customer), mock.patch.dict(os.environ, {'FAKE_INSTALLER_FAULT':'checksum'}):
+                result = self.execute(self.settings(customer))
+                self.assertTrue(menu.zipfile.is_zipfile(Path(result['workspace']) / 'target' / menu.INSTALLER))
+                self.assert_installer_not_published(result)
+                self.assertIn('Invalid installer payload checksum', result['error'])
+
+    def test_onie_payload_size_failure_stops_both_customers_before_publication(self):
+        for customer in ('amazon', 'wistron'):
+            for fault in ('zero-size', 'oversized', 'undersized'):
+                with self.subTest(customer=customer, fault=fault), mock.patch.dict(os.environ, {'FAKE_INSTALLER_FAULT':fault}):
+                    result = self.execute(self.settings(customer))
+                    self.assert_installer_not_published(result)
+                    self.assertIn('Invalid installer payload ' + ('checksum' if fault == 'undersized' else 'size'),
+                                  result['error'])
+
+    def test_onie_header_required_even_when_internal_zip_is_readable(self):
+        for fault, expected in (('missing-marker', 'exit_marker is missing'),
+                                ('missing-checksum', 'payload size or checksum'),
+                                ('raw-zip', 'ONIE shell header')):
+            with self.subTest(fault=fault), mock.patch.dict(os.environ, {'FAKE_INSTALLER_FAULT':fault}):
+                result = self.execute(self.settings())
+                self.assert_installer_not_published(result)
+                self.assertIn(expected, result['error'])
+
+    def test_onie_tar_cannot_read_beyond_checksummed_payload_size(self):
+        for customer in ('amazon', 'wistron'):
+            with self.subTest(customer=customer), mock.patch.dict(os.environ, {'FAKE_INSTALLER_FAULT':'unverified-tar'}):
+                result = self.execute(self.settings(customer))
+                self.assert_installer_not_published(result)
+                self.assertIn('unexpected end of data', result['error'])
 
     def test_menu_jobs_rejects_zero_and_enter_restores_eight(self):
         settings = self.settings()
