@@ -573,6 +573,7 @@ class Runner:
                     shutil.copy2(original, dest)
                 dest.chmod(record["mode"])
                 require(digest_file(dest) == record["sha256"], f"Source changed while copying: {relative}")
+        self.remove_stale_ztp_files(manifest)
         for repo in repositories:
             dest = workspace / repo["path"]
             if (dest / ".gitmodules").is_file():
@@ -583,6 +584,42 @@ class Runner:
         require(inventory(self.settings.source)["sha256"] == manifest["sha256"],
                 "Source changed while taking the snapshot. Retry the build.")
         atomic_json(previous_path, manifest)
+
+    def remove_stale_ztp_files(self, manifest):
+        # Source refresh restores modified files, but files created by a prior
+        # patch are absent from the source manifest and otherwise survive it.
+        workspace = self.settings.workspace
+        stale = set()
+        for filename in ZTP_PATCHES:
+            for block in re.split(rb'(?=^diff --git )', (workspace / filename).read_bytes(), flags=re.MULTILINE):
+                match = re.search(rb'^--- /dev/null\n\+\+\+ b/(\S+)', block, re.MULTILINE)
+                if not match:
+                    continue
+                relative = safe_relative(os.fsdecode(match.group(1)))
+                record = manifest['files'].get(relative)
+                if record is not None and record['kind'] != 'missing':
+                    continue
+                path = workspace / relative
+                require(path.parent.resolve().is_relative_to(workspace),
+                        f'ZTP patch-created file is outside the build directory: {relative}')
+                if not path.exists() and not path.is_symlink():
+                    continue
+                require(path.is_file() and not path.is_symlink(),
+                        f'Retained ZTP patch-created file is not a regular file: {relative}')
+                with tempfile.TemporaryDirectory(prefix='wbm-ztp-created-') as temp:
+                    scratch = Path(temp)
+                    result = subprocess.run(['patch', '-p1', '--batch', '--forward'], cwd=scratch,
+                                            input=block, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                    require(result.returncode == 0,
+                            f'Cannot inspect ZTP patch-created file: {filename}\n'
+                            + result.stdout.decode(errors='replace')[-1200:])
+                    require(path.read_bytes() == (scratch / relative).read_bytes(),
+                            f'Retained ZTP patch-created file was modified; preserving it: {relative}')
+                stale.add(relative)
+        for relative in sorted(stale):
+            self.say(f'Removing stale ZTP patch-created file: {relative}')
+            self.remove_file(workspace / relative)
+
 
     def prepare_repository(self, repo):
         workspace = self.settings.workspace
@@ -1049,7 +1086,7 @@ def interactive_menu(settings):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Wistron SONiC WSL build console")
-    parser.add_argument("--source", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--source", type=Path, default=Path(__file__).resolve().parent)
     parser.add_argument("--state-dir", type=Path)
     parser.add_argument("--arch", choices=("arm64", "amd64"), default="arm64")
     parser.add_argument("--flavor", choices=("amazon", "wistron"), default="amazon")

@@ -201,6 +201,11 @@ before copying current source, allowing a directory to become a file.
 Unrelated directories, Git metadata, and nonempty generated directories are
 preserved; a remaining file/directory conflict stops the build safely.
 
+Before normalizing ZTP, source refresh also removes files left by earlier
+ZTP patches when they are absent from the current source and exactly match
+the patch-created content. Modified files are preserved and stop the build;
+source-owned files and unrelated generated outputs are retained.
+
 To manually remove package outputs, use the customer build directory displayed
 by the menu. Removing outputs from the original checkout's target does not
 affect the separate build workspace.
@@ -229,9 +234,6 @@ Existing CLI arguments are unchanged: `--flavor` selects the customer and
 
 # Select another source checkout and an external state directory
 ./build-menu.sh --source /path/to/sonic-buildimage --state-dir /path/to/build-state
-
-# Integration tests use temporary Git repositories and simulated make/Docker
-python3 -m unittest discover -s scripts/tests -p test_wistron_build_menu.py -v
 ```
 
 Requirements: Python 3.10+, Git, make, patch, Docker, and unsquashfs. Only one
