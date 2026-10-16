@@ -206,7 +206,7 @@ class Settings:
     state: Path
     arch: str = "arm64"
     flavor: str = "amazon"
-    mode: str = "clean"
+    mode: str = "normal"
     jobs: int = 8
     build_version: str = ""
 
@@ -1090,7 +1090,7 @@ def main(argv=None):
     parser.add_argument("--state-dir", type=Path)
     parser.add_argument("--arch", choices=("arm64", "amd64"), default="arm64")
     parser.add_argument("--flavor", choices=("amazon", "wistron"), default="amazon")
-    parser.add_argument("--mode", choices=("clean", "normal"), default="clean")
+    parser.add_argument("--mode", choices=("clean", "normal"), default="normal")
     parser.add_argument("--jobs", type=int, default=8,
                         help="Concurrent build jobs, SONIC_BUILD_JOBS (default: 8)")
     parser.add_argument("--build-version", default="",

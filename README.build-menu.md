@@ -162,7 +162,7 @@ passes through unchanged.
 - Both clean-rebuild values explicitly set `SONIC_DPKG_CACHE_METHOD=none` and
   `SONIC_VERSION_CACHE_METHOD=none`. No additional test-skip options are set.
 
-Defaults remain ARM64, Amazon, clean rebuild `Yes`, build job `8`, and
+Defaults remain ARM64, Amazon, clean rebuild `No`, build job `8`, and
 automatic build version.
 `SONIC_CONFIG_MAKE_JOBS` is not overridden; it follows the source
 configuration, currently `$(shell nproc)` in `rules/config`. It is not
