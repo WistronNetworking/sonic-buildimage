@@ -13,8 +13,12 @@ import unicodedata
 
 ENTER = (10, 13, curses.KEY_ENTER)
 BACK = (27,)
-OPTIONS = ("architecture", "customer", "clean rebuild", "build job", "build version",
+OPTIONS = ("architecture", "customer", "build action", "build job", "build version",
            "start build", "last result", "exit")
+ACTIONS = ("standard", "make", "installer-only")
+ACTION_LABELS = ("Standard build", "Incremental build", "Installer only")
+GUI_ACTIONS = ("make", "clean")
+GUI_ACTION_LABELS = ("Incremental build", "Clean build")
 ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 BRAND_RGB = {"blue": (11, 104, 148), "green": (138, 223, 76)}
 BANNER_STYLES = {'classic': 'Current', 'tech': 'Tech Console',
@@ -99,15 +103,27 @@ class MetadataCache:
         self.values = metadata_defaults('Loading...')
         self.revision = 0
         self.requests = []
+        self.context = self.context_key()
         self.thread = threading.Thread(target=self._run, name='build-menu-metadata', daemon=True)
         self.thread.start()
 
     def snapshot(self):
         with self.condition:
+            context = self.context_key()
+            if context != self.context:
+                self.context = context
+                self.values = metadata_defaults('Loading...')
+                self.revision += 1
+                self.condition.notify_all()
             return dict(self.values), self.revision
+
+    def context_key(self):
+        return (getattr(self.settings, 'arch', None), getattr(self.settings, 'flavor', None),
+                getattr(self.settings, 'build_action', None))
 
     def refresh_now(self):
         # Enqueue a new read after any in-flight read; never reuse a stale pass.
+        self.snapshot()
         request = {'done': threading.Event()}
         with self.condition:
             if self.stop.is_set():
@@ -123,14 +139,17 @@ class MetadataCache:
 
     def _run(self):
         next_read = 0
+        last_context = None
         try:
             while not self.stop.is_set():
                 with self.condition:
-                    while not self.stop.is_set() and not self.requests and time.monotonic() < next_read:
+                    while (not self.stop.is_set() and not self.requests and self.context == last_context
+                           and time.monotonic() < next_read):
                         self.condition.wait(next_read - time.monotonic())
                     if self.stop.is_set():
                         break
                     request = self.requests.pop(0) if self.requests else None
+                    context = self.context
                 try:
                     values = self.settings.read_source_metadata(self.stop)
                 except Exception:
@@ -139,6 +158,11 @@ class MetadataCache:
                     values = dict.fromkeys(self.values)
                 fresh = metadata_defaults('unavailable')
                 with self.condition:
+                    if context != self.context or context != self.context_key():
+                        if request:
+                            self.requests.insert(0, request)
+                        next_read = 0
+                        continue
                     previous = dict(self.values)
                     for name, value in values.items():
                         if value is not None:
@@ -152,6 +176,7 @@ class MetadataCache:
                         request.update(values=fresh)
                         request['done'].set()
                 next_read = time.monotonic() + self.interval
+                last_context = context
         finally:
             self.stop.set()
             with self.condition:
@@ -192,6 +217,10 @@ def move_selection(index, key, count):
 
 def result_lines(result):
     lines = ["Status: " + result.get("status", "unknown").replace("_", " ").title()]
+    action = result.get('build_action', 'standard')
+    label = 'Clean build' if action == 'standard' and result.get('mode') == 'clean' else (
+        ACTION_LABELS[ACTIONS.index(action)] if action in ACTIONS else action)
+    lines.append('Build action: ' + label)
     if result.get("flavor"):
         lines.append("Customer: " + result["flavor"].title())
     if result.get("error"):
@@ -216,6 +245,7 @@ class Console:
     def __init__(self, screen, settings, validate, images, selection=0, metadata=None, banner_style=None, i_style=None):
         self.screen = screen
         self.settings = settings
+        self.settings.select_gui_action(self.settings.gui_action)
         self.validate = validate
         self.images = images
         self.selection = selection
@@ -294,7 +324,7 @@ class Console:
             revision = self.read_metadata()
             token = (view, self.screen.getmaxyx(), revision, self.settings.arch,
                      self.settings.flavor, self.settings.mode, self.settings.jobs,
-                     self.settings.build_version)
+                     self.settings.build_version, self.settings.build_action)
             if token != self.draw_token:
                 if self.ready():
                     render()
@@ -481,16 +511,16 @@ class Console:
         header_height = 9 if expanded else 3
         self.draw_banner(header_height, width, left, expanded)
         top = header_height + 2
-        self.frame(top, left, 10, width, "BUILD CONFIGURATION")
+        self.frame(top, left, len(OPTIONS) + 2, width, "BUILD CONFIGURATION")
         values = ("ARM64: Marvell Prestera" if self.settings.arch == "arm64" else "X86: AMD64 - not supported",
                   "Amazon" if self.settings.flavor == "amazon" else "Wistron",
-                  "Yes: back up target and rebuild" if self.settings.mode == "clean" else "No: retain outputs, no caches",
+                  self.settings.action_display,
                   str(self.settings.jobs) + " concurrent jobs", self.version_display,
-                  "configure -> build -> verify", "saved logs, checksum, status", "")
+                  self.settings.flow_display, "saved logs, checksum, status", "")
         column = min(26, max(23, width // 3))
         for index, (label, value) in enumerate(zip(OPTIONS, values)):
             row = top + 1 + index
-            number = index + 1 if index < 7 else 0
+            number = index + 1 if index < len(OPTIONS) - 1 else 0
             selected = index == self.selection
             tone = "blue"
             self.put(row, left + 1, " " * (width - 2), self.attr(tone, selected=selected))
@@ -498,14 +528,15 @@ class Console:
                      self.attr(tone, bold=selected, selected=selected), column - 2)
             self.put(row, left + column, value,
                      self.attr(bold=True, selected=selected), width - column - 2)
-        path_top = top + 11
+        path_top = top + len(OPTIONS) + 3
         branch, status = self.metadata_values['branch'], self.source_status
         commit, subject = self.metadata_values['commit']
         commit_display = " ".join(part for part in (commit, subject) if part)
         fields = (("Git branch", branch, None), ("Git commit", commit_display, None),
                   ("Source status", status, "green" if status == "Clean" else "yellow"))
         if height - path_top >= 9:
-            self.frame(path_top, left, 7, width, "SOURCE SNAPSHOT")
+            self.frame(path_top, left, 7, width,
+                       "SOURCE SNAPSHOT" if self.settings.build_action == "standard" else "BUILD WORKSPACE / NO SOURCE SYNC")
             self.put(path_top + 1, left + 2, "Source: " + str(self.settings.source), width=width - 4)
             self.put(path_top + 2, left + 2, "Build:  " + str(self.settings.workspace), width=width - 4)
             field_top = path_top + 3
@@ -519,7 +550,7 @@ class Console:
                     self.put(field_top, left + 2, value, self.attr(bold=True), width - 4)
                 else:
                     self.put(field_top, left + 2, "Git branch: " + branch, self.attr(bold=True), width - 4)
-                    self.put(field_top + 1, left + 2, "Git commit: " + commit + " | Source status: " + status,
+                    self.put(field_top + 1, left + 2, "Git commit: " + commit + " [" + status + "]",
                              self.attr(bold=True), width - 4)
                 fields = ()
             else:
@@ -733,10 +764,9 @@ class Console:
                 if chosen is not None:
                     self.settings.flavor = "amazon" if chosen == 0 else "wistron"
             elif self.selection == 2:
-                chosen = self.choose("CLEAN REBUILD", ["Yes: back up target and rebuild", "No: retain outputs, caches disabled"],
-                                     0 if self.settings.mode == "clean" else 1, {"y": 0, "n": 1})
+                chosen = self.choose("BUILD ACTION", GUI_ACTION_LABELS, GUI_ACTIONS.index(self.settings.gui_action))
                 if chosen is not None:
-                    self.settings.mode = "clean" if chosen == 0 else "normal"
+                    self.settings.select_gui_action(GUI_ACTIONS[chosen])
             elif self.selection == 3:
                 self.edit_jobs()
             elif self.selection == 4:
@@ -754,14 +784,23 @@ class Console:
                 commit_display = ' '.join(part for part in fresh['commit'] if part)
                 details = ["Architecture: ARM64: Marvell Prestera",
                            "Customer: " + self.settings.flavor.title(),
-                           "Clean rebuild: " + ("Yes" if self.settings.mode == "clean" else "No"),
+                           "Build action: " + self.settings.action_display,
+                           "Outputs: " + ("Back up target and rebuild" if self.settings.mode == "clean" else "Retain existing outputs"),
+                           "Source refresh: " + ("ON" if self.settings.build_action == "standard" else "OFF: existing workspace"),
                            "Build job: " + str(self.settings.jobs), "Package/version caches: OFF",
                            "Build version: " + (self.settings.build_version or 'Default: ' + fresh['version']),
                            "ZTP: " + ("ON" if self.settings.ztp == "y" else "OFF"), "",
                            "Git branch: " + fresh['branch'],
                            "Git commit: " + commit_display,
                            "Source status: " + fresh['status'],
-                           "Source: " + str(self.settings.source), "Build directory: " + str(self.settings.workspace), ""]
+                           "Source: " + str(self.settings.source), "Build directory: " + str(self.settings.workspace),
+                           "Effective source: " + str(self.settings.effective_source), ""]
+                if self.settings.build_action == "make":
+                    details.extend(["Edit platform/src and remove package outputs in the Build directory.",
+                                    "Original source checkout changes are not synchronized.", ""])
+                elif self.settings.build_action == "installer-only":
+                    details.extend(["Reuse existing packages, Docker archives and first-stage rootfs.",
+                                    "No component compilation; missing inputs stop this run.", ""])
                 details.extend(distro.title() + ": " + image for distro, image in self.images.items())
                 details.extend(["", "The console will switch to the full foreground build log.",
                                 "Ctrl+C stops this run. The result card appears after completion."])

@@ -1,253 +1,252 @@
 # Wistron SONiC Build Menu
 
-Start the menu from the source directory in WSL:
+Open the console in WSL:
 
 ```bash
 cd /home/otis/kyoto-sai1.17
 ./build-menu.sh
 ```
 
-In an interactive WSL terminal, the arrow-key console opens automatically.
-Use Up/Down to highlight an option and Enter to open it. The console uses a
-Wistron blue-and-lime theme, a block wordmark, configuration cards, and a
-highlighted selection. The menu entries remain:
-
-```text
-1. architecture
-2. customer
-3. clean rebuild
-4. build job
-5. build version
-6. start build
-7. last result
-0. exit
-```
-
-Selected settings use a colon before the architecture and clean-rebuild
-descriptions. The selected customer shows only its name:
+The interactive console offers two build actions: **Incremental build** and
+**Clean build**. Incremental build is the interactive default. There is no
+separate clean-rebuild Yes/No setting.
 
 ```text
 1. architecture       ARM64: Marvell Prestera
 2. customer           Amazon
-3. clean rebuild      No: retain outputs, no caches
+3. build action       Incremental build
+4. build job          8 concurrent jobs
+5. build version      Default: <effective source version>
+6. start build        make -> installer -> verify
+7. last result        saved logs, checksum, status
+0. exit
 ```
 
-The selectors and pre-build review retain their detailed information,
-including the customer's ZTP setting. Architecture and clean-rebuild
-selector descriptions also use colons, as does the architecture in the
-pre-build review. Build behavior is unchanged.
+## Choose a Build Action
 
-Architecture, customer, and clean-rebuild selectors use Up/Down and Enter.
-Esc cancels a popup without changing its value. The number keys `1`-`7`
-and `0` select a main-menu row; Enter activates it. `q`, Esc, or Ctrl+D exits
-the main menu. Ctrl+C cancels the current selection and reopens the console.
-The job and version editors support cursor keys, Backspace/Delete, and
-Ctrl+U to clear.
+The action selector has exactly two choices, one per line:
 
-Select `start build` to review the settings and full paths. Enter or `y`
-confirms; Esc or `n` returns without starting a build. X86 / AMD64 remains a
-visible placeholder and cannot start a build. Long review and result cards
-can be scrolled with Up/Down or PageUp/PageDown. The source information card
-groups `Source` and `Build` on adjacent lines above the Git fields. Compact
-layouts keep the two paths together when there is room and hide both when
-space is limited. The card also shows `Git branch`, the short `Git commit`,
-and `Source status` from the
-original source checkout. `Clean / Modified` reflects tracked changes,
-non-ignored untracked files, and submodule changes. A single background reader
-refreshes Git metadata and the automatic version every five seconds after
-each completed read. Navigation, selectors, and text editors use the cached
-values without waiting for Git or Bash. Initial values show `Loading...`;
-failed refreshes retain the last valid values, or show `unavailable` if none
-have been read. Each source query has a ten-second timeout. The console
-redraws only when its selection, settings, size, or displayed metadata changes.
-All Git fields also appear in the plain-text summary and pre-build review.
-The review requests a new read after any ongoing background read, so it
-does not rely on the display cache. The reader and any unfinished query are
-stopped before leaving the console or entering the foreground build log.
-The commit field includes the HEAD commit's subject after its short hash.
-Narrow layouts may truncate or omit the subject; the pre-build review
-retains the full title.
-Detached checkouts show `detached HEAD (<short commit>)`, and unreadable Git
-metadata shows `unavailable`. Compact layouts prioritize Git information
-and may combine branch, commit, and status on one line.
-Long branches and source paths may be clipped in the main view; the review
-shows their full text.
+```text
+1. Incremental build
+2. Clean build
+```
 
-All menu-owned prompts, progress messages, errors, results, and CLI help are
-in English. The console restores normal terminal input before a build, then
-shows the complete foreground log unchanged. After completion or failure,
-the result card opens; Enter or Esc returns to the menu.
-During a build, `Ctrl+C` stops this run's make process group and its labeled
-slave containers, preserving logs and failed outputs. Other containers are
-not stopped.
+**Incremental build** uses the existing customer Build directory directly.
+It preserves package and intermediate outputs and skips source synchronization,
+configure, and patch changes. It runs Bookworm make followed by the Trixie
+installer. Edit `platform/` or `src/` and remove the relevant `.deb` or wheel
+inside the displayed **Build** directory, then start this action. Edits made
+only in the original Source checkout are not synchronized or compiled.
+SONiC dependency and build-flag rules determine what must rebuild; related
+packages, Docker images, and rootfs may also rebuild. This action does not
+promise to rebuild only manually deleted files or to perform installer-only
+assembly. The existing customer workspace must have valid menu ownership,
+independent Git metadata, ARM64 architecture, Marvell Prestera platform, and
+matching ZTP patch state. Missing or incompatible workspaces stop with an
+instruction to choose Clean build.
 
-After updating the menu, exit with `0` and reopen it to load the new code.
-Let any active build finish before restarting the menu.
+After those checks, Incremental build treats `.platform` as an unchanged
+configuration input by passing `--old-file=.platform` to the make inside each
+slave container. A previous configure can rewrite this file with identical
+contents and a newer timestamp; that timestamp alone must not invalidate every
+retained package, wheel and Docker image. The file and its timestamp are not
+modified. Other dependencies keep their normal make behavior: missing products
+and newer declared source/dependency files can still rebuild components and
+their dependents. Component products are not frozen, and no force-rebuild flag
+is added. Use Clean build for global configuration changes or a fresh source
+snapshot. Interrupting builds can leave missing products that still need to
+be rebuilt; this timestamp handling does not restore deleted files.
 
-## Terminal Theme and Compatibility
+**Clean build** refreshes the isolated customer snapshot from the original
+Source checkout, including tracked edits, non-ignored untracked files and
+initialized submodule changes. It backs up the entire existing `target`,
+safely removes generated rootfs and untracked Python build/dist/egg-info
+outputs, normalizes patches, then runs Bookworm configure/build and Trixie
+configure/installer. Use it for the first build, after refreshing the original
+checkout, or whenever a fresh rebuild is required. Cleanup preserves tracked
+files and rejects unsafe paths or mounted generated directories. The
+original Source checkout is preserved.
 
-The console uses the selected Power Stripe banner: a blue panel, matching
-green title and footer bands, and stripe ornaments. Its palette
-uses the supplied Wistron blue `#0B6894` and lime green `#8ADF4C` as the
-reference, with nearest 256-color shades. All main-menu labels use the
-same blue color and their values use the default foreground, including
-the X86 placeholder and start-build item. The
-five-row block wordmark uses white strokes and a green lowercase `i` stem.
-The selected `i` has a two-column cap and straight stem, separated by one
-blank row, with no horizontal foot. The `w` keeps its full five-row height.
-The 52-column wordmark is centered inside a nine-row banner, with a blank
-row above and below. Unicode block strokes fall back to ASCII `#` when
-needed, and colors have basic-color fallbacks. Selected rows use black text
-on green; failure and warning states remain red and yellow. Paths and
-checksums keep the terminal's default foreground color.
+Selecting either action sets the complete behavior. Clean build always uses
+clean mode; Incremental build always retains outputs. The review shows the
+action, output handling, source-refresh state, effective source path, version,
+ZTP state, and pinned images before a build starts. The previous final bin is
+backed up for every action. Backups are retained under the run directory.
 
-The standard-library `curses` module provides the console. No extra
-packages or CLI flags are required. Resize the terminal to at least 48
-columns by 20 rows. The full block banner appears at 62 columns by 24 rows
-or larger; smaller supported terminals use the compact wordmark.
+## Keyboard and Terminal
 
-`NO_COLOR` preserves a monochrome arrow-key console, which still uses
-terminal screen-control sequences. Non-TTY input/output, `TERM=dumb`, or
-unavailable curses support falls back to the existing numeric menu.
-Redirected output uses plain text without menu color codes. CLI automation
-with `--run`, `--dry-run`, and `--help` does not open the arrow-key console.
+Use Up/Down to navigate and Enter to select. Number keys `1`-`7` and `0`
+highlight main-menu rows; Enter activates them. In selectors, number keys
+highlight the choice and Enter applies it. Esc cancels a popup, preserving
+the current value. `q`, Esc, or Ctrl+D exits the main menu. Ctrl+C cancels a
+selection and reopens the console. Job/version editors support cursor keys,
+Backspace/Delete, and Ctrl+U to clear. Long review/result cards scroll with
+Up/Down or PageUp/PageDown. Enter or `y` starts a reviewed build; Esc or `n`
+returns without starting it.
+
+The Wistron Power Stripe banner uses blue `#0B6894`, green `#8ADF4C`, matching
+green title/footer bands, a full-height lowercase wordmark, and the selected
+bold green i stem. Main-menu labels use uniform blue; values remain in the
+default foreground, and the selected row uses a green background. Success,
+failure, and warning messages use green, red, and yellow. Paths/checksums keep
+the default foreground. The 52-column expanded wordmark appears at 62x24 or
+larger; smaller supported terminals use the compact wordmark. The minimum
+window size is 48x20. Resizing preserves the current selection and settings.
+
+`NO_COLOR` keeps the arrow-key interface with monochrome styling. Non-TTY
+input/output, `TERM=dumb`, or unavailable curses uses a line-separated numeric
+menu. Redirected output has no menu color codes. Upstream build output passes
+through unchanged. Menu color codes are not saved in logs, JSON or checksums.
 
 ```bash
-# Disable the menu's colors explicitly
 NO_COLOR=1 ./build-menu.sh
 ```
 
-Color codes added by the menu are not stored in build logs, JSON, or
-checksums. Upstream build output, including any colors it already contains,
-passes through unchanged.
+The terminal returns to normal foreground log output during a build. Ctrl+C
+stops this run's process group and labeled slave containers, retaining logs
+and failed outputs. Other containers are not stopped. A result card appears
+after completion. Exit and reopen the console after updates; allow any active
+build to finish before restarting it.
 
-## Build Options
+## Settings and Source Information
 
-- **Architecture:** ARM64 builds the Marvell Prestera ONIE installer. X86 /
-  AMD64 is a placeholder and cannot start a build.
-- **Customer:** Amazon uses `ENABLE_ZTP=y` and applies the regular Wistron
-  patches and optional ZTP workaround stack. Wistron uses `ENABLE_ZTP=n`,
-  reverts the ZTP workaround stack, and excludes ZTP packages, runtime
-  services, configuration, and programs from the installer. Other source,
-  SAI, and platform settings are the same.
-- **Clean rebuild:** Choose `Yes` or `No` with Up/Down and Enter. The `y/n` keys
-  also select a value, case-insensitively, followed by Enter to apply.
-  Enter on the current choice keeps it. In the numeric fallback, Enter
-  alone at the `Yes/No` prompt keeps the current value. The numeric fallback
-  accepts `yes/no` or `y/n`, case-insensitively. `Yes` backs up the old target,
-  safely clears generated
-  rootfs and untracked Python build/dist/egg-info directories, and rebuilds.
-  `No` retains target and intermediate outputs and runs the existing SONiC
-  build rules. Packages may still all rebuild; this is not a package-cache
-  mode and does not promise to rebuild only manually deleted packages.
-- **Build job:** Controls only `SONIC_BUILD_JOBS`. The default is `8`, and
-  the value must be a positive integer. Enter alone resets it to `8`.
-- **Build version:** Choose `Default: <source version>` to remove the
-  custom override, or `Custom: enter a version` to open the editor. The
-  selector supports Up/Down, number keys, and `d/c` shortcuts followed by
-  Enter. Esc cancels without changing the version. The numeric fallback
-  offers the same choices plus `0. back`; Enter alone keeps the setting.
-  Default uses `sonic_get_version` from `functions.sh` in the current
-  source checkout, so it follows source updates after a Git pull.
-  Entering a blank custom version also restores Default. The menu shows
-  the current default version as a preview; tagged dirty builds may receive
-  a build-time timestamp suffix.
-  Custom versions allow 1-128 ASCII letters/digits, dots, underscores, and
-  hyphens, starting with a letter or digit. All four stages pass
-  `SONIC_IMAGE_VERSION`; Default passes an empty value to retain the native
-  fallback. The original and snapshot `functions.sh` files are preserved.
-  The selected override is recorded in the run result, and the installer
-  version is read from `etc/sonic/sonic_version.yml`. A custom-version
-  mismatch fails verification.
-- Both clean-rebuild values explicitly set `SONIC_DPKG_CACHE_METHOD=none` and
-  `SONIC_VERSION_CACHE_METHOD=none`. No additional test-skip options are set.
+- **Architecture:** ARM64 builds `sonic-marvell-prestera-arm64.bin`. X86/AMD64
+  remains a visible placeholder and cannot start a build.
+- **Customer:** Amazon includes ZTP and its optional workaround patches.
+  Wistron excludes the runtime ZTP packages, services, configuration and
+  programs. Customer workspaces are separate. Clean build normalizes patch
+  state; Incremental build validates it without applying or reverting patches.
+  Static YANG schemas/test data do not constitute runtime ZTP functionality.
+- **Build job:** Controls only `SONIC_BUILD_JOBS`, defaults to `8`, and accepts
+  positive integers. Enter alone in its editor restores `8`.
+  `SONIC_CONFIG_MAKE_JOBS` is not overridden and follows the source default
+  (`nproc` in the current `rules/config`); it is not shown in the interface.
+- **Build version:** Choose Default or Custom. Default invokes
+  `sonic_get_version` from the effective source's `functions.sh`: the original
+  checkout for Clean build, the existing workspace for Incremental build.
+  A source Git pull affects Clean build; Incremental build continues to use
+  the workspace version. Custom overrides use 1-128 ASCII letters/digits,
+  dots, underscores and hyphens, starting with a letter or digit. Blank custom
+  input restores Default. Default passes an empty `SONIC_IMAGE_VERSION` to
+  preserve native fallback behavior; dirty tagged builds can gain a build-time
+  timestamp. Custom-version mismatches fail installer verification.
+- **Caches:** Both actions explicitly disable package and version caches.
+  Retaining build outputs is separate from those caches. Existing test settings
+  remain in force; no test-skip switches are added. Service Docker rebuilds use
+  the existing `--no-cache` rules.
 
-Defaults remain ARM64, Amazon, clean rebuild `No`, build job `8`, and
-automatic build version.
-`SONIC_CONFIG_MAKE_JOBS` is not overridden; it follows the source
-configuration, currently `$(shell nproc)` in `rules/config`. It is not
-shown or configurable in the menu.
+The source card groups Source and Build paths together and shows Git branch,
+commit plus subject, and Clean/Modified status. Clean build reads metadata
+from the original Source checkout. Incremental build reads the actual Build
+workspace and labels the card `BUILD WORKSPACE / NO SOURCE SYNC`. Compact
+layouts truncate long fields or hide both paths together while preserving Git
+information. Detached HEAD and unavailable metadata have explicit labels.
 
-The generic YANG package may contain static ZTP schemas and test data. These
-do not provide runtime ZTP functionality and are recorded separately during
-installer validation.
+A single background worker refreshes Git and Default version every five
+seconds without overlapping queries. Navigation and text entry use cached
+values and never query Git/Bash while rendering. Initial/context-switched
+values show `Loading...`; failed reads retain the last valid values or show
+`unavailable` when none exist. One metadata read binds one source directory,
+so quick action/customer changes do not mix fields from two sources. Queries
+have ten-second timeouts and are cancelled when leaving the console. The
+review requests fresh metadata; the worker stops before entering a build.
+The console redraws only when input, settings, window size or metadata changes.
 
-## Source and Outputs
-
-The snapshot includes current tracked-file modifications, untracked files
-that are not ignored by Git, and initialized submodules or nested
-repositories. Ignored files and generated target/rootfs/Python build
-outputs are excluded. Source merge conflicts, uninitialized submodules,
-and untracked external symlinks stop the build. Tracked runtime symlinks are
-preserved as links without reading their external targets.
-
-Amazon and Wistron build in separate directories outside the source
-checkout. Resets, cleanup, and patches operate on those snapshots. Each
-repository has independent Git metadata, with no `.git` link back to the
-original source. Branches, tags, remote refs, and symbolic refs are refreshed
-from the local source even when HEAD is unchanged, so packages such as FRR
-can use `origin/<branch>`. Source files or refs changing during the snapshot
-stop the build and require a retry.
+## Workspaces, Outputs and Safety
 
 The default state directory is `/home/otis/kyoto-sai1.17-build-menu`.
 Customer workspaces are `workspaces/arm64/amazon` and
-`workspaces/arm64/wistron`. The actual paths are shown before starting.
-Each run stores its installer, checksum, full and component logs, source
-manifest, result JSON, and backups in `runs/<run-id>/`. Backups are retained.
+`workspaces/arm64/wistron`. The actual paths appear in the console/review.
+Each run retains its installer, SHA-256, full/component logs, source manifest,
+result JSON and backups in `runs/<run-id>/`.
 
-Starting another build refreshes that customer's source snapshot.
-Synchronization removes stale files and their empty parent directories
-before copying current source, allowing a directory to become a file.
-Unrelated directories, Git metadata, and nonempty generated directories are
-preserved; a remaining file/directory conflict stops the build safely.
+Clean build snapshots include initialized submodules/nested repositories with
+independent Git metadata. Ignored/generated outputs are excluded. Unresolved
+merges, uninitialized submodules and unsafe external untracked symlinks stop
+the snapshot. Tracked runtime symlinks are preserved without reading their
+external targets. Branches, tags and remote/symbolic refs are refreshed from
+the local source even if HEAD is unchanged, supporting FRR's remote refs.
+Source files or refs changing during a snapshot stop the run for a retry.
 
-Before normalizing ZTP, source refresh also removes files left by earlier
-ZTP patches when they are absent from the current source and exactly match
-the patch-created content. Modified files are preserved and stop the build;
-source-owned files and unrelated generated outputs are retained.
-
-To manually remove package outputs, use the customer build directory displayed
-by the menu. Removing outputs from the original checkout's target does not
-affect the separate build workspace.
-
-## Existing sonic-slave Images
+Snapshot synchronization removes stale source files and only their obsolete
+empty parent directories before copying, supporting directory-to-file changes.
+It preserves unrelated/nonempty directories and rejects escaping symlinks or
+remaining conflicts. Before ZTP normalization, unchanged files created by old
+ZTP patches are removed when absent from source; modified copies are retained
+and stop the build. Incremental build does not perform this synchronization.
 
 Bookworm uses `sonic-slave-bookworm-otis:043096ac032`; Trixie uses
 `sonic-slave-trixie-otis:cae085605ab`. Missing existing ARM64 images stop the
-build. Slave images are never pulled or rebuilt. Each stage specifies its
-tag, and image IDs are checked before and after building. Service Docker
-images still use the existing `--no-cache` build rules.
+run. Slaves are never pulled or rebuilt, and image IDs are checked throughout
+and after the run. A shared build lock prevents concurrent menu builds; an
+active sonic-slave build also blocks a new run.
 
-## Checks and Automation
+Success requires every selected stage to exit zero, a new ONIE installer with
+valid shell header, payload size and SHA-1, expected ZTP runtime state,
+matching custom version when specified, a matching SHA-256 after copying, and
+unchanged slave IDs. An embedded ZIP never skips ONIE validation. The enclosing
+tar reader is bounded by the checked payload size. Failed installers remain
+in the workspace for diagnosis but are not published with a success checksum.
+These checks do not constitute DUT installation or hardware validation.
 
-Existing CLI arguments are unchanged: `--flavor` selects the customer and
-`--mode clean|normal` corresponds to clean rebuild `Yes|No`.
+## CLI Compatibility and Advanced Actions
+
+Existing CLI arguments remain supported. Without `--run` or `--dry-run`, the
+interactive menu always offers only Incremental build and Clean build. Legacy
+standard/normal or installer-only settings open as Incremental build;
+standard/clean opens as Clean build. CLI build defaults remain unchanged.
 
 ```bash
-# Check the environment and print commands without copying, cleaning, or building
-./build-menu.sh --dry-run --flavor wistron
-./build-menu.sh --dry-run --flavor amazon --mode normal
-./build-menu.sh --dry-run --flavor wistron --build-version Wistron_M.1.0.3
+# Inspect both GUI workflows without copying, cleaning or building
+./build-menu.sh --dry-run --flavor amazon --build-action make
+./build-menu.sh --dry-run --flavor wistron --build-action standard --mode clean
 
-# Run with pinned slave images, isolated source, and installer validation
-./build-menu.sh --run --yes --flavor wistron --mode clean --jobs 8
+# Incremental build: changes/deletions must be inside the customer Build path
+./build-menu.sh --run --yes --flavor amazon --build-action make --jobs 8
 
-# Select another source checkout and an external state directory
-./build-menu.sh --source /path/to/sonic-buildimage --state-dir /path/to/build-state
+# Clean build: synchronize original Source, back up target, configure and build
+./build-menu.sh --run --yes --flavor wistron --build-action standard --mode clean
 ```
 
-Requirements: Python 3.10+, Git, make, patch, Docker, and unsquashfs. Only one
-menu build may run for this source at a time. An existing sonic-slave build
-also prevents a new build from starting.
+The old **Standard build** with `--mode normal` remains CLI-only for callers
+that need to refresh source/configure while retaining target outputs. It can
+still rebuild components according to SONiC rules:
 
-Success requires all four build stages to exit with code 0, a new ONIE
-installer, a valid shell header, payload size and SHA-1 checksum, and the
-expected ZTP package and runtime-file state
-inside the final squashfs, matching SHA-256 after copying, and unchanged
-slave image IDs. These checks do not constitute DUT installation or hardware
-functional validation.
+```bash
+./build-menu.sh --run --yes --build-action standard --mode normal
+```
 
-The embedded ZIP never bypasses ONIE validation. Its enclosing tar is read
-only within the checksummed payload size. An invalid installer is retained
-in the build workspace for diagnosis, but no downloadable installer or
-SHA-256 file is published for the failed run.
+Strict **Installer only** also remains CLI-only. It reuses existing packages,
+wheels, Docker archives and first-stage SquashFS, skips synchronization,
+configure and Bookworm build, and forces the final bin. A temporary make guard
+blocks unfrozen SONiC products; missing required products stop with their path
+instead of compiling. Existing products use `--old-file`, with `--always-make`
+for installer assembly inside the pinned Trixie slave. The frozen SHA-256
+manifest and guard are retained with run logs; workspace control files are
+removed afterwards. Reused inputs are checked again before success is
+published. Installer assembly can still access repositories and take minutes.
+
+```bash
+./build-menu.sh --dry-run --flavor amazon --build-action installer-only
+./build-menu.sh --run --yes --flavor amazon --build-action installer-only --build-version Custom.123
+```
+
+Combining `--mode clean` with `make` or `installer-only` is rejected before
+workspace changes. Results retain `build_action`, `mode`, `effective_source`
+and `source_refresh`; standard/clean is displayed as Clean build. Historical
+records without an action retain their Standard build interpretation.
+
+Use `--source` and `--state-dir` to select a different checkout and an external
+state directory. Python 3.10+, Git, make, patch, Docker and unsquashfs are
+required. CLI help and all console-owned messages are English.
+
+## Regression Checks
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+Tests use temporary repositories, simulated make/Docker commands and GNU make
+dependency/installer-guard fixtures. They do not build a SONiC image or rebuild
+slave containers. Native PTY checks cover navigation, review cancellation,
+window resizing and color/NO_COLOR at 110x32, 62x24 and 48x20.

@@ -28,6 +28,9 @@ IMAGES = {
     "trixie": "sonic-slave-trixie-otis:cae085605ab",
 }
 INSTALLER = "sonic-marvell-prestera-arm64.bin"
+ACTIONS = {"standard": "Standard build", "make": "Incremental build", "installer-only": "Installer only"}
+GUI_ACTIONS = {"make": "Incremental build", "clean": "Clean build"}
+RFS = INSTALLER + "__marvell-prestera__rfs.squashfs"
 ZTP_PATCHES = [
     "wistron_patches/ztp_workaround/0002-Add-dhcp_l2-dhcpv6_l2-to-copp-supported-list.patch",
     "wistron_patches/ztp_workaround/0002-ztp-workaround-mac-table-added.patch",
@@ -209,6 +212,7 @@ class Settings:
     mode: str = "normal"
     jobs: int = 8
     build_version: str = ""
+    build_action: str = "standard"
 
     @property
     def workspace(self):
@@ -218,9 +222,46 @@ class Settings:
     def ztp(self):
         return "y" if self.flavor == "amazon" else "n"
 
-    def _source_value(self, name, query):
+    @property
+    def effective_source(self):
+        return self.source if self.build_action == "standard" else self.workspace
+
+    @property
+    def action_display(self):
+        if self.build_action == "standard" and self.mode == "clean":
+            return "Clean build"
+        return ACTIONS[self.build_action]
+
+    @property
+    def gui_action(self):
+        return "clean" if self.build_action == "standard" and self.mode == "clean" else "make"
+
+    def select_gui_action(self, action):
+        require(action in GUI_ACTIONS, "Unknown menu build action.")
+        self.set_build_action("standard" if action == "clean" else "make")
+        self.mode = "clean" if action == "clean" else "normal"
+
+    @property
+    def clean_display(self):
+        if self.build_action != "standard":
+            return "N/A: retain outputs"
+        return "Yes: back up target and rebuild" if self.mode == "clean" else "No: retain outputs, no caches"
+
+    @property
+    def flow_display(self):
+        return {"standard": "configure -> build -> verify", "make": "make -> installer -> verify",
+                "installer-only": "existing artifacts -> bin -> verify"}[self.build_action]
+
+    def set_build_action(self, action):
+        require(action in ACTIONS, "Unknown build action.")
+        if action != self.build_action:
+            self.mode = "normal"
+        self.build_action = action
+
+    def _source_value(self, name, query, source=None):
+        source = self.effective_source if source is None else source
         def query_git(*arguments):
-            return query(['git', '-C', str(self.source), *arguments])
+            return query(['git', '-C', str(source), *arguments])
         if name == 'branch':
             branch = query_git('branch', '--show-current').decode(errors='replace').strip()
             if branch:
@@ -241,17 +282,18 @@ class Settings:
             environment = child_environment()
             environment.update(BUILD_TIMESTAMP=datetime.datetime.now().strftime('%Y%m%d.%H%M%S'))
             value = query(['bash', '-c', 'cd "$1" && . ./functions.sh && sonic_get_version',
-                           'build-menu-version', str(self.source)], env=environment).decode().strip()
+                           'build-menu-version', str(source)], env=environment).decode().strip()
             require(bool(value), 'Source version is empty.')
             return value
         raise ValueError('Unknown source metadata field: ' + name)
 
     def read_source_metadata(self, stop=None):
         query = SourceQuery(stop)
+        source = self.effective_source
         values = {}
         for name in ('branch', 'commit', 'status', 'version'):
             try:
-                values[name] = self._source_value(name, query)
+                values[name] = self._source_value(name, query, source)
             except (BuildError, OSError, ValueError):
                 values[name] = None
         return values
@@ -299,6 +341,9 @@ class Settings:
         require(self.arch == "arm64", "X86 / AMD64 builds are not supported yet. No build was started.")
         require(self.flavor in ("amazon", "wistron"), "Unknown customer.")
         require(self.mode in ("clean", "normal"), "Unknown build mode.")
+        require(self.build_action in ACTIONS, "Unknown build action.")
+        require(self.build_action == "standard" or self.mode == "normal",
+                "--mode clean is only supported with --build-action standard.")
         require(self.jobs > 0, "Build job must be a positive integer.")
         validate_version(self.build_version)
         require(not self.state.is_relative_to(self.source)
@@ -310,6 +355,32 @@ class Settings:
             require((self.source / name).is_file(), f"Source is missing {name}")
         require(git(self.source, "rev-parse", "--show-toplevel").decode().strip() == str(self.source),
                 "Specify the root directory of the Git repository.")
+        if self.build_action != "standard":
+            self.validate_workspace()
+
+    def validate_workspace(self):
+        workspace = self.workspace
+        expected = {"schema": SCHEMA, "source": str(self.source), "arch": self.arch, "flavor": self.flavor}
+        require(not workspace.is_symlink() and workspace.resolve() == workspace,
+                "The build directory must not contain symlinks.")
+        marker = workspace / OWNER
+        require(marker.is_file() and not marker.is_symlink() and json.loads(marker.read_text()) == expected,
+                f"No matching menu workspace. Run Clean build first: {workspace}")
+        for name, value in ((".arch", "arm64"), (".platform", "marvell-prestera")):
+            path = workspace / name
+            require(path.is_file() and not path.is_symlink() and path.read_text().strip() == value,
+                    f"Workspace configuration mismatch: {name}. Run Clean build first.")
+        for name in REQUIRED + ZTP_PATCHES:
+            path = workspace / name
+            require(path.is_file() and not path.is_symlink(), f"Workspace is missing {name}; run Clean build first.")
+        require(git(workspace, "rev-parse", "--show-toplevel").decode().strip() == str(workspace),
+                "The workspace must have independent Git metadata.")
+        require(not (workspace / "target").is_symlink(), "target cannot be a symlink.")
+        verify_patch_stack(workspace, applied=self.ztp == "y")
+        if self.build_action == "installer-only":
+            path = workspace / "target" / RFS
+            require(path.is_file() and not path.is_symlink() and path.stat().st_size > 0,
+                    f"Installer only requires existing rootfs: {path}. Run Clean build or Incremental build first.")
 
 
 def make_command(settings, distro, target, run_id="preview"):
@@ -332,14 +403,30 @@ def make_command(settings, distro, target, run_id="preview"):
     ]
     if target == "configure":
         arguments.append("PLATFORM=marvell-prestera")
+    if settings.build_action != "standard":
+        arguments[1:1] = ["-f", "Makefile.work", "BLDENV=" + distro]
     return arguments + [target]
 
 
 def stages(settings, run_id="preview"):
+    if settings.build_action == "installer-only":
+        return [("Trixie installer only", "trixie", "target/" + INSTALLER)]
+    if settings.build_action == "make":
+        return [("Bookworm make", "bookworm", "bookworm"),
+                ("Trixie installer", "trixie", "target/" + INSTALLER)]
     return [("Bookworm configure", "bookworm", "configure"),
             ("Bookworm build", "bookworm", "bookworm"),
             ("Trixie configure", "trixie", "configure"),
             ("Trixie installer", "trixie", "target/" + INSTALLER)]
+
+
+def incremental_environment(settings):
+    # validate_workspace checks platform/architecture/customer before this is used.
+    # configure rewrites .platform even when its contents do not change. Its
+    # timestamp must not invalidate every retained component in this action.
+    if settings.build_action == "make":
+        return {"SONIC_OVERRIDE_BUILD_VARS": "--old-file=.platform"}
+    return None
 
 
 def image_ids():
@@ -471,6 +558,10 @@ class Runner:
                        "jobs": settings.jobs, "make_jobs": "sonic-default",
                        "requested_image_version": settings.build_version or "auto",
                        "enable_ztp": settings.ztp, "stages": []}
+        self.result.update(build_action=settings.build_action, effective_source=str(settings.effective_source),
+                           source_refresh=settings.build_action == "standard")
+        self.frozen = None
+        self.controls = None
 
     def say(self, message, *, tone="cyan", bold=False):
         print(terminal_text(message, tone, bold=bold), flush=True)
@@ -482,8 +573,10 @@ class Runner:
         atomic_json(self.folder / "result.json", self.result)
         atomic_json(self.settings.state / "last-run.json", self.result)
 
-    def command(self, command, cwd=None):
+    def command(self, command, cwd=None, extra_env=None):
         env = child_environment()
+        if extra_env:
+            env.update(extra_env)
         self.process = subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE,
                                         stderr=subprocess.STDOUT, start_new_session=True)
         try:
@@ -727,6 +820,56 @@ class Runner:
         self.command(["bash", "./apply_patches.sh", "ZTP=no"], cwd=self.settings.workspace)
         verify_patch_stack(self.settings.workspace, applied=False)
 
+    def installer_inputs(self):
+        """Freeze existing build products and reject every unfrozen product in slave.mk."""
+        workspace = self.settings.workspace
+        frozen = {}
+        target = workspace / "target"
+        for current, directories, filenames in os.walk(target, followlinks=False):
+            for name in directories:
+                require(not (Path(current) / name).is_symlink(), "Installer inputs cannot contain directory symlinks.")
+            for name in filenames:
+                path = Path(current) / name
+                relative = path.relative_to(workspace).as_posix()
+                if (path == target / INSTALLER or path.suffix == ".log"
+                        or ".build-menu-controls" in path.parts):
+                    continue
+                if not (path.parent == target or path.suffix in (".deb", ".whl")
+                        or relative.startswith("target/files/")):
+                    continue
+                require(re.fullmatch(r"[A-Za-z0-9_./+~:%=@-]+", relative),
+                        f"Unsupported installer input path: {relative}")
+                require(path.is_file() and not path.is_symlink(), f"Installer input must be a regular file: {relative}")
+                frozen[relative] = {"size": path.stat().st_size, "sha256": digest_file(path)}
+        require("target/" + RFS in frozen, "Installer only requires an existing first-stage rootfs.")
+        return frozen
+
+    def prepare_installer_only(self):
+        self.frozen = self.installer_inputs()
+        atomic_json(self.folder / "frozen-artifacts.json", self.frozen)
+        relative = Path("target/.build-menu-controls") / self.run_id
+        controls = self.settings.workspace / relative
+        require(controls.parent.resolve().is_relative_to(self.settings.workspace), "Unsafe installer control path.")
+        controls.mkdir(parents=True)
+        self.controls = controls
+        (controls / "frozen.list").write_text(" ".join(sorted(self.frozen)) + "\n")
+        (controls / "installer-only.mk").write_text(installer_guard(relative))
+        shutil.copy2(controls / "installer-only.mk", self.folder / "installer-only.mk")
+        shutil.copy2(controls / "frozen.list", self.folder / "frozen.list")
+        flags = ["-f", str(relative / "installer-only.mk"), "--always-make"]
+        flags += ["--old-file=" + path for path in sorted(self.frozen)]
+        override = " ".join(flags)
+        require(len(override.encode()) < 100000, "Too many installer inputs for the build environment.")
+        return {"SONIC_OVERRIDE_BUILD_VARS": override}
+
+    def verify_frozen(self):
+        for relative, record in self.frozen.items():
+            path = self.settings.workspace / relative
+            require(path.is_file() and not path.is_symlink()
+                    and path.stat().st_size == record["size"] and digest_file(path) == record["sha256"],
+                    f"Installer only changed a reused input: {relative}")
+        self.result["reused_artifacts_unchanged"] = True
+
     def copy_logs(self):
         target = self.settings.workspace / "target"
         if target.is_dir() and not target.is_symlink():
@@ -761,23 +904,32 @@ class Runner:
                 self.save()
                 try:
                     self.result["slave_ids_before"] = preflight(settings)
-                    self.say("Creating a snapshot of the current working source...")
-                    manifest = inventory(settings.source, self.say)
+                    self.say("Creating a snapshot of the current working source..." if settings.build_action == "standard"
+                             else "Using the existing build workspace; source refresh and configure are OFF.")
+                    manifest = inventory(settings.effective_source, self.say)
                     self.result["source_sha256"] = manifest["sha256"]
                     atomic_json(self.folder / "source-manifest.json", manifest)
-                    self.prepare_workspace(manifest)
+                    if settings.build_action == "standard":
+                        self.prepare_workspace(manifest)
+                    extra_env = (self.prepare_installer_only() if settings.build_action == "installer-only"
+                                 else incremental_environment(settings))
+                    if settings.build_action == "make":
+                        self.say("Reusing verified platform configuration; ignoring its timestamp.")
                     self.clean(manifest)
-                    self.say("Preparing the selected customer's ZTP state...")
-                    self.normalize_ztp()
+                    if settings.build_action == "standard":
+                        self.say("Preparing the selected customer's ZTP state...")
+                        self.normalize_ztp()
                     for name, distro, target in stages(settings, self.run_id):
                         require(image_ids() == self.result["slave_ids_before"], "A slave image ID changed.")
                         record = {"phase": name, "started_at": now(), "command": make_command(settings, distro, target, self.run_id)}
+                        if extra_env:
+                            record["environment"] = extra_env
                         self.result["stages"].append(record)
                         self.result.update(status="running", phase=name)
                         self.say(f"\n=== {name} ===", bold=True)
                         self.save()
                         try:
-                            record["exit_code"] = self.command(record["command"], cwd=settings.workspace)
+                            record["exit_code"] = self.command(record["command"], cwd=settings.workspace, extra_env=extra_env)
                         except BuildError:
                             record["exit_code"] = self.last_exit_code
                             raise
@@ -795,6 +947,8 @@ class Runner:
                     self.result["image_version"] = self.result["ztp_validation"]["build_version"]
                     self.result["slave_ids_after"] = image_ids()
                     require(self.result["slave_ids_before"] == self.result["slave_ids_after"], "The slave images were replaced.")
+                    if self.frozen is not None:
+                        self.verify_frozen()
                     published = self.folder / f"sonic-marvell-prestera-arm64-{settings.flavor}.bin"
                     shutil.copy2(artifact, published)
                     digest = digest_file(published)
@@ -811,6 +965,14 @@ class Runner:
                     self.result.update(status="failed", error=str(error))
                 finally:
                     self.copy_logs()
+                    if self.controls is not None:
+                        try:
+                            require(self.controls.resolve().is_relative_to(settings.workspace), "Unsafe control cleanup path.")
+                            for name in ("installer-only.mk", "frozen.list"):
+                                (self.controls / name).unlink(missing_ok=True)
+                            self.controls.rmdir()
+                        except (OSError, BuildError) as error:
+                            self.result["control_cleanup_error"] = str(error)
                     if "slave_ids_before" in self.result:
                         try:
                             self.result["slave_ids_after"] = image_ids()
@@ -826,6 +988,23 @@ class Runner:
                     show_result(self.result)
             self.log = None
         return self.result
+
+
+def installer_guard(relative):
+    return ("# Generated installer-only guard; read after slave.mk.\n"
+            "ifeq ($(strip $(SONIC_TARGET_LIST)),)\n"
+            "$(error Installer-only cannot identify SONiC build products)\n"
+            "endif\n"
+            f"_wbm_frozen := $(strip $(file <{relative}/frozen.list))\n"
+            "_wbm_missing := $(filter-out $(wildcard $(_wbm_frozen)),$(_wbm_frozen))\n"
+            "$(if $(_wbm_missing),$(error Installer-only inputs disappeared $(_wbm_missing)))\n"
+            f"_wbm_blocked := $(filter-out target/{INSTALLER} $(subst %,\\%,$(_wbm_frozen)),$(SONIC_TARGET_LIST))\n"
+            "ifneq ($(_wbm_blocked),)\n"
+            "$(subst %,\\%,$(_wbm_blocked)): %: _wbm_missing/%\n"
+            ".PHONY: $(addprefix _wbm_missing/,$(_wbm_blocked))\n"
+            "$(subst %,\\%,$(addprefix _wbm_missing/,$(_wbm_blocked))):\n"
+            "\t$(error Installer-only requires an existing frozen artifact $(patsubst _wbm_missing/%,%,$@) - run Incremental build first)\n"
+            "endif\n")
 
 
 def verify_patch_stack(workspace, applied):
@@ -962,6 +1141,9 @@ def show_result(result):
     tones = {"success": "green", "failed": "red", "interrupted": "yellow"}
     print_field("\nBuild result:", labels.get(result['status'], result['status']),
                 tone=tones.get(result['status'], "cyan"), bold=True)
+    action = result.get("build_action", "standard")
+    label = "Clean build" if action == "standard" and result.get("mode") == "clean" else ACTIONS.get(action, "unknown")
+    print_field("Build action:", label, bold=True)
     if result.get("error"):
         print(terminal_text(result["error"], "red" if result['status'] == 'failed' else "yellow"))
     if result.get("artifact"):
@@ -981,6 +1163,11 @@ def show_result(result):
 def preview(settings):
     print_field("\nSource:", settings.source)
     print_field("Build directory:", settings.workspace)
+    print_field("Build action:", settings.action_display, bold=True)
+    print_field("Effective source:", settings.effective_source)
+    print_field("Source refresh:", "ON" if settings.build_action == "standard" else "OFF: existing workspace")
+    if settings.build_action == "installer-only":
+        print(terminal_text("Reuse existing packages, Docker archives and rootfs; no component compilation.", "yellow"))
     print_field("Git branch:", settings.git_branch, bold=True)
     print_field("Git commit:", settings.git_commit_display, bold=True)
     status = settings.source_status
@@ -988,18 +1175,19 @@ def preview(settings):
     print_field("Architecture:", "ARM64: Marvell Prestera" if settings.arch == "arm64" else "X86: AMD64 (not supported yet)",
                 bold=True)
     print_field("Customer:", "Amazon" if settings.flavor == "amazon" else "Wistron", bold=True)
-    print_field("Clean rebuild:", "Yes: back up target and rebuild" if settings.mode == "clean" else "No: retain outputs, no caches", bold=True)
+    print_field("Outputs:", "Back up target and rebuild" if settings.mode == "clean" else "Retain existing outputs", bold=True)
     print_field("Build job (SONIC_BUILD_JOBS):", settings.jobs, bold=True)
     print_field("Build version:", settings.version_display, bold=True)
     print_field("Package/version caches:", "disabled; sonic-slave: pinned existing images, required to start")
 
 
 def menu(settings):
+    settings.select_gui_action(settings.gui_action)
     while True:
         preview(settings)
         print("\n" + "\n".join([
             option_line(1, "architecture"), option_line(2, "customer"),
-            option_line(3, "clean rebuild"), option_line(4, "build job"),
+            option_line(3, "build action"), option_line(4, "build job"),
             option_line(5, "build version"), option_line(6, "start build"),
             option_line(7, "last result"),
             option_line(0, "exit"),
@@ -1025,12 +1213,12 @@ def menu(settings):
                 else:
                     print(terminal_text("Enter 1 or 2.", "yellow"))
             elif choice == "3":
-                current = "Yes" if settings.mode == "clean" else "No"
-                value = input(terminal_text(f"Clean rebuild (Yes/No) [{current}]: ", "cyan")).strip().lower() or current.lower()
-                if value in ("yes", "y", "no", "n"):
-                    settings.mode = "clean" if value in ("yes", "y") else "normal"
-                else:
-                    print(terminal_text("Enter Yes or No.", "yellow"))
+                value = input("\n".join([option_line(index, label) for index, label in enumerate(GUI_ACTIONS.values(), 1)]
+                                       + [option_line(0, "back"), terminal_text("Option: ", "cyan")])).strip()
+                if value in ("1", "2"):
+                    settings.select_gui_action(tuple(GUI_ACTIONS)[int(value) - 1])
+                elif value not in ("", "0"):
+                    print(terminal_text("Enter 1, 2, or 0.", "yellow"))
             elif choice == "4":
                 jobs = int(input(terminal_text("Build job (SONIC_BUILD_JOBS, default 8): ", "cyan")).strip() or "8")
                 require(jobs > 0, "Build job must be a positive integer.")
@@ -1091,6 +1279,8 @@ def main(argv=None):
     parser.add_argument("--arch", choices=("arm64", "amd64"), default="arm64")
     parser.add_argument("--flavor", choices=("amazon", "wistron"), default="amazon")
     parser.add_argument("--mode", choices=("clean", "normal"), default="normal")
+    parser.add_argument("--build-action", choices=tuple(ACTIONS), default="standard",
+                        help="Standard build, make in the existing workspace, or repack existing installer inputs")
     parser.add_argument("--jobs", type=int, default=8,
                         help="Concurrent build jobs, SONIC_BUILD_JOBS (default: 8)")
     parser.add_argument("--build-version", default="",
@@ -1102,13 +1292,18 @@ def main(argv=None):
     args = parser.parse_args(argv)
     source = args.source.resolve()
     state = (args.state_dir or source.with_name(source.name + "-build-menu")).resolve()
-    settings = Settings(source, state, args.arch, args.flavor, args.mode, args.jobs, args.build_version)
+    settings = Settings(source, state, args.arch, args.flavor, args.mode, args.jobs, args.build_version, args.build_action)
     try:
         if args.dry_run:
             ids = preflight(settings)
             preview(settings)
-            print(json.dumps({"slave_images": ids, "commands": [make_command(settings, distro, target)
-                            for _, distro, target in stages(settings)]}, ensure_ascii=False, indent=2))
+            print(json.dumps({"slave_images": ids, "build_action": settings.build_action,
+                              "effective_source": str(settings.effective_source),
+                              "source_refresh": settings.build_action == "standard",
+                              "installer_only_guard": settings.build_action == "installer-only",
+                              "build_environment": incremental_environment(settings),
+                              "commands": [make_command(settings, distro, target)
+                                           for _, distro, target in stages(settings)]}, ensure_ascii=False, indent=2))
             return 0
         if args.run:
             require(args.yes, "Non-interactive builds require --run --yes.")
