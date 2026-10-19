@@ -231,6 +231,8 @@ class BuildActionTests(unittest.TestCase):
 
 class NativeMakeGuardTests(unittest.TestCase):
     def test_incremental_only_ignores_platform_timestamp_and_keeps_other_dependencies(self):
+        slave = fixtures.MODULE.with_name('slave.mk').read_text()
+        intermediate = next(line for line in slave.splitlines() if line.startswith('.INTERMEDIATE'))
         for scenario in ('normal-make', 'platform-only', 'missing-package', 'changed-source'):
             with self.subTest(scenario=scenario), tempfile.TemporaryDirectory(prefix='wbm-platform-time-') as temp:
                 root = Path(temp)
@@ -238,7 +240,9 @@ class NativeMakeGuardTests(unittest.TestCase):
                          'docker.gz: .platform a.deb b.deb\n\t@echo docker >> rebuilt; touch $@\n'
                          'a.deb: .platform a.c\n\t@echo a >> rebuilt; touch $@\n'
                          'b.deb: .platform b.c\n\t@echo b >> rebuilt; touch $@\n')
-                (root / 'Makefile').write_text(rules)
+                # Use the production intermediate-file declaration: make -o can
+                # delete an existing configuration file if it is intermediate.
+                (root / 'Makefile').write_text(rules + intermediate + '\n')
                 for name in ('.platform', 'a.c', 'b.c', 'a.deb', 'b.deb', 'docker.gz'):
                     path = root / name
                     path.write_text('existing ' + name)
