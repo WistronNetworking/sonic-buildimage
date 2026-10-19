@@ -33,9 +33,11 @@ The action selector has exactly two choices, one per line:
 
 **Incremental build** uses the existing customer Build directory directly.
 It preserves package and intermediate outputs and skips source synchronization,
-configure, and patch changes. It runs Bookworm make followed by the Trixie
-installer. Edit `platform/` or `src/` and remove the relevant `.deb` or wheel
-inside the displayed **Build** directory, then start this action. Edits made
+configure, and patch changes. It creates missing output directories for the
+selected distributions without rewriting `.platform` or `.arch`. It runs
+Bookworm make followed by the Trixie installer. Edit `platform/` or `src/`
+and remove the relevant `.deb` or wheel inside the displayed **Build**
+directory, then start this action. Edits made
 only in the original Source checkout are not synchronized or compiled.
 SONiC dependency and build-flag rules determine what must rebuild; related
 packages, Docker images, and rootfs may also rebuild. This action does not
