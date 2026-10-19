@@ -83,6 +83,75 @@ class BuildActionTests(unittest.TestCase):
             self.assertEqual(stage['environment']['SONIC_OVERRIDE_BUILD_VARS'], '--old-file=.platform')
         self.assertTrue((Path(result['log']).parent / 'backup' / menu.INSTALLER).exists())
 
+    def test_incremental_prepares_distro_output_directories_without_configure(self):
+        original = menu.Runner.command
+        for flavor in ('amazon', 'wistron'):
+            with self.subTest(flavor=flavor):
+                settings = self.prepared(flavor)
+                workspace = settings.workspace
+                configuration = {name: ((workspace / name).read_bytes(),
+                                        (workspace / name).stat().st_mtime_ns)
+                                 for name in ('.platform', '.arch')}
+                keep = workspace / 'target/debs/bookworm/keep.deb'
+                keep.write_bytes(b'retained build product')
+                source_before = menu.inventory(self.source)['sha256']
+                self.assertFalse((workspace / 'target/python-wheels/trixie').exists())
+                for kind in ('debs', 'files', 'python-debs', 'python-wheels'):
+                    (workspace / 'target' / kind / 'bookworm').mkdir(parents=True, exist_ok=True)
+                (workspace / 'target/files/trixie').mkdir(parents=True, exist_ok=True)
+                (workspace / 'dpkg').mkdir(exist_ok=True)
+                (workspace / 'target/vcache').mkdir(exist_ok=True)
+                settings.set_build_action('make')
+                checked = []
+
+                def check_directories(runner, args, **kwargs):
+                    if args[0] == 'make':
+                        self.assertNotEqual(args[-1], 'configure')
+                        distro = 'bookworm' if 'NOBOOKWORM=0' in args else 'trixie'
+                        # Make's HEADER opens the wheel log before its recipe runs.
+                        log = workspace / 'target/python-wheels' / distro / 'probe.whl.log'
+                        log.write_text('header opened before make\n')
+                        for kind in ('debs', 'files', 'python-debs', 'python-wheels'):
+                            self.assertTrue((workspace / 'target' / kind / distro).is_dir())
+                        self.assertTrue((workspace / 'dpkg').is_dir())
+                        self.assertTrue((workspace / 'target/vcache').is_dir())
+                        checked.append(distro)
+                    return original(runner, args, **kwargs)
+
+                with mock.patch.object(menu.Runner, 'command', check_directories), \
+                        mock.patch.object(menu.Runner, 'prepare_workspace', side_effect=AssertionError('sync')), \
+                        mock.patch.object(menu.Runner, 'normalize_ztp', side_effect=AssertionError('patch')):
+                    result = self.execute(settings)
+                self.assertEqual(result['status'], 'success', result.get('error'))
+                self.assertEqual(checked, ['bookworm', 'trixie'])
+                self.assertEqual(keep.read_bytes(), b'retained build product')
+                for name, expected in configuration.items():
+                    self.assertEqual(((workspace / name).read_bytes(),
+                                      (workspace / name).stat().st_mtime_ns), expected)
+                self.assertEqual(menu.inventory(self.source)['sha256'], source_before)
+
+    def test_output_directory_setup_rejects_symlinks_and_files_before_creating_paths(self):
+        outside = self.root / 'outside'
+        outside.mkdir()
+        for index, (blocked, kind) in enumerate((('target/python-wheels', 'symlink'),
+                                                ('target/python-wheels/trixie', 'symlink'),
+                                                ('target/python-debs/trixie', 'file'))):
+            with self.subTest(blocked=blocked, kind=kind):
+                settings = menu.Settings(self.source, self.root / f'outputs-{index}')
+                settings.set_build_action('make')
+                workspace = settings.workspace
+                path = workspace / blocked
+                path.parent.mkdir(parents=True)
+                if kind == 'symlink':
+                    path.symlink_to(outside, target_is_directory=True)
+                else:
+                    path.write_text('keep existing file')
+                before = sorted(str(p.relative_to(workspace)) for p in workspace.rglob('*'))
+                with self.assertRaisesRegex(menu.BuildError, 'Unsafe build output directory'):
+                    menu.Runner(settings).prepare_output_directories()
+                self.assertEqual(sorted(str(p.relative_to(workspace)) for p in workspace.rglob('*')), before)
+                self.assertFalse(list(outside.iterdir()))
+
     def test_workspace_metadata_and_default_version_use_actual_build_tree(self):
         settings = self.prepared('wistron')
         self.git(settings.workspace, 'checkout', '-qb', 'workspace-branch')

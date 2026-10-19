@@ -820,6 +820,24 @@ class Runner:
         self.command(["bash", "./apply_patches.sh", "ZTP=no"], cwd=self.settings.workspace)
         verify_patch_stack(self.settings.workspace, applied=False)
 
+    def prepare_output_directories(self):
+        """Create configure's output layout without changing saved configuration."""
+        workspace = self.settings.workspace
+        distros = sorted({distro for _, distro, _ in stages(self.settings, self.run_id)})
+        directories = [workspace / "target" / kind / distro
+                       for distro in distros
+                       for kind in ("debs", "files", "python-debs", "python-wheels")]
+        directories += [workspace / "dpkg", workspace / "target/vcache"]
+        for directory in directories:
+            for candidate in (directory, *directory.parents):
+                if candidate == workspace:
+                    break
+                require(not candidate.is_symlink()
+                        and (not candidate.exists() or candidate.is_dir()),
+                        f"Unsafe build output directory: {candidate}")
+        for directory in directories:
+            directory.mkdir(parents=True, exist_ok=True)
+
     def installer_inputs(self):
         """Freeze existing build products and reject every unfrozen product in slave.mk."""
         workspace = self.settings.workspace
@@ -919,6 +937,8 @@ class Runner:
                     if settings.build_action == "standard":
                         self.say("Preparing the selected customer's ZTP state...")
                         self.normalize_ztp()
+                    if settings.build_action != "standard":
+                        self.prepare_output_directories()
                     for name, distro, target in stages(settings, self.run_id):
                         require(image_ids() == self.result["slave_ids_before"], "A slave image ID changed.")
                         record = {"phase": name, "started_at": now(), "command": make_command(settings, distro, target, self.run_id)}
