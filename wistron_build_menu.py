@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Foreground Wistron SONiC builds, without changing the source checkout."""
+"""Foreground SONiC builds in one permanently bound source checkout."""
 
 import argparse
 import dataclasses
 import datetime
-import errno
 import fcntl
 import hashlib
 import json
@@ -72,6 +71,41 @@ def require(condition, message):
         raise BuildError(message)
 
 
+def read_record(path):
+    require(not path.is_symlink(), f"Unsafe configuration symlink: {path}")
+    if not path.exists():
+        return None
+    try:
+        record = json.loads(path.read_text())
+    except (OSError, ValueError) as error:
+        raise BuildError(f"Invalid configuration: {path}: {error}") from error
+    require(isinstance(record, dict) and type(record.get("schema")) is int and record.get("schema") == SCHEMA,
+            f"Invalid configuration: {path}")
+    return record
+
+
+def read_profile(source):
+    control = source / ".build-menu"
+    require(not control.is_symlink() and control.resolve() == control,
+            f"Unsafe repository state directory or symlink: {control}")
+    profile = read_record(control / "profile.json")
+    if profile is not None:
+        require(profile.get("arch") in ("arm64", "amd64")
+                and profile.get("customer") in ("amazon", "wistron")
+                and isinstance(profile.get("bound_at"), str) and profile["bound_at"],
+                f"Invalid repository profile: {control / 'profile.json'}")
+    return profile
+
+
+def resolve_source(location):
+    source = Path(location).resolve()
+    require(not (source / OWNER).exists(),
+            "Legacy build workspace: use the migrated main repository.")
+    require((source / "wistron_build_menu.py").is_file(),
+            f"Specify the Git repository root containing build-menu.sh: {source}")
+    return source
+
+
 def now():
     return datetime.datetime.now(datetime.timezone.utc).astimezone().isoformat()
 
@@ -85,9 +119,21 @@ def digest_file(path):
 
 
 def atomic_json(path, data):
-    temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
-    temporary.replace(path)
+    require(not path.is_symlink(), f"Unsafe configuration symlink: {path}")
+    descriptor, temporary = tempfile.mkstemp(prefix=path.name + ".", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w") as stream:
+            stream.write(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        descriptor = os.open(path.parent, os.O_DIRECTORY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
 
 
 def child_environment():
@@ -214,9 +260,75 @@ class Settings:
     build_version: str = ""
     build_action: str = "standard"
 
+    bound: dict = dataclasses.field(init=False, default=None)
+    configured: bool = dataclasses.field(init=False, default=False)
+
+    def __post_init__(self):
+        self.source = self.source.resolve()
+        self.state = self.state.resolve()
+        self.refresh_profile()
+
+    def refresh_profile(self):
+        self.bound = read_profile(self.source)
+        configuration = read_record(self.control / "configuration.json")
+        if configuration is not None:
+            require(configuration.get("arch") in ("arm64", "amd64")
+                    and configuration.get("customer") in ("amazon", "wistron")
+                    and configuration.get("distros") == ["bookworm", "trixie"]
+                    and isinstance(configuration.get("configured_at"), str) and configuration["configured_at"],
+                    f"Invalid configured-build record: {self.control / 'configuration.json'}")
+            require(self.bound is not None and
+                    all(configuration[key] == self.bound[key] for key in ("arch", "customer")),
+                    "Configured-build record does not match the repository profile.")
+        self.configured = configuration is not None
+
     @property
     def workspace(self):
-        return self.state / "workspaces" / self.arch / self.flavor
+        return self.source
+
+    @property
+    def control(self):
+        return self.source / ".build-menu"
+
+    @property
+    def snapshot_exclusions(self):
+        return (self.source / "runs", self.control, self.state / "runs")
+
+    @property
+    def lock_message(self):
+        profile = self.bound
+        return (f"Locked to {profile['arch'].upper()} / {profile['customer'].title()}. "
+                "To use another architecture or customer, clone a new repository "
+                "into a different directory and run ./build-menu.sh there.")
+
+    def check_binding(self):
+        self.refresh_profile()
+        if self.bound:
+            require(self.arch == self.bound["arch"] and self.flavor == self.bound["customer"],
+                    self.lock_message)
+
+    def bind(self):
+        # Caller must hold this repository's build lock.
+        self.check_binding()
+        if self.bound is None:
+            atomic_json(self.control / "profile.json",
+                        {"schema": SCHEMA, "arch": self.arch,
+                         "customer": self.flavor, "bound_at": now()})
+            self.refresh_profile()
+
+    def verify_configuration(self):
+        for name, expected in ((".arch", self.arch), (".platform", "marvell-prestera")):
+            path = self.source / name
+            require(path.is_file() and not path.is_symlink() and path.read_text().strip() == expected,
+                    f"Repository configuration mismatch: {name}. Run Clean build first.")
+        verify_patch_stack(self.source, applied=self.ztp == "y")
+
+    def mark_configured(self):
+        self.verify_configuration()
+        atomic_json(self.control / "configuration.json",
+                    {"schema": SCHEMA, "arch": self.arch, "customer": self.flavor,
+                     "distros": ["bookworm", "trixie"], "configured_at": now()})
+        self.refresh_profile()
 
     @property
     def ztp(self):
@@ -224,7 +336,7 @@ class Settings:
 
     @property
     def effective_source(self):
-        return self.source if self.build_action == "standard" else self.workspace
+        return self.source
 
     @property
     def action_display(self):
@@ -234,7 +346,7 @@ class Settings:
 
     @property
     def gui_action(self):
-        return "clean" if self.build_action == "standard" and self.mode == "clean" else "make"
+        return "clean" if not self.configured or (self.build_action == "standard" and self.mode == "clean") else "make"
 
     def select_gui_action(self, action):
         require(action in GUI_ACTIONS, "Unknown menu build action.")
@@ -245,7 +357,7 @@ class Settings:
     def clean_display(self):
         if self.build_action != "standard":
             return "N/A: retain outputs"
-        return "Yes: back up target and rebuild" if self.mode == "clean" else "No: retain outputs, no caches"
+        return "Yes: preserve BIN and logs; remove generated outputs" if self.mode == "clean" else "No: retain outputs, no caches"
 
     @property
     def flow_display(self):
@@ -338,6 +450,7 @@ class Settings:
     def validate(self):
         self.source = self.source.resolve()
         self.state = self.state.resolve()
+        self.check_binding()
         require(self.arch == "arm64", "X86 / AMD64 builds are not supported yet. No build was started.")
         require(self.flavor in ("amazon", "wistron"), "Unknown customer.")
         require(self.mode in ("clean", "normal"), "Unknown build mode.")
@@ -346,37 +459,29 @@ class Settings:
                 "--mode clean is only supported with --build-action standard.")
         require(self.jobs > 0, "Build job must be a positive integer.")
         validate_version(self.build_version)
-        require(not self.state.is_relative_to(self.source)
-                and not self.source.is_relative_to(self.state),
-                "The build state and source directories must not contain each other.")
+        for path in (self.state / "runs", self.control):
+            require(not path.is_symlink() and path.resolve() == path,
+                    f"Build output directories must not contain symlinks: {path}")
+        require(not (self.control / ".lock").is_symlink(), "Unsafe repository build lock.")
+        require(self.configured or (self.build_action == "standard" and self.mode == "clean"),
+                "The first build in this repository must be Clean. Both Bookworm and Trixie configure must finish before Incremental is available.")
+        for generated in (self.source / "target", *self.source.glob("fsroot*")):
+            require(not (self.state / "runs").is_relative_to(generated),
+                    "Run storage cannot be inside generated build outputs.")
         require("," not in str(self.workspace), "The build directory cannot contain commas (Docker bind mount restriction).")
         require(self.source.is_dir(), f"Source directory does not exist: {self.source}")
         for name in REQUIRED + ZTP_PATCHES:
             require((self.source / name).is_file(), f"Source is missing {name}")
         require(git(self.source, "rev-parse", "--show-toplevel").decode().strip() == str(self.source),
                 "Specify the root directory of the Git repository.")
-        if self.build_action != "standard":
+        if self.mode != "clean":
             self.validate_workspace()
 
     def validate_workspace(self):
         workspace = self.workspace
-        expected = {"schema": SCHEMA, "source": str(self.source), "arch": self.arch, "flavor": self.flavor}
-        require(not workspace.is_symlink() and workspace.resolve() == workspace,
-                "The build directory must not contain symlinks.")
-        marker = workspace / OWNER
-        require(marker.is_file() and not marker.is_symlink() and json.loads(marker.read_text()) == expected,
-                f"No matching menu workspace. Run Clean build first: {workspace}")
-        for name, value in ((".arch", "arm64"), (".platform", "marvell-prestera")):
-            path = workspace / name
-            require(path.is_file() and not path.is_symlink() and path.read_text().strip() == value,
-                    f"Workspace configuration mismatch: {name}. Run Clean build first.")
-        for name in REQUIRED + ZTP_PATCHES:
-            path = workspace / name
-            require(path.is_file() and not path.is_symlink(), f"Workspace is missing {name}; run Clean build first.")
-        require(git(workspace, "rev-parse", "--show-toplevel").decode().strip() == str(workspace),
-                "The workspace must have independent Git metadata.")
+        require(self.configured, "Run Clean build first.")
+        self.verify_configuration()
         require(not (workspace / "target").is_symlink(), "target cannot be a symlink.")
-        verify_patch_stack(workspace, applied=self.ztp == "y")
         if self.build_action == "installer-only":
             path = workspace / "target" / RFS
             require(path.is_file() and not path.is_symlink() and path.stat().st_size > 0,
@@ -463,12 +568,20 @@ def generated_untracked(source, relative):
     return False
 
 
-def inventory(source, progress=None):
-    """Record working files, including populated submodules and nested repos.
+def inventory(source, progress=None, exclude=None):
+    """Record source files and repositories without recursing into build state.
 
-    Each cloned repository will have its own Git metadata, never a .git link
-    into the original checkout. Tracked files take priority over exclusions.
+    Each cloned repository has independent Git metadata. Tracked source
+    inside an excluded state directory is rejected instead of being omitted.
     """
+    source = source.resolve()
+    if exclude is None:
+        excluded = ()
+    elif isinstance(exclude, (str, os.PathLike)):
+        excluded = (Path(exclude).resolve(),)
+    else:
+        excluded = tuple(Path(path).resolve() for path in exclude)
+    excluded = tuple(path for path in excluded if path.is_relative_to(source))
     repositories = []
     files = {}
     pending = [source]
@@ -496,6 +609,8 @@ def inventory(source, progress=None):
             mode, _, stage = meta.decode().split()
             require(stage == "0", f"Source has unresolved merge conflicts: {repo}")
             name = os.fsdecode(raw_name)
+            require(not any((repo / safe_relative(name)).is_relative_to(path) for path in excluded),
+                    f"Build state contains tracked source: {prefix}{name}")
             if mode == "160000":
                 pending.append(repo / safe_relative(name))
                 continue
@@ -505,6 +620,8 @@ def inventory(source, progress=None):
             if not raw_name:
                 continue
             name = os.fsdecode(raw_name)
+            if any((repo / safe_relative(name)).is_relative_to(path) for path in excluded):
+                continue
             if name.endswith("/") and (repo / name / ".git").exists():
                 pending.append(repo / safe_relative(name))
             else:
@@ -559,7 +676,7 @@ class Runner:
                        "requested_image_version": settings.build_version or "auto",
                        "enable_ztp": settings.ztp, "stages": []}
         self.result.update(build_action=settings.build_action, effective_source=str(settings.effective_source),
-                           source_refresh=settings.build_action == "standard")
+                           source_refresh=False)
         self.frozen = None
         self.controls = None
 
@@ -571,7 +688,7 @@ class Runner:
 
     def save(self):
         atomic_json(self.folder / "result.json", self.result)
-        atomic_json(self.settings.state / "last-run.json", self.result)
+        atomic_json(self.settings.control / "last-run.json", self.result)
 
     def command(self, command, cwd=None, extra_env=None):
         env = child_environment()
@@ -622,177 +739,49 @@ class Runner:
         except (BuildError, subprocess.TimeoutExpired):
             self.say("Could not confirm that this run's containers stopped. Check Docker status.", tone="yellow")
 
-    def prepare_workspace(self, manifest):
-        workspace = self.settings.workspace
-        owner = {"schema": SCHEMA, "source": str(self.settings.source),
-                 "arch": self.settings.arch, "flavor": self.settings.flavor}
-        workspace.parent.mkdir(parents=True, exist_ok=True)
-        require(not workspace.is_symlink(), "The build directory cannot be a symlink.")
-        marker = workspace / OWNER
-        if workspace.exists():
-            require(marker.is_file() and json.loads(marker.read_text()) == owner,
-                    f"Build directory is not owned by this menu; stopping: {workspace}")
-        else:
-            workspace.mkdir()
-            atomic_json(marker, owner)
-        previous_path = workspace / ".build-menu-source.json"
-        previous = json.loads(previous_path.read_text()) if previous_path.exists() else {"files": {}}
-        repositories = manifest["repositories"]
-        for repo in repositories:
-            self.prepare_repository(repo)
-        removed = set(previous["files"]) - set(manifest["files"])
-        removed.update(relative for relative, record in manifest["files"].items()
-                       if record["kind"] == "missing")
-        for relative in sorted(removed):
-            self.remove_file(workspace / safe_relative(relative))
-        self.prune_source_directories(removed, repositories)
-        for relative, record in sorted(manifest["files"].items()):
-            if record["kind"] == "missing":
-                continue
-            dest = workspace / relative
-            original = self.settings.source / relative
-            require(dest.parent.resolve().is_relative_to(workspace), f"Destination parent path is outside the build directory: {relative}")
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            if record["kind"] == "link":
-                if dest.is_symlink() and os.readlink(dest) == record["link"]:
-                    continue
-                self.remove_file(dest)
-                dest.symlink_to(record["link"])
-            else:
-                if dest.is_symlink():
-                    dest.unlink()
-                require(not dest.exists() or dest.is_file(), f"File and directory conflict: {relative}")
-                if not dest.exists() or digest_file(dest) != record["sha256"]:
-                    shutil.copy2(original, dest)
-                dest.chmod(record["mode"])
-                require(digest_file(dest) == record["sha256"], f"Source changed while copying: {relative}")
-        self.remove_stale_ztp_files(manifest)
-        for repo in repositories:
-            dest = workspace / repo["path"]
-            if (dest / ".gitmodules").is_file():
-                self.command(["git", "-C", str(dest), "submodule", "init"])
-        for repo in repositories:
-            require(git(self.settings.source / repo["path"], "rev-parse", "HEAD").decode().strip()
-                    == repo["head"], "Source HEAD changed while taking the snapshot. Retry the build.")
-        require(inventory(self.settings.source)["sha256"] == manifest["sha256"],
-                "Source changed while taking the snapshot. Retry the build.")
-        atomic_json(previous_path, manifest)
-
-    def remove_stale_ztp_files(self, manifest):
-        # Source refresh restores modified files, but files created by a prior
-        # patch are absent from the source manifest and otherwise survive it.
-        workspace = self.settings.workspace
-        stale = set()
-        for filename in ZTP_PATCHES:
-            for block in re.split(rb'(?=^diff --git )', (workspace / filename).read_bytes(), flags=re.MULTILINE):
-                match = re.search(rb'^--- /dev/null\n\+\+\+ b/(\S+)', block, re.MULTILINE)
-                if not match:
-                    continue
-                relative = safe_relative(os.fsdecode(match.group(1)))
-                record = manifest['files'].get(relative)
-                if record is not None and record['kind'] != 'missing':
-                    continue
-                path = workspace / relative
-                require(path.parent.resolve().is_relative_to(workspace),
-                        f'ZTP patch-created file is outside the build directory: {relative}')
-                if not path.exists() and not path.is_symlink():
-                    continue
-                require(path.is_file() and not path.is_symlink(),
-                        f'Retained ZTP patch-created file is not a regular file: {relative}')
-                with tempfile.TemporaryDirectory(prefix='wbm-ztp-created-') as temp:
-                    scratch = Path(temp)
-                    result = subprocess.run(['patch', '-p1', '--batch', '--forward'], cwd=scratch,
-                                            input=block, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                    require(result.returncode == 0,
-                            f'Cannot inspect ZTP patch-created file: {filename}\n'
-                            + result.stdout.decode(errors='replace')[-1200:])
-                    require(path.read_bytes() == (scratch / relative).read_bytes(),
-                            f'Retained ZTP patch-created file was modified; preserving it: {relative}')
-                stale.add(relative)
-        for relative in sorted(stale):
-            self.say(f'Removing stale ZTP patch-created file: {relative}')
-            self.remove_file(workspace / relative)
-
-
-    def prepare_repository(self, repo):
-        workspace = self.settings.workspace
-        dest = workspace / safe_relative(repo["path"]) if repo["path"] else workspace
-        original = self.settings.source / repo["path"]
-        require(dest.resolve().is_relative_to(workspace.resolve()), "Repository is outside the build directory.")
-        if not (dest / ".git").exists():
-            dest.mkdir(parents=True, exist_ok=True)
-            self.command(["git", "clone", "--quiet", "--local", "--no-hardlinks",
-                          "--mirror", str(original), str(dest / ".git")])
-            self.command(["git", "-C", str(dest), "config", "core.bare", "false"])
-        require(not (dest / ".git").is_symlink() and (dest / ".git").is_dir(),
-                f"Build repository Git metadata must be independent: {dest}")
-        common = Path(git(dest, "rev-parse", "--git-common-dir").decode().strip())
-        require((dest / common).resolve() == (dest / ".git").resolve()
-                and git(dest, "rev-parse", "--show-toplevel").decode().strip() == str(dest),
-                f"Build Git metadata points to another directory; stopping: {dest}")
-        # Mirror only from the local source, including remote refs that --bare
-        # clones omit. Refresh even when HEAD has not changed. The destination
-        # is an independent snapshot, so its build-created refs can be pruned.
-        self.command(["git", "-C", str(dest), "fetch", "--quiet", "--no-tags",
-                      "--prune", "--no-write-fetch-head", "--recurse-submodules=no",
-                      "--update-head-ok", str(original), "+refs/*:refs/*", repo["head"]])
-        for name, record in repo["refs"].items():
-            if record["symbolic_target"]:
-                self.command(["git", "-C", str(dest), "symbolic-ref", name, record["symbolic_target"]])
-        if repo["head_ref"] == "HEAD":
-            self.command(["git", "-C", str(dest), "update-ref", "--no-deref", "HEAD", repo["head"]])
-        else:
-            self.command(["git", "-C", str(dest), "symbolic-ref", "HEAD", repo["head_ref"]])
-        require(repository_refs(dest) == repo["refs"],
-                f"Source Git refs changed or were not fully copied; stopping: {original}")
-        # Reset only the independent snapshot index; never the source repo.
-        self.command(["git", "-C", str(dest), "reset", "--mixed", "--quiet", repo["head"]])
-
-    def remove_file(self, path):
-        require(inside(path.parent, self.settings.workspace) or path.parent == self.settings.workspace,
-                f"Cannot remove a file outside the build directory: {path}")
-        require(not path.is_dir() or path.is_symlink(), f"Cannot remove a source directory as a file: {path}")
-        if path.exists() or path.is_symlink():
-            path.unlink()
-
-    def prune_source_directories(self, removed, repositories):
-        # Git records files, not directories. Remove only empty ancestors of
-        # stale source entries, deepest first; never recurse into build output.
-        workspace = self.settings.workspace
-        roots = {workspace / repo["path"] for repo in repositories}
-        directories = {workspace / str(parent)
-                       for relative in removed
-                       for parent in PurePosixPath(safe_relative(relative)).parents
-                       if str(parent) != "."}
-        for path in sorted(directories, key=lambda path: len(path.parts), reverse=True):
-            if path in roots or path.is_symlink() or not path.is_dir():
-                continue
-            require(inside(path, workspace) and path.resolve() == path,
-                    f"Cannot prune a directory outside its snapshot path: {path}")
-            try:
-                path.rmdir()
-            except OSError as error:
-                if error.errno not in (errno.ENOTEMPTY, errno.EEXIST, errno.ENOENT):
-                    raise
+    def preserve_installer(self, artifact):
+        require(artifact.is_file() and not artifact.is_symlink(),
+                f"Installer must be a regular file: {artifact}")
+        digest = digest_file(artifact)
+        # A historical artifact is reusable only after checking its actual bytes.
+        roots = {self.settings.source / "runs", self.settings.state / "runs"}
+        for root in sorted(roots):
+            for historical in sorted(root.glob("*/*.bin")):
+                if historical.is_file() and not historical.is_symlink() and historical != artifact:
+                    if historical.stat().st_size == artifact.stat().st_size and digest_file(historical) == digest:
+                        checksum = historical.with_suffix(".bin.sha256")
+                        expected = f"{digest}  {historical.name}\n"
+                        require(not checksum.is_symlink(), f"Unsafe checksum symlink: {checksum}")
+                        if not checksum.exists() or checksum.read_text() != expected:
+                            checksum.write_text(expected)
+                        return {"artifact": str(historical), "sha256": digest, "reused": True}
+        backup = self.folder / "backup"
+        backup.mkdir(exist_ok=True)
+        dest = backup / artifact.name
+        shutil.copy2(artifact, dest)
+        require(digest_file(dest) == digest, "Installer backup checksum differs.")
+        dest.with_suffix(".bin.sha256").write_text(f"{digest}  {dest.name}\n")
+        return {"artifact": str(dest), "sha256": digest, "reused": False}
 
     def clean(self, manifest):
         workspace = self.settings.workspace
         tracked = {workspace / name for name, record in manifest["files"].items() if record["tracked"]}
         target = workspace / "target"
-        backup = self.folder / "backup"
-        backup.mkdir()
         require(not target.is_symlink(), "target cannot be a symlink.")
-        if self.settings.mode == "clean" and target.exists():
-            require(not any(p == target or p.is_relative_to(target) for p in tracked),
-                    "target contains source files. Cleanup stopped.")
-            target.rename(backup / "target")
-        elif (target / INSTALLER).exists():
-            require(not (target / INSTALLER).is_symlink(), "The installer cannot be a symlink.")
-            (target / INSTALLER).rename(backup / INSTALLER)
-        target.mkdir(exist_ok=True)
+        artifacts = sorted(target.glob("*.bin"))
+        self.result["preserved_installers"] = [self.preserve_installer(path) for path in artifacts]
+        self.save()
         if self.settings.mode != "clean":
+            # Require a new installer from this run rather than accepting stale output.
+            installer = target / INSTALLER
+            require(installer not in tracked, "Installer path is tracked source.")
+            installer.unlink(missing_ok=True)
+            target.mkdir(exist_ok=True)
             return
-        candidates = [p for p in workspace.glob("fsroot*") if p.is_dir()]
+        candidates = ([target] if target.exists() else [])
+        candidates += [p for p in workspace.glob("fsroot*") if p.is_dir()]
+        candidates += [workspace / name for name in ("fs.squashfs", "fs.zip", "dockerfs.tar.gz")
+                       if (workspace / name).exists()]
         for base in (workspace / "src", workspace / "platform/marvell-prestera/sonic-platform-wistron"):
             for current, directories, filenames in os.walk(base):
                 directories[:] = [d for d in directories if d not in (".git", "node_modules", "debian", ".pc")]
@@ -815,10 +804,6 @@ class Runner:
                           "--mount", f"type=bind,src={workspace},dst=/repo",
                           "--entrypoint", "/bin/rm", IMAGES["bookworm"],
                           "-rf", "--", "/repo/" + str(relative)])
-
-    def normalize_ztp(self):
-        self.command(["bash", "./apply_patches.sh", "ZTP=no"], cwd=self.settings.workspace)
-        verify_patch_stack(self.settings.workspace, applied=False)
 
     def prepare_output_directories(self):
         """Create configure's output layout without changing saved configuration."""
@@ -903,42 +888,37 @@ class Runner:
     def execute(self):
         settings = self.settings
         settings.validate()
-        settings.state.mkdir(parents=True, exist_ok=True)
-        state_owner = settings.state / OWNER
-        expected_owner = {"schema": SCHEMA, "source": str(settings.source)}
-        if state_owner.exists():
-            require(json.loads(state_owner.read_text()) == expected_owner, "The state directory belongs to another source checkout.")
-        else:
-            require(not any(settings.state.iterdir()), "The state directory contains unmanaged entries. Stopping.")
-            atomic_json(state_owner, expected_owner)
-        with (settings.state / ".lock").open("w") as lock:
+        settings.control.mkdir(parents=True, exist_ok=True)
+        with (settings.control / ".lock").open("w") as lock:
             try:
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 raise BuildError("A menu build is already running for this source checkout.")
+            settings.validate()
+            settings.bind()
             self.folder.mkdir(parents=True)
             self.result["log"] = str(self.folder / "build.log")
             with (self.folder / "build.log").open("wb") as self.log:
                 self.save()
                 try:
                     self.result["slave_ids_before"] = preflight(settings)
-                    self.say("Creating a snapshot of the current working source..." if settings.build_action == "standard"
-                             else "Using the existing build workspace; source refresh and configure are OFF.")
-                    manifest = inventory(settings.effective_source, self.say)
+                    self.say("Building directly in the repository; source edits are retained.")
+                    manifest = inventory(settings.source, self.say, exclude=settings.snapshot_exclusions)
                     self.result["source_sha256"] = manifest["sha256"]
                     atomic_json(self.folder / "source-manifest.json", manifest)
                     if settings.build_action == "standard":
-                        self.prepare_workspace(manifest)
+                        (settings.control / "configuration.json").unlink(missing_ok=True)
+                        settings.configured = False
                     extra_env = (self.prepare_installer_only() if settings.build_action == "installer-only"
                                  else incremental_environment(settings))
                     if settings.build_action == "make":
                         self.say("Reusing verified platform configuration; ignoring its timestamp.")
                     self.clean(manifest)
-                    if settings.build_action == "standard":
-                        self.say("Preparing the selected customer's ZTP state...")
-                        self.normalize_ztp()
+                    if settings.flavor == "wistron":
+                        verify_patch_stack(settings.source, applied=False)
                     if settings.build_action != "standard":
                         self.prepare_output_directories()
+                    configured_distros = set()
                     for name, distro, target in stages(settings, self.run_id):
                         require(image_ids() == self.result["slave_ids_before"], "A slave image ID changed.")
                         record = {"phase": name, "started_at": now(), "command": make_command(settings, distro, target, self.run_id)}
@@ -957,7 +937,10 @@ class Runner:
                             record["finished_at"] = now()
                             self.save()
                         if target == "configure":
-                            verify_patch_stack(settings.workspace, applied=settings.ztp == "y")
+                            settings.verify_configuration()
+                            configured_distros.add(distro)
+                            if configured_distros == {"bookworm", "trixie"}:
+                                settings.mark_configured()
                     self.say("Verifying the installer ZTP state...")
                     artifact = settings.workspace / "target" / INSTALLER
                     require(artifact.is_file() and not artifact.is_symlink() and artifact.stat().st_size > 0,
@@ -1185,7 +1168,10 @@ def preview(settings):
     print_field("Build directory:", settings.workspace)
     print_field("Build action:", settings.action_display, bold=True)
     print_field("Effective source:", settings.effective_source)
-    print_field("Source refresh:", "ON" if settings.build_action == "standard" else "OFF: existing workspace")
+    print_field("Build location:", "In-place; source and build directory are identical")
+    print_field("Profile:", settings.lock_message if settings.bound else "Unbound: first confirmed Start permanently binds this repository")
+    if not settings.configured:
+        print("First build must be Clean; Incremental requires both configure stages.")
     if settings.build_action == "installer-only":
         print(terminal_text("Reuse existing packages, Docker archives and rootfs; no component compilation.", "yellow"))
     print_field("Git branch:", settings.git_branch, bold=True)
@@ -1195,7 +1181,7 @@ def preview(settings):
     print_field("Architecture:", "ARM64: Marvell Prestera" if settings.arch == "arm64" else "X86: AMD64 (not supported yet)",
                 bold=True)
     print_field("Customer:", "Amazon" if settings.flavor == "amazon" else "Wistron", bold=True)
-    print_field("Outputs:", "Back up target and rebuild" if settings.mode == "clean" else "Retain existing outputs", bold=True)
+    print_field("Outputs:", "Preserve BIN and logs; remove generated outputs" if settings.mode == "clean" else "Retain existing outputs", bold=True)
     print_field("Build job (SONIC_BUILD_JOBS):", settings.jobs, bold=True)
     print_field("Build version:", settings.version_display, bold=True)
     print_field("Package/version caches:", "disabled; sonic-slave: pinned existing images, required to start")
@@ -1206,7 +1192,8 @@ def menu(settings):
     while True:
         preview(settings)
         print("\n" + "\n".join([
-            option_line(1, "architecture"), option_line(2, "customer"),
+            option_line(1, "architecture" + (" [Locked]" if settings.bound else "")),
+            option_line(2, "customer" + (" [Locked]" if settings.bound else "")),
             option_line(3, "build action"), option_line(4, "build job"),
             option_line(5, "build version"), option_line(6, "start build"),
             option_line(7, "last result"),
@@ -1216,6 +1203,9 @@ def menu(settings):
             choice = input(terminal_text("Option: ", "cyan")).strip()
             if choice == "0":
                 return 0
+            if choice in ("1", "2") and settings.bound:
+                print(terminal_text(settings.lock_message, "yellow"))
+                continue
             if choice == "1":
                 value = input("\n".join([option_line(1, "ARM64"),
                               option_line(2, "X86: AMD64 (not supported yet)", tone="yellow"),
@@ -1236,7 +1226,11 @@ def menu(settings):
                 value = input("\n".join([option_line(index, label) for index, label in enumerate(GUI_ACTIONS.values(), 1)]
                                        + [option_line(0, "back"), terminal_text("Option: ", "cyan")])).strip()
                 if value in ("1", "2"):
-                    settings.select_gui_action(tuple(GUI_ACTIONS)[int(value) - 1])
+                    action = tuple(GUI_ACTIONS)[int(value) - 1]
+                    if action == "make" and not settings.configured:
+                        print(terminal_text("Run Clean build first; both configure stages must finish before Incremental is available.", "yellow"))
+                    else:
+                        settings.select_gui_action(action)
                 elif value not in ("", "0"):
                     print(terminal_text("Enter 1, 2, or 0.", "yellow"))
             elif choice == "4":
@@ -1261,7 +1255,7 @@ def menu(settings):
                     Runner(settings).execute()
                     input(terminal_text("Press Enter to return to the menu...", "cyan"))
             elif choice == "7":
-                path = settings.state / "last-run.json"
+                path = settings.control / "last-run.json"
                 if path.exists():
                     show_result(json.loads(path.read_text()))
                 else:
@@ -1292,15 +1286,15 @@ def interactive_menu(settings):
         return menu(settings)
 
 
-def main(argv=None):
+def main(argv=None, *, launch_directory=None):
     parser = argparse.ArgumentParser(description="Wistron SONiC WSL build console")
-    parser.add_argument("--source", type=Path, default=Path(__file__).resolve().parent)
-    parser.add_argument("--state-dir", type=Path)
-    parser.add_argument("--arch", choices=("arm64", "amd64"), default="arm64")
-    parser.add_argument("--flavor", choices=("amazon", "wistron"), default="amazon")
-    parser.add_argument("--mode", choices=("clean", "normal"), default="normal")
-    parser.add_argument("--build-action", choices=tuple(ACTIONS), default="standard",
-                        help="Standard build, make in the existing workspace, or repack existing installer inputs")
+    parser.add_argument("--source", type=Path)
+    parser.add_argument("--state-dir", type=Path, help="Run logs and BIN backup location; profile and lock stay in --source")
+    parser.add_argument("--arch", choices=("arm64", "amd64"))
+    parser.add_argument("--flavor", choices=("amazon", "wistron"))
+    parser.add_argument("--mode", choices=("clean", "normal"))
+    parser.add_argument("--build-action", choices=tuple(ACTIONS),
+                        help="Configure/build in-place, incrementally build, or repack existing installer inputs")
     parser.add_argument("--jobs", type=int, default=8,
                         help="Concurrent build jobs, SONIC_BUILD_JOBS (default: 8)")
     parser.add_argument("--build-version", default="",
@@ -1310,16 +1304,25 @@ def main(argv=None):
     actions.add_argument("--run", action="store_true", help="Build with the supplied options; requires --yes")
     parser.add_argument("--yes", action="store_true")
     args = parser.parse_args(argv)
-    source = args.source.resolve()
-    state = (args.state_dir or source.with_name(source.name + "-build-menu")).resolve()
-    settings = Settings(source, state, args.arch, args.flavor, args.mode, args.jobs, args.build_version, args.build_action)
     try:
+        source = resolve_source(args.source or launch_directory or Path(__file__).resolve().parent)
+        profile = read_profile(source)
+        settings = Settings(source, (args.state_dir or source).resolve(),
+                            args.arch or (profile["arch"] if profile else "arm64"),
+                            args.flavor or (profile["customer"] if profile else "amazon"),
+                            args.mode or "normal", args.jobs, args.build_version,
+                            args.build_action or "standard")
+        settings.check_binding()
+        if args.build_action is None and args.mode is None:
+            settings.select_gui_action("make" if settings.configured else "clean")
+        elif args.mode is None and settings.build_action == "standard" and not settings.configured:
+            settings.mode = "clean"
         if args.dry_run:
             ids = preflight(settings)
             preview(settings)
             print(json.dumps({"slave_images": ids, "build_action": settings.build_action,
                               "effective_source": str(settings.effective_source),
-                              "source_refresh": settings.build_action == "standard",
+                              "source_refresh": False,
                               "installer_only_guard": settings.build_action == "installer-only",
                               "build_environment": incremental_environment(settings),
                               "commands": [make_command(settings, distro, target)
