@@ -4,7 +4,9 @@ Run `./build-menu.sh` in the SONiC Git repository, or invoke its absolute path
 from another working directory. Opening either console does not start a build.
 
 Each clone permanently binds to one architecture and one customer when Start
-is confirmed. The first build must be **Clean**. Both architecture and customer
+is confirmed. The first build starts with **Clean**. After cleanup completes, failed or
+interrupted builds default to **Incremental** and retain existing products.
+Both architecture and customer
 rows then display **Locked**; Enter explains how to clone another repository.
 There is no reset or customer-switch operation. AMD64 remains a visible,
 unsupported option and cannot start a build.
@@ -30,7 +32,12 @@ kyoto-sai1.17-fresh/
 
 The ignored `.build-menu/profile.json` stores the immutable binding. It is
 written atomically before preflight and survives failed builds. A new clone
-does not inherit it. Invalid profile or configuration data stops the menu.
+does not inherit it. The ignored `.build-menu/progress.json` records successful
+cleanup and each configure stage separately; interrupted cleanup must be retried.
+Existing run records and legacy configuration records provide compatible resume
+evidence. Read-only startup and dry-run never write these checkpoints; adoption
+happens under the repository build lock when starting the next build.
+Invalid profile, configuration or checkpoint data stops the menu.
 
 ## Actions
 
@@ -40,9 +47,11 @@ does not inherit it. Invalid profile or configuration data stops the menu.
   target packages and rootfs directories. It does not archive the whole target
   directory. An identical verified historical BIN can be referenced directly.
 - **Incremental build** retains outputs and builds this repository directly.
-  It becomes available only after Bookworm and Trixie configure both finish and
-  the actual architecture, platform and ZTP state match the binding.
-  An installer failure after those configure stages can be retried incrementally.
+  It is available as soon as the initial cleanup completes. Before compiling,
+  it finishes any missing Bookworm or Trixie configure stages and checks the
+  actual architecture, platform and ZTP state against the binding.
+  Configure, package and installer failures retain completed products for retry.
+  Only explicitly choosing Clean removes them again.
   Missing distro output directories are recreated; configuration files and their
   timestamps are preserved.
 

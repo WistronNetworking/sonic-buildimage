@@ -262,6 +262,9 @@ class Settings:
 
     bound: dict = dataclasses.field(init=False, default=None)
     configured: bool = dataclasses.field(init=False, default=False)
+    cleaned: bool = dataclasses.field(init=False, default=False)
+    completed_distros: tuple = dataclasses.field(init=False, default=())
+    progress: dict = dataclasses.field(init=False, default=None)
 
     def __post_init__(self):
         self.source = self.source.resolve()
@@ -280,7 +283,92 @@ class Settings:
             require(self.bound is not None and
                     all(configuration[key] == self.bound[key] for key in ("arch", "customer")),
                     "Configured-build record does not match the repository profile.")
-        self.configured = configuration is not None
+        progress = read_record(self.control / "progress.json")
+        if progress is None and configuration is not None:
+            progress = self.progress_record(configuration["configured_at"], ["bookworm", "trixie"])
+        if progress is None:
+            progress = self.legacy_progress()
+        if progress is not None:
+            require(progress.get("arch") == (self.bound or {}).get("arch")
+                    and progress.get("customer") == (self.bound or {}).get("customer")
+                    and "cleaned_at" in progress
+                    and (progress["cleaned_at"] is None or
+                         (isinstance(progress["cleaned_at"], str) and bool(progress["cleaned_at"])))
+                    and isinstance(progress.get("distros"), list)
+                    and all(d in ("bookworm", "trixie") for d in progress["distros"])
+                    and len(set(progress["distros"])) == len(progress["distros"])
+                    and (progress["cleaned_at"] is not None or not progress["distros"]),
+                    f"Invalid or mismatched build progress: {self.control / 'progress.json'}")
+        self.progress = progress
+        self.cleaned = progress is not None and progress["cleaned_at"] is not None
+        self.completed_distros = tuple(progress["distros"]) if self.cleaned else ()
+        self.configured = self.cleaned and set(self.completed_distros) == {"bookworm", "trixie"}
+
+    def progress_record(self, cleaned_at, distros):
+        return {"schema": SCHEMA, "arch": (self.bound or {}).get("arch", self.arch),
+                "customer": (self.bound or {}).get("customer", self.flavor),
+                "cleaned_at": cleaned_at,
+                "distros": [d for d in ("bookworm", "trixie") if d in distros]}
+
+    def legacy_progress(self):
+        """Read pre-checkpoint run evidence; persist only under the build lock."""
+        if self.bound is None:
+            return None
+        result = read_record(self.control / "last-run.json")
+        if not result or any(result.get(k) != v for k, v in {
+                "source": str(self.source), "workspace": str(self.source),
+                "arch": self.bound["arch"], "flavor": self.bound["customer"],
+                "build_action": "standard", "mode": "clean"}.items()):
+            return None
+        try:
+            started = datetime.datetime.fromisoformat(result["started_at"])
+            bound = datetime.datetime.fromisoformat(self.bound["bound_at"])
+            if started < bound:
+                return None
+        except (KeyError, TypeError, ValueError):
+            return None
+        configured = []
+        cleaned_at = None
+        stages = result.get("stages", [])
+        if not isinstance(stages, list):
+            return None
+        for stage in stages:
+            if not isinstance(stage, dict):
+                continue
+            command = stage.get("command", [])
+            phase = stage.get("phase")
+            if not isinstance(phase, str):
+                continue
+            distro = {"Bookworm configure": "bookworm", "Trixie configure": "trixie"}.get(phase)
+            if (distro is None or not isinstance(command, list) or not command or command[-1] != "configure"
+                    or "PLATFORM_ARCH=" + self.bound["arch"] not in command
+                    or not isinstance(stage.get("started_at"), str)):
+                continue
+            cleaned_at = cleaned_at or stage["started_at"]
+            if type(stage.get("exit_code")) is int and stage["exit_code"] == 0:
+                configured.append(distro)
+        return self.progress_record(cleaned_at, configured) if cleaned_at else None
+
+    def persist_progress(self):
+        if self.progress is not None and not (self.control / "progress.json").exists():
+            atomic_json(self.control / "progress.json", self.progress)
+            self.refresh_profile()
+
+    def write_progress(self, cleaned_at, distros):
+        atomic_json(self.control / "progress.json", self.progress_record(cleaned_at, distros))
+        self.refresh_profile()
+
+    def begin_clean(self):
+        self.write_progress(None, [])
+        (self.control / "configuration.json").unlink(missing_ok=True)
+
+    def mark_cleaned(self):
+        self.write_progress(now(), [])
+
+    def begin_configure(self, distro):
+        require(self.cleaned, "Complete the initial Clean before configuring.")
+        self.write_progress(self.progress["cleaned_at"], set(self.completed_distros) - {distro})
+        (self.control / "configuration.json").unlink(missing_ok=True)
 
     @property
     def workspace(self):
@@ -323,12 +411,16 @@ class Settings:
                     f"Repository configuration mismatch: {name}. Run Clean build first.")
         verify_patch_stack(self.source, applied=self.ztp == "y")
 
-    def mark_configured(self):
+    def mark_configured(self, distro=None):
+        require(self.cleaned, "Complete the initial Clean before configuring.")
         self.verify_configuration()
-        atomic_json(self.control / "configuration.json",
-                    {"schema": SCHEMA, "arch": self.arch, "customer": self.flavor,
-                     "distros": ["bookworm", "trixie"], "configured_at": now()})
-        self.refresh_profile()
+        completed = set(self.completed_distros) | ({distro} if distro else {"bookworm", "trixie"})
+        self.write_progress(self.progress["cleaned_at"], completed)
+        if self.configured:
+            atomic_json(self.control / "configuration.json",
+                        {"schema": SCHEMA, "arch": self.arch, "customer": self.flavor,
+                         "distros": ["bookworm", "trixie"], "configured_at": now()})
+            self.refresh_profile()
 
     @property
     def ztp(self):
@@ -346,7 +438,7 @@ class Settings:
 
     @property
     def gui_action(self):
-        return "clean" if not self.configured or (self.build_action == "standard" and self.mode == "clean") else "make"
+        return "clean" if not self.cleaned or (self.build_action == "standard" and self.mode == "clean") else "make"
 
     def select_gui_action(self, action):
         require(action in GUI_ACTIONS, "Unknown menu build action.")
@@ -361,6 +453,8 @@ class Settings:
 
     @property
     def flow_display(self):
+        if self.build_action == "make" and not self.configured:
+            return "finish configure -> make -> installer -> verify"
         return {"standard": "configure -> build -> verify", "make": "make -> installer -> verify",
                 "installer-only": "existing artifacts -> bin -> verify"}[self.build_action]
 
@@ -463,8 +557,8 @@ class Settings:
             require(not path.is_symlink() and path.resolve() == path,
                     f"Build output directories must not contain symlinks: {path}")
         require(not (self.control / ".lock").is_symlink(), "Unsafe repository build lock.")
-        require(self.configured or (self.build_action == "standard" and self.mode == "clean"),
-                "The first build in this repository must be Clean. Both Bookworm and Trixie configure must finish before Incremental is available.")
+        require(self.cleaned or (self.build_action == "standard" and self.mode == "clean"),
+                "The first build in this repository must be Clean. After cleanup completes, Incremental can resume unfinished configuration and builds.")
         for generated in (self.source / "target", *self.source.glob("fsroot*")):
             require(not (self.state / "runs").is_relative_to(generated),
                     "Run storage cannot be inside generated build outputs.")
@@ -479,10 +573,12 @@ class Settings:
 
     def validate_workspace(self):
         workspace = self.workspace
-        require(self.configured, "Run Clean build first.")
-        self.verify_configuration()
+        require(self.cleaned, "Complete the initial Clean first.")
+        if self.configured:
+            self.verify_configuration()
         require(not (workspace / "target").is_symlink(), "target cannot be a symlink.")
         if self.build_action == "installer-only":
+            require(self.configured, "Installer only requires both configure stages. Use Incremental build to finish setup.")
             path = workspace / "target" / RFS
             require(path.is_file() and not path.is_symlink() and path.stat().st_size > 0,
                     f"Installer only requires existing rootfs: {path}. Run Clean build or Incremental build first.")
@@ -508,7 +604,7 @@ def make_command(settings, distro, target, run_id="preview"):
     ]
     if target == "configure":
         arguments.append("PLATFORM=marvell-prestera")
-    if settings.build_action != "standard":
+    if settings.build_action != "standard" and target != "configure":
         arguments[1:1] = ["-f", "Makefile.work", "BLDENV=" + distro]
     return arguments + [target]
 
@@ -517,8 +613,10 @@ def stages(settings, run_id="preview"):
     if settings.build_action == "installer-only":
         return [("Trixie installer only", "trixie", "target/" + INSTALLER)]
     if settings.build_action == "make":
-        return [("Bookworm make", "bookworm", "bookworm"),
-                ("Trixie installer", "trixie", "target/" + INSTALLER)]
+        configure = [(distro.title() + " configure", distro, "configure")
+                     for distro in ("bookworm", "trixie") if distro not in settings.completed_distros]
+        return configure + [("Bookworm make", "bookworm", "bookworm"),
+                            ("Trixie installer", "trixie", "target/" + INSTALLER)]
     return [("Bookworm configure", "bookworm", "configure"),
             ("Bookworm build", "bookworm", "bookworm"),
             ("Trixie configure", "trixie", "configure"),
@@ -526,7 +624,8 @@ def stages(settings, run_id="preview"):
 
 
 def incremental_environment(settings):
-    # validate_workspace checks platform/architecture/customer before this is used.
+    # Completed setups are verified by validate_workspace; missing configure
+    # stages are verified before resumed make phases receive this environment.
     # configure rewrites .platform even when its contents do not change. Its
     # timestamp must not invalidate every retained component in this action.
     if settings.build_action == "make":
@@ -736,6 +835,8 @@ class Runner:
             self.log.flush()
 
     def save(self):
+        self.result.update(cleanup_completed=self.settings.cleaned,
+                           configured_distros=list(self.settings.completed_distros))
         atomic_json(self.folder / "result.json", self.result)
         atomic_json(self.settings.control / "last-run.json", self.result)
 
@@ -976,6 +1077,7 @@ class Runner:
                 raise BuildError("A menu build is already running for this source checkout.")
             settings.validate()
             settings.bind()
+            settings.persist_progress()
             self.folder.mkdir(parents=True)
             self.result["log"] = str(self.folder / "build.log")
             with (self.folder / "build.log").open("wb") as self.log:
@@ -988,30 +1090,34 @@ class Runner:
                     manifest = inventory(settings.source, self.say, exclude=settings.snapshot_exclusions)
                     self.result["source_sha256"] = manifest["sha256"]
                     atomic_json(self.folder / "source-manifest.json", manifest)
-                    if settings.build_action == "standard":
-                        (settings.control / "configuration.json").unlink(missing_ok=True)
-                        settings.configured = False
                     extra_env = (self.prepare_installer_only() if settings.build_action == "installer-only"
                                  else incremental_environment(settings))
-                    if settings.build_action == "make":
-                        self.say("Reusing verified platform configuration; ignoring its timestamp.")
+                    if settings.mode == "clean":
+                        settings.begin_clean()
                     self.clean(manifest)
+                    if settings.mode == "clean":
+                        settings.mark_cleaned()
+                        self.save()
                     if settings.flavor == "wistron":
                         verify_patch_stack(settings.source, applied=False)
                     if settings.build_action != "standard":
                         self.prepare_output_directories()
-                    configured_distros = set()
+                    if settings.build_action == "make":
+                        self.say("Retaining build products; completing any missing configure stages before make.")
                     for name, distro, target in stages(settings, self.run_id):
                         require(image_ids() == self.result["slave_ids_before"], "A slave image ID changed.")
                         record = {"phase": name, "started_at": now(), "command": make_command(settings, distro, target, self.run_id)}
-                        if extra_env:
-                            record["environment"] = extra_env
+                        stage_env = None if target == "configure" else extra_env
+                        if stage_env:
+                            record["environment"] = stage_env
+                        if target == "configure":
+                            settings.begin_configure(distro)
                         self.result["stages"].append(record)
                         self.result.update(status="running", phase=name)
                         self.say(f"\n=== {name} ===", bold=True)
                         self.save()
                         try:
-                            record["exit_code"] = self.command(record["command"], cwd=settings.workspace, extra_env=extra_env)
+                            record["exit_code"] = self.command(record["command"], cwd=settings.workspace, extra_env=stage_env)
                         except BuildError:
                             record["exit_code"] = self.last_exit_code
                             raise
@@ -1019,10 +1125,8 @@ class Runner:
                             record["finished_at"] = now()
                             self.save()
                         if target == "configure":
-                            settings.verify_configuration()
-                            configured_distros.add(distro)
-                            if configured_distros == {"bookworm", "trixie"}:
-                                settings.mark_configured()
+                            settings.mark_configured(distro)
+                            self.save()
                     self.say("Verifying the installer ZTP state...")
                     artifact = settings.workspace / "target" / INSTALLER
                     require(artifact.is_file() and not artifact.is_symlink() and artifact.stat().st_size > 0,
@@ -1071,6 +1175,8 @@ class Runner:
                     self.result["finished_at"] = now()
                     self.save()
                     show_result(self.result)
+                    if settings.cleaned:
+                        settings.select_gui_action("make")
             self.log = None
         return self.result
 
@@ -1252,8 +1358,10 @@ def preview(settings):
     print_field("Effective source:", settings.effective_source)
     print_field("Build location:", "In-place; source and build directory are identical")
     print_field("Profile:", settings.lock_message if settings.bound else "Unbound: first confirmed Start permanently binds this repository")
-    if not settings.configured:
-        print("First build must be Clean; Incremental requires both configure stages.")
+    if not settings.cleaned:
+        print("First build must be Clean. After cleanup, retries retain outputs.")
+    elif not settings.configured:
+        print("Incremental will finish missing configure stages and retain build outputs.")
     if settings.build_action == "installer-only":
         print(terminal_text("Reuse existing packages, Docker archives and rootfs; no component compilation.", "yellow"))
     print_field("Git branch:", settings.git_branch, bold=True)
@@ -1309,8 +1417,8 @@ def menu(settings):
                                        + [option_line(0, "back"), terminal_text("Option: ", "cyan")])).strip()
                 if value in ("1", "2"):
                     action = tuple(GUI_ACTIONS)[int(value) - 1]
-                    if action == "make" and not settings.configured:
-                        print(terminal_text("Run Clean build first; both configure stages must finish before Incremental is available.", "yellow"))
+                    if action == "make" and not settings.cleaned:
+                        print(terminal_text("Complete the initial Clean first; later retries retain outputs.", "yellow"))
                     else:
                         settings.select_gui_action(action)
                 elif value not in ("", "0"):
@@ -1396,8 +1504,8 @@ def main(argv=None, *, launch_directory=None):
                             args.build_action or "standard")
         settings.check_binding()
         if args.build_action is None and args.mode is None:
-            settings.select_gui_action("make" if settings.configured else "clean")
-        elif args.mode is None and settings.build_action == "standard" and not settings.configured:
+            settings.select_gui_action("make" if settings.cleaned else "clean")
+        elif args.mode is None and settings.build_action == "standard" and not settings.cleaned:
             settings.mode = "clean"
         if args.dry_run:
             ids = preflight(settings)

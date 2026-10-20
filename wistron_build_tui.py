@@ -772,9 +772,9 @@ class Console:
                 chosen = self.choose("BUILD ACTION", GUI_ACTION_LABELS, GUI_ACTIONS.index(self.settings.gui_action))
                 if chosen is not None:
                     action = GUI_ACTIONS[chosen]
-                    if action == "make" and not self.settings.configured:
+                    if action == "make" and not self.settings.cleaned:
                         self.message("CLEAN BUILD REQUIRED",
-                                     ["Run Clean build first. Both configure stages must finish before Incremental is available."], "yellow")
+                                     ["Complete the initial Clean first. Later retries retain outputs and finish missing configure stages."], "yellow")
                     else:
                         self.settings.select_gui_action(action)
             elif self.selection == 3:
@@ -806,7 +806,8 @@ class Console:
                            "Source: " + str(self.settings.source), "Build directory: " + str(self.settings.workspace),
                            "Effective source: " + str(self.settings.effective_source), ""]
                 if self.settings.build_action == "make":
-                    details.extend(["Build this repository directly; source edits are retained.", ""])
+                    details.extend(["Retain existing packages and source edits.",
+                                    "Finish missing configure stages before compiling.", ""])
                 elif self.settings.build_action == "standard":
                     details.extend(["Clean removes generated outputs; BIN and logs are preserved.",
                                     "Source edits are retained.",
