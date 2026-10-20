@@ -517,6 +517,9 @@ class Console:
                   self.settings.action_display,
                   str(self.settings.jobs) + " concurrent jobs", self.version_display,
                   self.settings.flow_display, "saved logs, checksum, status", "")
+        if self.settings.bound:
+            values = tuple(("Locked: " + value) if index < 2 else value
+                           for index, value in enumerate(values))
         column = min(26, max(23, width // 3))
         for index, (label, value) in enumerate(zip(OPTIONS, values)):
             row = top + 1 + index
@@ -536,7 +539,7 @@ class Console:
                   ("Source status", status, "green" if status == "Clean" else "yellow"))
         if height - path_top >= 9:
             self.frame(path_top, left, 7, width,
-                       "SOURCE SNAPSHOT" if self.settings.build_action == "standard" else "BUILD WORKSPACE / NO SOURCE SYNC")
+                       "REPOSITORY / IN-PLACE BUILD")
             self.put(path_top + 1, left + 2, "Source: " + str(self.settings.source), width=width - 4)
             self.put(path_top + 2, left + 2, "Build:  " + str(self.settings.workspace), width=width - 4)
             field_top = path_top + 3
@@ -753,6 +756,8 @@ class Console:
                 self.selection = move_selection(self.selection, key, len(OPTIONS))
             elif self.selection == 7:
                 return "exit", self.selection
+            elif self.selection in (0, 1) and self.settings.bound:
+                self.message("PROFILE LOCKED", [self.settings.lock_message], "yellow")
             elif self.selection == 0:
                 chosen = self.choose("ARCHITECTURE", ["ARM64: Marvell Prestera", "X86: AMD64 (not supported yet)"],
                                      0 if self.settings.arch == "arm64" else 1)
@@ -766,7 +771,12 @@ class Console:
             elif self.selection == 2:
                 chosen = self.choose("BUILD ACTION", GUI_ACTION_LABELS, GUI_ACTIONS.index(self.settings.gui_action))
                 if chosen is not None:
-                    self.settings.select_gui_action(GUI_ACTIONS[chosen])
+                    action = GUI_ACTIONS[chosen]
+                    if action == "make" and not self.settings.configured:
+                        self.message("CLEAN BUILD REQUIRED",
+                                     ["Run Clean build first. Both configure stages must finish before Incremental is available."], "yellow")
+                    else:
+                        self.settings.select_gui_action(action)
             elif self.selection == 3:
                 self.edit_jobs()
             elif self.selection == 4:
@@ -785,8 +795,8 @@ class Console:
                 details = ["Architecture: ARM64: Marvell Prestera",
                            "Customer: " + self.settings.flavor.title(),
                            "Build action: " + self.settings.action_display,
-                           "Outputs: " + ("Back up target and rebuild" if self.settings.mode == "clean" else "Retain existing outputs"),
-                           "Source refresh: " + ("ON" if self.settings.build_action == "standard" else "OFF: existing workspace"),
+                           "Outputs: " + ("Preserve BIN and logs; remove generated outputs" if self.settings.mode == "clean" else "Retain existing outputs"),
+                           "Build location: in-place; source edits are retained",
                            "Build job: " + str(self.settings.jobs), "Package/version caches: OFF",
                            "Build version: " + (self.settings.build_version or 'Default: ' + fresh['version']),
                            "ZTP: " + ("ON" if self.settings.ztp == "y" else "OFF"), "",
@@ -796,8 +806,11 @@ class Console:
                            "Source: " + str(self.settings.source), "Build directory: " + str(self.settings.workspace),
                            "Effective source: " + str(self.settings.effective_source), ""]
                 if self.settings.build_action == "make":
-                    details.extend(["Edit platform/src and remove package outputs in the Build directory.",
-                                    "Original source checkout changes are not synchronized.", ""])
+                    details.extend(["Build this repository directly; source edits are retained.", ""])
+                elif self.settings.build_action == "standard":
+                    details.extend(["Clean removes generated outputs; BIN and logs are preserved.",
+                                    "Source edits are retained.",
+                                    "Start permanently binds a fresh repository to this architecture and customer.", ""])
                 elif self.settings.build_action == "installer-only":
                     details.extend(["Reuse existing packages, Docker archives and first-stage rootfs.",
                                     "No component compilation; missing inputs stop this run.", ""])
@@ -808,7 +821,7 @@ class Console:
                     return "build", self.selection
             elif self.selection == 6:
                 try:
-                    path = self.settings.state / "last-run.json"
+                    path = self.settings.control / "last-run.json"
                     if path.exists():
                         self.show_result(json.loads(path.read_text()))
                     else:
