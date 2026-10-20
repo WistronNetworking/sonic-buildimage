@@ -568,11 +568,53 @@ def generated_untracked(source, relative):
     return False
 
 
+def gitlinks(repo):
+    """Read pinned submodule commits without changing the index or worktrees."""
+    links = []
+    for entry in git(repo, "ls-files", "--stage", "-z").split(b"\0"):
+        if not entry:
+            continue
+        meta, raw_name = entry.split(b"\t", 1)
+        mode, commit, stage = meta.decode().split()
+        require(stage == "0", f"Source has unresolved merge conflicts: {repo}")
+        if mode == "160000":
+            links.append((safe_relative(os.fsdecode(raw_name)), commit))
+    return links
+
+
+def missing_build_submodules(source):
+    """Only common sources and the supported platform need initialization."""
+    pending = [source]
+    missing = []
+    while pending:
+        repo = pending.pop(0)
+        require(repo.resolve().is_relative_to(source), f"Repository is outside the source directory: {repo}")
+        require(git(repo, "rev-parse", "--show-toplevel").decode().strip() == str(repo),
+                f"Not an independent repository: {repo}")
+        for name, commit in gitlinks(repo):
+            path = repo / name
+            relative = path.relative_to(source)
+            if relative.parts[0] == "platform" and relative.parts[1:2] != ("marvell-prestera",):
+                continue
+            require(not path.is_symlink() and path.resolve().is_relative_to(source),
+                    f"Unsafe submodule directory: {path}")
+            marker = path / ".git"
+            require(not marker.is_symlink(), f"Unsafe submodule Git metadata: {marker}")
+            if marker.exists():
+                pending.append(path)
+            else:
+                require(not marker.is_symlink() and (not path.exists() or
+                        (path.is_dir() and not any(path.iterdir()))),
+                        f"Uninitialized submodule contains local files; preserving them: {path}")
+                missing.append((repo, name))
+    return missing
+
+
 def inventory(source, progress=None, exclude=None):
     """Record source files and repositories without recursing into build state.
 
-    Each cloned repository has independent Git metadata. Tracked source
-    inside an excluded state directory is rejected instead of being omitted.
+    Include initialized repositories and pinned gitlinks for missing optional
+    submodules. Tracked source inside excluded state is never silently omitted.
     """
     source = source.resolve()
     if exclude is None:
@@ -583,6 +625,7 @@ def inventory(source, progress=None, exclude=None):
         excluded = tuple(Path(path).resolve() for path in exclude)
     excluded = tuple(path for path in excluded if path.is_relative_to(source))
     repositories = []
+    submodules = {}
     files = {}
     pending = [source]
     seen = set()
@@ -612,7 +655,12 @@ def inventory(source, progress=None, exclude=None):
             require(not any((repo / safe_relative(name)).is_relative_to(path) for path in excluded),
                     f"Build state contains tracked source: {prefix}{name}")
             if mode == "160000":
-                pending.append(repo / safe_relative(name))
+                path = repo / safe_relative(name)
+                initialized = (path / ".git").exists()
+                submodules[prefix + name] = {"commit": meta.decode().split()[1],
+                                            "initialized": initialized}
+                if initialized:
+                    pending.append(path)
                 continue
             tracked.add(name)
         names = {name: True for name in tracked}
@@ -655,7 +703,8 @@ def inventory(source, progress=None, exclude=None):
             if progress and len(files) % 2000 == 0:
                 progress(f"Recorded {len(files)} source files")
     repositories.sort(key=lambda r: (r["path"].count("/"), r["path"]))
-    data = {"schema": SCHEMA, "repositories": repositories, "files": files}
+    data = {"schema": SCHEMA, "repositories": repositories,
+            "submodules": dict(sorted(submodules.items())), "files": files}
     data["sha256"] = hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
     return data
 
@@ -738,6 +787,37 @@ class Runner:
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except (BuildError, subprocess.TimeoutExpired):
             self.say("Could not confirm that this run's containers stopped. Check Docker status.", tone="yellow")
+
+    def prepare_submodules(self):
+        """Initialize only missing sources, without updating existing checkouts."""
+        previous = None
+        while True:
+            missing = missing_build_submodules(self.settings.source)
+            if not missing:
+                return
+            require(missing != previous, "Required submodules remain uninitialized after Git update.")
+            previous = missing
+            grouped = {}
+            for repo, name in missing:
+                grouped.setdefault(repo, []).append(name)
+            self.result.update(status="running", phase="Initialize required submodules")
+            for repo, names in grouped.items():
+                command = ["git", "-C", str(repo), "submodule", "update", "--init", "--checkout",
+                           "--jobs", str(min(self.settings.jobs, 4)), "--", *names]
+                record = {"repository": str(repo), "paths": names, "command": command,
+                          "started_at": now()}
+                self.result.setdefault("submodule_initialization", []).append(record)
+                self.say("Initializing missing build sources: " + ", ".join(names))
+                self.save()
+                try:
+                    self.command(command)
+                    record["exit_code"] = 0
+                except BuildError:
+                    record["exit_code"] = self.last_exit_code
+                    raise
+                finally:
+                    record["finished_at"] = now()
+                    self.save()
 
     def preserve_installer(self, artifact):
         require(artifact.is_file() and not artifact.is_symlink(),
@@ -902,6 +982,8 @@ class Runner:
                 self.save()
                 try:
                     self.result["slave_ids_before"] = preflight(settings)
+                    if settings.build_action != "installer-only":
+                        self.prepare_submodules()
                     self.say("Building directly in the repository; source edits are retained.")
                     manifest = inventory(settings.source, self.say, exclude=settings.snapshot_exclusions)
                     self.result["source_sha256"] = manifest["sha256"]
@@ -1324,6 +1406,9 @@ def main(argv=None, *, launch_directory=None):
                               "effective_source": str(settings.effective_source),
                               "source_refresh": False,
                               "installer_only_guard": settings.build_action == "installer-only",
+                              "submodules_to_initialize": [str((repo / name).relative_to(settings.source))
+                                  for repo, name in missing_build_submodules(settings.source)]
+                                  if settings.build_action != "installer-only" else [],
                               "build_environment": incremental_environment(settings),
                               "commands": [make_command(settings, distro, target)
                                            for _, distro, target in stages(settings)]}, ensure_ascii=False, indent=2))
