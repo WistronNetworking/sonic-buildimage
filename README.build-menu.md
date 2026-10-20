@@ -9,6 +9,13 @@ rows then display **Locked**; Enter explains how to clone another repository.
 There is no reset or customer-switch operation. AMD64 remains a visible,
 unsupported option and cannot start a build.
 
+On a fresh clone, confirmed builds initialize missing common-source and
+Marvell Prestera submodules before recording the source manifest or running
+configure. This may download Git sources. Other platforms can remain
+uninitialized. Existing submodule HEADs and local edits are preserved; the
+menu does not update those checkouts. Dry-run lists missing modules without
+initializing them.
+
 The source and build directory are the same repository:
 
 ```text
@@ -39,10 +46,11 @@ does not inherit it. Invalid profile or configuration data stops the menu.
   Missing distro output directories are recreated; configuration files and their
   timestamps are preserved.
 
-Neither action copies source, synchronizes another checkout, fetches Git refs,
-or resets an index. Already applied ZTP patches are skipped; missing patches
-are applied forward. Conflicts stop with logs. No patches are reversed to
-switch customers.
+Builds use this checkout directly, without a separate customer source copy or
+snapshot synchronization. Missing submodules download their pinned sources;
+initialized submodule checkouts are not fetched or reset. Already applied ZTP
+patches are skipped, missing patches are applied forward, and conflicts stop
+with logs. No patches are reversed to switch customers.
 
 The arrow-key and numeric consoles retain architecture, customer, action,
 jobs, version, Start and last-result rows. Jobs and version remain editable.
