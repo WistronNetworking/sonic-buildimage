@@ -1,0 +1,247 @@
+diff --git a/build_debian.sh b/build_debian.sh
+index 1d2db21f5..ba59bfc54 100755
+--- a/build_debian.sh
++++ b/build_debian.sh
+@@ -361,7 +361,6 @@ sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get -y in
+     cgroup-tools            \
+     ipmitool                \
+     ndisc6                  \
+-    makedumpfile            \
+     conntrack               \
+     python3                 \
+     python3-pip             \
+@@ -385,6 +384,14 @@ sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get -y in
+     zstd                    \
+     nvme-cli
+ 
++## Install self-built makedumpfile (with ARM64 VA Bits 52 fix)
++echo '[INFO] Install self-built makedumpfile'
++sudo cp $debs_path/makedumpfile_*.deb $FILESYSTEM_ROOT
++basename_makedumpfile=$(basename $debs_path/makedumpfile_*.deb)
++sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT \
++    apt-get -y install --allow-downgrades ./$basename_makedumpfile
++sudo LANG=C chroot $FILESYSTEM_ROOT rm -f /$basename_makedumpfile
++
+ sudo cp files/initramfs-tools/pzstd $FILESYSTEM_ROOT/etc/initramfs-tools/hooks/pzstd
+ sudo chmod +x $FILESYSTEM_ROOT/etc/initramfs-tools/hooks/pzstd
+ 
+diff --git a/rules/makedumpfile.dep b/rules/makedumpfile.dep
+new file mode 100644
+index 000000000..3518a7c6e
+--- /dev/null
++++ b/rules/makedumpfile.dep
+@@ -0,0 +1,7 @@
++SPATH       := $($(MAKEDUMPFILE)_SRC_PATH)
++DEP_FILES   := $(SONIC_COMMON_FILES_LIST) rules/makedumpfile.mk rules/makedumpfile.dep
++DEP_FILES   += $(SONIC_COMMON_BASE_FILES_LIST)
++DEP_FILES   += $(shell git ls-files $(SPATH))
++$(MAKEDUMPFILE)_CACHE_MODE  := GIT_CONTENT_SHA
++$(MAKEDUMPFILE)_DEP_FLAGS   := $(SONIC_COMMON_FLAGS_LIST)
++$(MAKEDUMPFILE)_DEP_FILES   := $(DEP_FILES)
+diff --git a/rules/makedumpfile.mk b/rules/makedumpfile.mk
+new file mode 100644
+index 000000000..7adbf4f29
+--- /dev/null
++++ b/rules/makedumpfile.mk
+@@ -0,0 +1,15 @@
++# makedumpfile package
++MAKEDUMPFILE_VERSION = 1.7.9
++MAKEDUMPFILE_VERSION_FULL = $(MAKEDUMPFILE_VERSION)-0~sonic1
++export MAKEDUMPFILE_VERSION
++export MAKEDUMPFILE_VERSION_FULL
++
++MAKEDUMPFILE = makedumpfile_$(MAKEDUMPFILE_VERSION_FULL)_$(CONFIGURED_ARCH).deb
++$(MAKEDUMPFILE)_SRC_PATH = $(SRC_PATH)/makedumpfile
++SONIC_MAKE_DEBS += $(MAKEDUMPFILE)
++
++MAKEDUMPFILE_DBG = makedumpfile-dbgsym_$(MAKEDUMPFILE_VERSION_FULL)_$(CONFIGURED_ARCH).deb
++$(eval $(call add_derived_package,$(MAKEDUMPFILE),$(MAKEDUMPFILE_DBG)))
++
++export MAKEDUMPFILE
++export MAKEDUMPFILE_DBG
+diff --git a/slave.mk b/slave.mk
+index 8a327279b..17141bc31 100644
+--- a/slave.mk
++++ b/slave.mk
+@@ -1405,6 +1405,7 @@ $(addprefix $(TARGET_PATH)/, $(SONIC_INSTALLERS)) : $(TARGET_PATH)/% : \
+                 $(SONIC_DEVICE_DATA) \
+                 $(IFUPDOWN2) \
+                 $(KDUMP_TOOLS) \
++                $(MAKEDUMPFILE) \
+                 $(LIBPAM_RADIUS) \
+                 $(LIBNSS_RADIUS) \
+                 $(LIBPAM_TACPLUS) \
+diff --git a/sonic-slave-bookworm/Dockerfile.j2 b/sonic-slave-bookworm/Dockerfile.j2
+index 067fa628e..c5393a09d 100644
+--- a/sonic-slave-bookworm/Dockerfile.j2
++++ b/sonic-slave-bookworm/Dockerfile.j2
+@@ -360,6 +360,9 @@ RUN apt-get update && apt-get install -y eatmydata && eatmydata apt-get install
+         rrdtool \
+ # For kdump-tools
+         liblzo2-dev \
++# For makedumpfile
++        libsnappy-dev \
++        binutils-dev \
+ # For iptables
+         libnetfilter-conntrack-dev \
+         libnftnl-dev \
+@@ -403,6 +406,9 @@ RUN apt-get update && apt-get install -y eatmydata && eatmydata apt-get install
+         docbook-utils        \
+ # For kdump-tools
+         libbz2-dev \
++# For makedumpfile
++        libsnappy-dev \
++        binutils-dev \
+ # For linkmgrd
+         libboost1.83-dev \
+         libboost-program-options1.83-dev \
+diff --git a/src/makedumpfile/Makefile b/src/makedumpfile/Makefile
+new file mode 100644
+index 000000000..ddd6cf985
+--- /dev/null
++++ b/src/makedumpfile/Makefile
+@@ -0,0 +1,38 @@
++.ONESHELL:
++SHELL = /bin/bash
++.SHELLFLAGS += -e
++
++MAIN_TARGET = $(MAKEDUMPFILE)
++DERIVED_TARGETS = $(MAKEDUMPFILE_DBG)
++
++$(addprefix $(DEST)/, $(MAIN_TARGET)): $(DEST)/% :
++	# Remove any stale files from previous builds
++	rm -rf ./makedumpfile-build
++	rm -f makedumpfile_*.deb makedumpfile-dbgsym_*.deb makedumpfile_*.buildinfo makedumpfile_*.changes
++
++	# Clone latest makedumpfile source from upstream
++	git clone https://github.com/makedumpfile/makedumpfile.git makedumpfile-build
++	pushd ./makedumpfile-build
++
++	# Copy debian packaging structure into source tree
++	cp -r ../debian ./debian
++
++	# Build debian package
++ifeq ($(CROSS_BUILD_ENVIRON), y)
++	dpkg-buildpackage -rfakeroot -d -b -us -uc \
++		-a$(CONFIGURED_ARCH) \
++		-Pcross,nocheck \
++		-j$(SONIC_CONFIG_MAKE_JOBS) \
++		--admindir $(SONIC_DPKG_ADMINDIR)
++else
++	dpkg-buildpackage -rfakeroot -d -b -us -uc \
++		-j$(SONIC_CONFIG_MAKE_JOBS) \
++		--admindir $(SONIC_DPKG_ADMINDIR)
++endif
++
++	popd
++
++	# Move the newly-built .deb packages to the destination directory
++	mv $(DERIVED_TARGETS) $* $(DEST)/
++
++$(addprefix $(DEST)/, $(DERIVED_TARGETS)): $(DEST)/% : $(DEST)/$(MAIN_TARGET)
+diff --git a/src/makedumpfile/debian/changelog b/src/makedumpfile/debian/changelog
+new file mode 100644
+index 000000000..17d5583ee
+--- /dev/null
++++ b/src/makedumpfile/debian/changelog
+@@ -0,0 +1,8 @@
++makedumpfile (1.7.9-0~sonic1) unstable; urgency=medium
++
++  * Upgrade to 1.7.9++ from upstream GitHub master
++  * Fix: ARM64 PAGE SIZE 0x1000 and VA Bits 52 not supported
++  * Fix: Add 5-level page table support for 4K pages with 52-bit VA
++  * Enable dynamic linking with lzo, snappy, zstd support
++
++ -- SONiC <sonic@microsoft.com>  Mon, 01 Jan 2025 00:00:00 +0000
+diff --git a/src/makedumpfile/debian/control b/src/makedumpfile/debian/control
+new file mode 100644
+index 000000000..0be589302
+--- /dev/null
++++ b/src/makedumpfile/debian/control
+@@ -0,0 +1,23 @@
++Source: makedumpfile
++Section: utils
++Priority: optional
++Maintainer: SONiC <sonic@microsoft.com>
++Build-Depends: debhelper-compat (= 13),
++               libelf-dev,
++               libdw-dev,
++               zlib1g-dev,
++               liblzo2-dev,
++               libzstd-dev
++Standards-Version: 4.6.0
++
++Package: makedumpfile
++Architecture: any
++Depends: ${shlibs:Depends}, ${misc:Depends},
++         liblzo2-2,
++         libzstd1
++Replaces: makedumpfile (<< 1.7.9)
++Breaks: makedumpfile (<< 1.7.9)
++Description: VMcore extraction tool
++ makedumpfile makes a small DUMPFILE by compressing dump data or
++ by excluding unnecessary pages for analysis. This version includes
++ ARM64 VA Bits 52 support fix.
+diff --git a/src/makedumpfile/debian/copyright b/src/makedumpfile/debian/copyright
+new file mode 100644
+index 000000000..566f8f9f0
+--- /dev/null
++++ b/src/makedumpfile/debian/copyright
+@@ -0,0 +1,15 @@
++Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
++Upstream-Name: makedumpfile
++Upstream-Contact: https://github.com/makedumpfile/makedumpfile
++Source: https://github.com/makedumpfile/makedumpfile
++
++Files: *
++Copyright: 2006 NEC Corporation
++License: GPL-2+
++ This program is free software; you can redistribute it and/or modify
++ it under the terms of the GNU General Public License as published by
++ the Free Software Foundation; either version 2 of the License, or
++ (at your option) any later version.
++ .
++ On Debian systems, the complete text of the GNU General Public License
++ version 2 can be found in /usr/share/common-licenses/GPL-2.
+diff --git a/src/makedumpfile/debian/rules b/src/makedumpfile/debian/rules
+new file mode 100755
+index 000000000..50394ef23
+--- /dev/null
++++ b/src/makedumpfile/debian/rules
+@@ -0,0 +1,36 @@
++#!/usr/bin/make -f
++
++export DH_VERBOSE = 1
++
++%:
++	dh $@
++
++override_dh_auto_build:
++	$(MAKE) \
++		LINKTYPE=dynamic \
++		USELZO=on \
++		USESNAPPY=off \
++		USEZSTD=on
++
++override_dh_auto_install:
++	install -D -m 755 makedumpfile \
++		$(CURDIR)/debian/makedumpfile/usr/bin/makedumpfile
++	install -D -m 755 makedumpfile-R.pl \
++		$(CURDIR)/debian/makedumpfile/usr/bin/makedumpfile-R.pl
++	install -D -m 644 makedumpfile.conf \
++		$(CURDIR)/debian/makedumpfile/usr/share/makedumpfile/makedumpfile.conf.sample
++	[ -f makedumpfile.8.in ] && \
++		sed "s/@VERSION@/$(MAKEDUMPFILE_VERSION)/g" makedumpfile.8.in \
++		> makedumpfile.8 || true
++	[ -f makedumpfile.conf.5.in ] && \
++		sed "s/@VERSION@/$(MAKEDUMPFILE_VERSION)/g" makedumpfile.conf.5.in \
++		> makedumpfile.conf.5 || true
++	[ -f makedumpfile.8 ] && \
++		install -D -m 644 makedumpfile.8 \
++		$(CURDIR)/debian/makedumpfile/usr/share/man/man8/makedumpfile.8 || true
++	[ -f makedumpfile.conf.5 ] && \
++		install -D -m 644 makedumpfile.conf.5 \
++		$(CURDIR)/debian/makedumpfile/usr/share/man/man5/makedumpfile.conf.5 || true
++
++override_dh_auto_test:
++	# Skip tests
