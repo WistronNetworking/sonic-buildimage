@@ -100,9 +100,3 @@ Ctrl+C stops only the current run's labelled containers and saves diagnostics.
 Migration archives live in `.build-menu/migrations/`. Old customer source
 differences are archived for recovery and are not merged into the PR checkout.
 The migrated ARM64/Amazon checkout requires a first Clean build.
-
-Run menu regressions with:
-
-```bash
-python3 -m unittest discover -s tests -p 'test_*build*.py'
-```
