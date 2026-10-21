@@ -1040,7 +1040,7 @@ class Runner:
         (controls / "installer-only.mk").write_text(installer_guard(relative))
         shutil.copy2(controls / "installer-only.mk", self.folder / "installer-only.mk")
         shutil.copy2(controls / "frozen.list", self.folder / "frozen.list")
-        flags = ["-f", str(relative / "installer-only.mk"), "--always-make"]
+        flags = ["-f", str(relative / "installer-only.mk"), "--always-make", "--old-file=.platform"]
         flags += ["--old-file=" + path for path in sorted(self.frozen)]
         override = " ".join(flags)
         require(len(override.encode()) < 100000, "Too many installer inputs for the build environment.")
