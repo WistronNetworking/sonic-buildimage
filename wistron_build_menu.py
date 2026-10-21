@@ -1138,7 +1138,9 @@ class Runner:
                     require(self.result["slave_ids_before"] == self.result["slave_ids_after"], "The slave images were replaced.")
                     if self.frozen is not None:
                         self.verify_frozen()
-                    published = self.folder / f"sonic-marvell-prestera-arm64-{settings.flavor}.bin"
+                    version = validate_version(self.result["image_version"])
+                    require(version, "The installer build_version is empty.")
+                    published = self.folder / f"sonic-marvell-prestera-arm64-{settings.flavor}-{version}.bin"
                     shutil.copy2(artifact, published)
                     digest = digest_file(published)
                     require(digest == digest_file(artifact), "Installer checksum differs after copying.")

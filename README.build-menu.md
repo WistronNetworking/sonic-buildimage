@@ -95,6 +95,13 @@ Pinned Bookworm and Trixie slave images must already exist. Package/version
 caches, slave rebuilds and base-image pulls remain disabled. Existing installer
 checks validate the ONIE payload, ZTP package/runtime paths, requested version
 and unchanged slave image IDs before publishing a BIN and SHA-256 sidecar.
+Published files use `sonic-marvell-prestera-arm64-<customer>-<version>.bin`,
+for example `sonic-marvell-prestera-arm64-amazon-Wistron_M.1.0.2.bin`.
+The filename uses the verified image's `build_version`, whether default or
+custom, with the same character and length limits as custom versions.
+The `.bin.sha256` sidecar names that BIN, and result records and the console
+show its published path. Make's `target/sonic-marvell-prestera-arm64.bin`
+and existing historical files and records retain their names.
 Ctrl+C stops only the current run's labelled containers and saves diagnostics.
 
 Migration archives live in `.build-menu/migrations/`. Old customer source
