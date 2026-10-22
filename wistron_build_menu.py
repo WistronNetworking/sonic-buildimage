@@ -404,12 +404,13 @@ class Settings:
                          "customer": self.flavor, "bound_at": now()})
             self.refresh_profile()
 
-    def verify_configuration(self):
+    def verify_configuration(self, *, check_patches=True):
         for name, expected in ((".arch", self.arch), (".platform", "marvell-prestera")):
             path = self.source / name
             require(path.is_file() and not path.is_symlink() and path.read_text().strip() == expected,
                     f"Repository configuration mismatch: {name}. Run Clean build first.")
-        verify_patch_stack(self.source, applied=self.ztp == "y")
+        if check_patches:
+            verify_patch_stack(self.source, applied=self.ztp == "y")
 
     def mark_configured(self, distro=None):
         require(self.cleaned, "Complete the initial Clean before configuring.")
@@ -575,7 +576,9 @@ class Settings:
         workspace = self.workspace
         require(self.cleaned, "Complete the initial Clean first.")
         if self.configured:
-            self.verify_configuration()
+            # Incremental repairs the current patch stack under the build lock
+            # before checking its final ZTP state. Configuration stays strict.
+            self.verify_configuration(check_patches=self.build_action != "make")
         require(not (workspace / "target").is_symlink(), "target cannot be a symlink.")
         if self.build_action == "installer-only":
             require(self.configured, "Installer only requires both configure stages. Use Incremental build to finish setup.")
@@ -623,9 +626,13 @@ def stages(settings, run_id="preview"):
             ("Trixie installer", "trixie", "target/" + INSTALLER)]
 
 
+def patch_command(settings):
+    return ["bash", "./apply_patches.sh"] + (["-z"] if settings.ztp == "y" else [])
+
+
 def incremental_environment(settings):
-    # Completed setups are verified by validate_workspace; missing configure
-    # stages are verified before resumed make phases receive this environment.
+    # Configuration files are checked by validate_workspace and current patches
+    # are prepared and verified before resumed make phases use this environment.
     # configure rewrites .platform even when its contents do not change. Its
     # timestamp must not invalidate every retained component in this action.
     if settings.build_action == "make":
@@ -920,6 +927,39 @@ class Runner:
                     record["finished_at"] = now()
                     self.save()
 
+    def prepare_incremental_patches(self):
+        settings = self.settings
+        configuration = {}
+        for name in (".arch", ".platform"):
+            path = settings.workspace / name
+            if path.exists() or path.is_symlink():
+                require(path.is_file() and not path.is_symlink(),
+                        f"Unsafe repository configuration: {path}")
+                configuration[path] = (path.read_bytes(), path.stat().st_mtime_ns)
+        record = {"phase": "Prepare incremental patches", "started_at": now(),
+                  "command": patch_command(settings)}
+        self.result["stages"].append(record)
+        self.result.update(status="running", phase=record["phase"])
+        self.say("Preparing current patches before incremental compilation...")
+        self.save()
+        self.last_exit_code = None
+        try:
+            record["exit_code"] = self.command(record["command"], cwd=settings.workspace)
+            for path, original in configuration.items():
+                require(path.is_file() and not path.is_symlink()
+                        and (path.read_bytes(), path.stat().st_mtime_ns) == original,
+                        f"Patch preparation changed repository configuration: {path}")
+            if settings.configured:
+                settings.verify_configuration()
+            else:
+                verify_patch_stack(settings.source, applied=settings.ztp == "y")
+        except BuildError:
+            record["exit_code"] = self.last_exit_code
+            raise
+        finally:
+            record["finished_at"] = now()
+            self.save()
+
     def preserve_installer(self, artifact):
         require(artifact.is_file() and not artifact.is_symlink(),
                 f"Installer must be a regular file: {artifact}")
@@ -1090,6 +1130,8 @@ class Runner:
                     manifest = inventory(settings.source, self.say, exclude=settings.snapshot_exclusions)
                     self.result["source_sha256"] = manifest["sha256"]
                     atomic_json(self.folder / "source-manifest.json", manifest)
+                    if settings.build_action == "make":
+                        self.prepare_incremental_patches()
                     extra_env = (self.prepare_installer_only() if settings.build_action == "installer-only"
                                  else incremental_environment(settings))
                     if settings.mode == "clean":
@@ -1520,8 +1562,9 @@ def main(argv=None, *, launch_directory=None):
                                   for repo, name in missing_build_submodules(settings.source)]
                                   if settings.build_action != "installer-only" else [],
                               "build_environment": incremental_environment(settings),
-                              "commands": [make_command(settings, distro, target)
-                                           for _, distro, target in stages(settings)]}, ensure_ascii=False, indent=2))
+                              "commands": ([patch_command(settings)] if settings.build_action == "make" else [])
+                                  + [make_command(settings, distro, target)
+                                     for _, distro, target in stages(settings)]}, ensure_ascii=False, indent=2))
             return 0
         if args.run:
             require(args.yes, "Non-interactive builds require --run --yes.")

@@ -48,8 +48,11 @@ Invalid profile, configuration or checkpoint data stops the menu.
   directory. An identical verified historical BIN can be referenced directly.
 - **Incremental build** retains outputs and builds this repository directly.
   It is available as soon as the initial cleanup completes. Before compiling,
-  it finishes any missing Bookworm or Trixie configure stages and checks the
-  actual architecture, platform and ZTP state against the binding.
+  it reapplies the current regular patches and customer-specific ZTP patches,
+  verifies their ZTP state, and finishes any missing Bookworm or Trixie configure
+  stages. Completed configure stages are retained. Patch preparation preserves
+  configuration contents and timestamps; conflicts stop before existing products
+  are removed or compilation starts. Architecture and platform must match the binding.
   Configure, package and installer failures retain completed products for retry.
   Only explicitly choosing Clean removes them again.
   Missing distro output directories are recreated; configuration files and their
@@ -57,8 +60,9 @@ Invalid profile, configuration or checkpoint data stops the menu.
 
 Builds use this checkout directly, without a separate customer source copy or
 snapshot synchronization. Missing submodules download their pinned sources;
-initialized submodule checkouts are not fetched or reset. Already applied ZTP
-patches are skipped, missing patches are applied forward, and conflicts stop
+initialized submodule checkouts are not fetched or reset. Incremental prepares
+the current patch stack on every run, including after source or overlay updates.
+Already applied patches are skipped, missing patches are applied forward, and conflicts stop
 with logs. No patches are reversed to switch customers.
 
 The arrow-key and numeric consoles retain architecture, customer, action,
@@ -77,7 +81,8 @@ The version defaults to `functions.sh`; custom versions reach both stages.
 
 `--run --yes` confirms Start and permanently binds a fresh clone.
 `--dry-run` validates and prints commands without creating a binding, run,
-build directory or source copy. Explicit architecture/customer options that
+build directory or source copy. Its command list includes Incremental patch
+preparation without executing it. Explicit architecture/customer options that
 conflict with the target clone's profile are rejected.
 
 `--source` selects a Git repository root and uses that repository's binding.
