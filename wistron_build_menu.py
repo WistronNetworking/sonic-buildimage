@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """Foreground SONiC builds in one permanently bound source checkout."""
 
+import sys
+
+if sys.version_info < (3, 8):
+    sys.stderr.write("Python 3.8 or newer is required; found %s.%s.\n" % sys.version_info[:2])
+    raise SystemExit(1)
+
 import argparse
 import dataclasses
 import datetime
@@ -14,7 +20,6 @@ import shutil
 import signal
 import stat
 import subprocess
-import sys
 import tarfile
 import tempfile
 import time
@@ -240,8 +245,17 @@ def safe_relative(name):
     return str(path)
 
 
+def is_relative_to(path, parent):
+    """Python 3.8 equivalent of Path.is_relative_to, without resolving links."""
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
+
 def inside(path, root):
-    return path.resolve().is_relative_to(root.resolve()) and path.resolve() != root.resolve()
+    return is_relative_to(path.resolve(), root.resolve()) and path.resolve() != root.resolve()
 
 def validate_version(value):
     require(not value or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", value),
@@ -561,7 +575,7 @@ class Settings:
         require(self.cleaned or (self.build_action == "standard" and self.mode == "clean"),
                 "The first build in this repository must be Clean. After cleanup completes, Incremental can resume unfinished configuration and builds.")
         for generated in (self.source / "target", *self.source.glob("fsroot*")):
-            require(not (self.state / "runs").is_relative_to(generated),
+            require(not is_relative_to(self.state / "runs", generated),
                     "Run storage cannot be inside generated build outputs.")
         require("," not in str(self.workspace), "The build directory cannot contain commas (Docker bind mount restriction).")
         require(self.source.is_dir(), f"Source directory does not exist: {self.source}")
@@ -694,7 +708,7 @@ def missing_build_submodules(source):
     missing = []
     while pending:
         repo = pending.pop(0)
-        require(repo.resolve().is_relative_to(source), f"Repository is outside the source directory: {repo}")
+        require(is_relative_to(repo.resolve(), source), f"Repository is outside the source directory: {repo}")
         require(git(repo, "rev-parse", "--show-toplevel").decode().strip() == str(repo),
                 f"Not an independent repository: {repo}")
         for name, commit in gitlinks(repo):
@@ -702,7 +716,7 @@ def missing_build_submodules(source):
             relative = path.relative_to(source)
             if relative.parts[0] == "platform" and relative.parts[1:2] != ("marvell-prestera",):
                 continue
-            require(not path.is_symlink() and path.resolve().is_relative_to(source),
+            require(not path.is_symlink() and is_relative_to(path.resolve(), source),
                     f"Unsafe submodule directory: {path}")
             marker = path / ".git"
             require(not marker.is_symlink(), f"Unsafe submodule Git metadata: {marker}")
@@ -729,7 +743,7 @@ def inventory(source, progress=None, exclude=None):
         excluded = (Path(exclude).resolve(),)
     else:
         excluded = tuple(Path(path).resolve() for path in exclude)
-    excluded = tuple(path for path in excluded if path.is_relative_to(source))
+    excluded = tuple(path for path in excluded if is_relative_to(path, source))
     repositories = []
     submodules = {}
     files = {}
@@ -742,7 +756,7 @@ def inventory(source, progress=None, exclude=None):
         if prefix in seen:
             continue
         seen.add(prefix)
-        require(repo.resolve().is_relative_to(source), f"Repository is outside the source directory: {repo}")
+        require(is_relative_to(repo.resolve(), source), f"Repository is outside the source directory: {repo}")
         require((repo / ".git").exists(), f"Submodule is not initialized: {repo}")
         head = git(repo, "rev-parse", "HEAD").decode().strip()
         require(git(repo, "rev-parse", "--show-toplevel").decode().strip() == str(repo),
@@ -758,7 +772,7 @@ def inventory(source, progress=None, exclude=None):
             mode, _, stage = meta.decode().split()
             require(stage == "0", f"Source has unresolved merge conflicts: {repo}")
             name = os.fsdecode(raw_name)
-            require(not any((repo / safe_relative(name)).is_relative_to(path) for path in excluded),
+            require(not any(is_relative_to(repo / safe_relative(name), path) for path in excluded),
                     f"Build state contains tracked source: {prefix}{name}")
             if mode == "160000":
                 path = repo / safe_relative(name)
@@ -774,7 +788,7 @@ def inventory(source, progress=None, exclude=None):
             if not raw_name:
                 continue
             name = os.fsdecode(raw_name)
-            if any((repo / safe_relative(name)).is_relative_to(path) for path in excluded):
+            if any(is_relative_to(repo / safe_relative(name), path) for path in excluded):
                 continue
             if name.endswith("/") and (repo / name / ".git").exists():
                 pending.append(repo / safe_relative(name))
@@ -788,14 +802,14 @@ def inventory(source, progress=None, exclude=None):
                         or PurePosixPath(relative).parts[0].startswith("fsroot"))),
                     f"Generated directory contains tracked source; stopping: {relative}")
             path = source / relative
-            require(path.parent.resolve().is_relative_to(source), f"Source parent path is outside the project: {relative}")
+            require(is_relative_to(path.parent.resolve(), source), f"Source parent path is outside the project: {relative}")
             if not path.exists() and not path.is_symlink():
                 files[relative] = {"kind": "missing", "tracked": is_tracked}
             elif path.is_symlink():
                 link = os.readlink(path)
-                internal = not os.path.isabs(link) and path.resolve().is_relative_to(source)
+                internal = not os.path.isabs(link) and is_relative_to(path.resolve(), source)
                 container_internal = (link.startswith("/sonic/")
-                                      and (source / link[len("/sonic/"):]).resolve().is_relative_to(source))
+                                      and is_relative_to((source / link[len("/sonic/"):]).resolve(), source))
                 # Tracked runtime links (e.g. /host/reboot-cause) belong in
                 # Debian packages. Preserve the link, never copy its target.
                 require(internal or container_internal or is_tracked,
@@ -1015,9 +1029,9 @@ class Runner:
                   for line in Path("/proc/self/mountinfo").read_text().splitlines()]
         for candidate in sorted(set(candidates), key=lambda p: len(p.parts), reverse=True):
             require(not candidate.is_symlink() and inside(candidate, workspace), f"Unsafe cleanup path: {candidate}")
-            require(not any(p == candidate or p.is_relative_to(candidate) for p in tracked),
+            require(not any(p == candidate or is_relative_to(p, candidate) for p in tracked),
                     f"Generated directory contains tracked files: {candidate}")
-            require(not any(p == candidate or p.is_relative_to(candidate) for p in mounts),
+            require(not any(p == candidate or is_relative_to(p, candidate) for p in mounts),
                     f"Generated directory is still mounted: {candidate}")
             relative = candidate.relative_to(workspace)
             self.command(["docker", "run", "--rm", "--pull", "never", "--network", "none",
@@ -1073,7 +1087,7 @@ class Runner:
         atomic_json(self.folder / "frozen-artifacts.json", self.frozen)
         relative = Path("target/.build-menu-controls") / self.run_id
         controls = self.settings.workspace / relative
-        require(controls.parent.resolve().is_relative_to(self.settings.workspace), "Unsafe installer control path.")
+        require(is_relative_to(controls.parent.resolve(), self.settings.workspace), "Unsafe installer control path.")
         controls.mkdir(parents=True)
         self.controls = controls
         (controls / "frozen.list").write_text(" ".join(sorted(self.frozen)) + "\n")
@@ -1200,7 +1214,7 @@ class Runner:
                     self.copy_logs()
                     if self.controls is not None:
                         try:
-                            require(self.controls.resolve().is_relative_to(settings.workspace), "Unsafe control cleanup path.")
+                            require(is_relative_to(self.controls.resolve(), settings.workspace), "Unsafe control cleanup path.")
                             for name in ("installer-only.mk", "frozen.list"):
                                 (self.controls / name).unlink(missing_ok=True)
                             self.controls.rmdir()

@@ -1,5 +1,8 @@
 # Wistron SONiC Build Menu
 
+Requires Python 3.8 or newer on the Linux/WSL build host. The launcher uses
+the `python3` interpreter on PATH; older versions stop with an upgrade message.
+
 Run `./build-menu.sh` in the SONiC Git repository, or invoke its absolute path
 from another working directory. Opening either console does not start a build.
 
