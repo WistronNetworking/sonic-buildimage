@@ -1,0 +1,17 @@
+sairedis: keep GCC optimization-limit diagnostics nonfatal for the SWIG
+Python 3 bindings. Preserve -Werror for all other diagnostics and targets.
+
+diff --git a/src/sonic-sairedis/pyext/py3/Makefile.am b/src/sonic-sairedis/pyext/py3/Makefile.am
+--- a/src/sonic-sairedis/pyext/py3/Makefile.am
++++ b/src/sonic-sairedis/pyext/py3/Makefile.am
+@@ -10,6 +10,9 @@
+
+ _pysairedis_la_SOURCES = pysairedis_wrap.cpp $(SOURCES)
++# SWIG's large module initializer can exceed GCC's optimization memory limit.
++# Keep this diagnostic visible without failing the Python bindings build.
+ _pysairedis_la_CXXFLAGS = $(PYTHON3_CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS_COMMON) \
+-						  -Wno-cast-qual -Wno-shadow -Wno-redundant-decls -Wno-conversion $(NO_CAST_FUNCTION_TYPE)
++						  -Wno-cast-qual -Wno-shadow -Wno-redundant-decls -Wno-conversion $(NO_CAST_FUNCTION_TYPE) \
++						  -Wno-error=disabled-optimization
+
+ _pysairedis_la_LDFLAGS = -module \
