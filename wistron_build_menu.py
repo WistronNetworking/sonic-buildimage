@@ -27,10 +27,8 @@ import uuid
 import zipfile
 
 
-IMAGES = {
-    "bookworm": "sonic-slave-bookworm-otis:043096ac032",
-    "trixie": "sonic-slave-trixie-otis:cae085605ab",
-}
+DISTROS = ("bookworm", "trixie")
+CLEANUP_IMAGE = "debian:bookworm"
 INSTALLER = "sonic-marvell-prestera-arm64.bin"
 ACTIONS = {"standard": "Standard build", "make": "Incremental build", "installer-only": "Installer only"}
 GUI_ACTIONS = {"make": "Incremental build", "clean": "Clean build"}
@@ -273,6 +271,7 @@ class Settings:
     jobs: int = 8
     build_version: str = ""
     build_action: str = "standard"
+    builder_images: dict = dataclasses.field(default_factory=dict)
 
     bound: dict = dataclasses.field(init=False, default=None)
     configured: bool = dataclasses.field(init=False, default=False)
@@ -442,6 +441,11 @@ class Settings:
         return "y" if self.flavor == "amazon" else "n"
 
     @property
+    def builder_labels(self):
+        return {distro: self.builder_images.get(distro, "Automatic: Makefile.work")
+                for distro in DISTROS}
+
+    @property
     def effective_source(self):
         return self.source
 
@@ -568,6 +572,9 @@ class Settings:
                 "--mode clean is only supported with --build-action standard.")
         require(self.jobs > 0, "Build job must be a positive integer.")
         validate_version(self.build_version)
+        require(set(self.builder_images).issubset(DISTROS), "Unknown builder image distro.")
+        for image in self.builder_images.values():
+            split_image(image)
         for path in (self.state / "runs", self.control):
             require(not path.is_symlink() and path.resolve() == path,
                     f"Build output directories must not contain symlinks: {path}")
@@ -601,16 +608,20 @@ class Settings:
                     f"Installer only requires existing rootfs: {path}. Run Clean build or Incremental build first.")
 
 
+def split_image(image):
+    name, separator, tag = image.rpartition(":")
+    require(bool(separator) and re.fullmatch(r"[a-z0-9][a-z0-9._:/-]*", name)
+            and re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}", tag),
+            "Builder images require a repository:tag reference (digests are not supported).")
+    return name, tag
+
+
 def make_command(settings, distro, target, run_id="preview"):
-    image_name, tag = IMAGES[distro].split(":", 1)
     arguments = [
         "make", "PLATFORM_ARCH=arm64", "NOJESSIE=1", "NOSTRETCH=1",
         "NOBUSTER=1", "NOBULLSEYE=1",
         "NOBOOKWORM=" + ("0" if distro == "bookworm" else "1"),
         "NOTRIXIE=" + ("0" if distro == "trixie" else "1"),
-        "SLAVE_IMAGE=" + image_name, "SLAVE_TAG=" + tag,
-        "SONIC_SLAVE_BASE_BUILD=:", "DOCKER_USER_BUILD=false",
-        "DOCKER_SLAVE_BASE_BUILD=false", "ENABLE_DOCKER_BASE_PULL=n",
         f"SONIC_BUILD_JOBS={settings.jobs}",
         "SONIC_IMAGE_VERSION=" + settings.build_version,
         "SONIC_DPKG_CACHE_METHOD=none", "SONIC_VERSION_CACHE_METHOD=none",
@@ -619,6 +630,11 @@ def make_command(settings, distro, target, run_id="preview"):
         "SONIC_BUILDER_EXTRA_CMDLINE=--name "
         f"wbm-{settings.flavor}-{distro}-{run_id} --label wistron.build-menu.run={run_id}",
     ]
+    if distro in settings.builder_images:
+        image_name, tag = split_image(settings.builder_images[distro])
+        arguments += ["SLAVE_IMAGE=" + image_name, "SLAVE_TAG=" + tag,
+                      "SONIC_SLAVE_BASE_BUILD=:", "DOCKER_USER_BUILD=false",
+                      "DOCKER_SLAVE_BASE_BUILD=false", "ENABLE_DOCKER_BASE_PULL=n"]
     if target == "configure":
         arguments.append("PLATFORM=marvell-prestera")
     if settings.build_action != "standard" and target != "configure":
@@ -654,9 +670,10 @@ def incremental_environment(settings):
     return None
 
 
-def image_ids():
+def image_ids(settings):
+    """Inspect only explicitly pinned images; native Make manages its own builders."""
     result = {}
-    for distro, image in IMAGES.items():
+    for distro, image in settings.builder_images.items():
         metadata = json.loads(capture(["docker", "image", "inspect", image]))[0]
         require(metadata.get("Architecture") == "arm64", f"{image} is not an ARM64 image")
         result[distro] = metadata["Id"]
@@ -667,7 +684,7 @@ def preflight(settings):
     settings.validate()
     for tool in ("git", "make", "docker", "patch", "unsquashfs"):
         require(shutil.which(tool), f"Missing tool: {tool}")
-    identities = image_ids()  # inspect only; never pull or build a missing image.
+    identities = image_ids(settings)  # Optional pins must exist; automatic builders need not.
     active = capture(["docker", "ps", "--format", "{{.Image}}"]).decode()
     require(not any(line.startswith("sonic-slave-") for line in active.splitlines()),
             "Another sonic-slave build is running. Wait for it to finish.")
@@ -845,7 +862,7 @@ class Runner:
                        "requested_image_version": settings.build_version or "auto",
                        "enable_ztp": settings.ztp, "stages": []}
         self.result.update(build_action=settings.build_action, effective_source=str(settings.effective_source),
-                           source_refresh=False)
+                           source_refresh=False, builder_images=settings.builder_labels)
         self.frozen = None
         self.controls = None
 
@@ -1034,10 +1051,12 @@ class Runner:
             require(not any(p == candidate or is_relative_to(p, candidate) for p in mounts),
                     f"Generated directory is still mounted: {candidate}")
             relative = candidate.relative_to(workspace)
-            self.command(["docker", "run", "--rm", "--pull", "never", "--network", "none",
+            cleanup_image = self.settings.builder_images.get("bookworm", CLEANUP_IMAGE)
+            pull_policy = "never" if "bookworm" in self.settings.builder_images else "missing"
+            self.command(["docker", "run", "--rm", "--pull", pull_policy, "--network", "none",
                           "--user", "root", "--label", "wistron.build-menu.run=" + self.run_id,
                           "--mount", f"type=bind,src={workspace},dst=/repo",
-                          "--entrypoint", "/bin/rm", IMAGES["bookworm"],
+                          "--entrypoint", "/bin/rm", cleanup_image,
                           "-rf", "--", "/repo/" + str(relative)])
 
     def prepare_output_directories(self):
@@ -1161,7 +1180,7 @@ class Runner:
                     if settings.build_action == "make":
                         self.say("Retaining build products; completing any missing configure stages before make.")
                     for name, distro, target in stages(settings, self.run_id):
-                        require(image_ids() == self.result["slave_ids_before"], "A slave image ID changed.")
+                        require(image_ids(settings) == self.result["slave_ids_before"], "A slave image ID changed.")
                         record = {"phase": name, "started_at": now(), "command": make_command(settings, distro, target, self.run_id)}
                         stage_env = None if target == "configure" else extra_env
                         if stage_env:
@@ -1190,7 +1209,7 @@ class Runner:
                     self.result["ztp_validation"] = verify_installer(artifact, settings.ztp == "y",
                                                                    settings.build_version or None)
                     self.result["image_version"] = self.result["ztp_validation"]["build_version"]
-                    self.result["slave_ids_after"] = image_ids()
+                    self.result["slave_ids_after"] = image_ids(settings)
                     require(self.result["slave_ids_before"] == self.result["slave_ids_after"], "The slave images were replaced.")
                     if self.frozen is not None:
                         self.verify_frozen()
@@ -1202,8 +1221,7 @@ class Runner:
                     require(digest == digest_file(artifact), "Installer checksum differs after copying.")
                     published.with_suffix(".bin.sha256").write_text(f"{digest}  {published.name}\n")
                     self.result.update(status="success", artifact=str(published),
-                                       image_bytes=published.stat().st_size, sha256=digest,
-                                       slave_images_unchanged=True)
+                                       image_bytes=published.stat().st_size, sha256=digest)
                 except KeyboardInterrupt:
                     self.stop_owned_processes()
                     self.result.update(status="interrupted", error="Stopped by the user with Ctrl+C.")
@@ -1220,9 +1238,9 @@ class Runner:
                             self.controls.rmdir()
                         except (OSError, BuildError) as error:
                             self.result["control_cleanup_error"] = str(error)
-                    if "slave_ids_before" in self.result:
+                    if self.result.get("slave_ids_before"):
                         try:
-                            self.result["slave_ids_after"] = image_ids()
+                            self.result["slave_ids_after"] = image_ids(settings)
                             self.result["slave_images_unchanged"] = self.result["slave_ids_before"] == self.result["slave_ids_after"]
                             if not self.result["slave_images_unchanged"]:
                                 self.result.update(status="failed", error="A slave image ID changed.")
@@ -1432,7 +1450,11 @@ def preview(settings):
     print_field("Outputs:", "Preserve BIN and logs; remove generated outputs" if settings.mode == "clean" else "Retain existing outputs", bold=True)
     print_field("Build job (SONIC_BUILD_JOBS):", settings.jobs, bold=True)
     print_field("Build version:", settings.version_display, bold=True)
-    print_field("Package/version caches:", "disabled; sonic-slave: pinned existing images, required to start")
+    print_field("Package/version caches:", "disabled")
+    for distro, image in settings.builder_labels.items():
+        print_field(distro.title() + " builder:", image)
+    if settings.mode == "clean":
+        print_field("Cleanup helper:", settings.builder_images.get("bookworm", CLEANUP_IMAGE))
 
 
 def menu(settings):
@@ -1528,7 +1550,7 @@ def interactive_menu(settings):
     except ImportError:
         return menu(settings)
     try:
-        return run_menu(settings, lambda: Runner(settings).execute(), settings.validate, IMAGES)
+        return run_menu(settings, lambda: Runner(settings).execute(), settings.validate, settings.builder_labels)
     except curses.error:
         print(terminal_text("The terminal cannot start the arrow-key console. Using the numeric menu.", "yellow"))
         return menu(settings)
@@ -1543,6 +1565,9 @@ def main(argv=None, *, launch_directory=None):
     parser.add_argument("--mode", choices=("clean", "normal"))
     parser.add_argument("--build-action", choices=tuple(ACTIONS),
                         help="Configure/build in-place, incrementally build, or repack existing installer inputs")
+    for distro in DISTROS:
+        parser.add_argument("--" + distro + "-image",
+                            help="Use an existing ARM64 repository:tag; default lets Makefile.work select/build it")
     parser.add_argument("--jobs", type=int, default=8,
                         help="Concurrent build jobs, SONIC_BUILD_JOBS (default: 8)")
     parser.add_argument("--build-version", default="",
@@ -1559,7 +1584,9 @@ def main(argv=None, *, launch_directory=None):
                             args.arch or (profile["arch"] if profile else "arm64"),
                             args.flavor or (profile["customer"] if profile else "amazon"),
                             args.mode or "normal", args.jobs, args.build_version,
-                            args.build_action or "standard")
+                            args.build_action or "standard",
+                            builder_images={distro: getattr(args, distro + "_image")
+                                            for distro in DISTROS if getattr(args, distro + "_image")})
         settings.check_binding()
         if args.build_action is None and args.mode is None:
             settings.select_gui_action("make" if settings.cleaned else "clean")
@@ -1568,7 +1595,8 @@ def main(argv=None, *, launch_directory=None):
         if args.dry_run:
             ids = preflight(settings)
             preview(settings)
-            print(json.dumps({"slave_images": ids, "build_action": settings.build_action,
+            print(json.dumps({"slave_images": ids, "builder_images": settings.builder_labels,
+                              "build_action": settings.build_action,
                               "effective_source": str(settings.effective_source),
                               "source_refresh": False,
                               "installer_only_guard": settings.build_action == "installer-only",

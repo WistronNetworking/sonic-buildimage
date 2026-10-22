@@ -99,10 +99,34 @@ Docker inputs and rejects missing products rather than compiling components.
 
 ## Build safeguards and results
 
-Pinned Bookworm and Trixie slave images must already exist. Package/version
-caches, slave rebuilds and base-image pulls remain disabled. Existing installer
-checks validate the ONIE payload, ZTP package/runtime paths, requested version
-and unchanged slave image IDs before publishing a BIN and SHA-256 sidecar.
+By default, Bookworm and Trixie builders are selected by SONiC's native
+`Makefile.work` rules using the host architecture, current user, checkout
+path and generated build inputs. Missing builders are prepared by the normal
+build process; no developer-specific image name or tag is required. The
+native rules also handle ARM64 builds on supported non-ARM64 hosts. Host
+prerequisites and any required emulation must be installed as for a normal
+SONiC build. Confirmed builds may download base images and build dependencies.
+Dry-run does not invoke Makefile.work, pull images or build builders.
+
+For a machine with prepared ARM64 slave images, explicitly pin either distro:
+
+```bash
+./build-menu.sh --bookworm-image registry.example.com/sonic-bookworm:user-tag \
+                --trixie-image registry.example.com/sonic-trixie:user-tag --dry-run
+```
+
+Each supplied image must already exist locally and use `repository:tag` syntax.
+Its ID is checked throughout the run, and builder rebuilds and pulls for that
+distro are disabled. An unspecified distro continues using native selection.
+These options apply to the current invocation; they do not change the clone's
+architecture/customer binding. The menus and run records show the selection.
+
+Clean uses the supplied Bookworm image when pinned. Otherwise its cleanup
+helper uses the multi-architecture `debian:bookworm` image, pulled if missing
+only during a confirmed Clean. Source protection and mount checks still apply.
+Package/version caches remain disabled. Installer checks validate the ONIE
+payload, ZTP package/runtime paths and requested version before publishing a
+BIN and SHA-256 sidecar. Unchanged-image checks apply only to explicit pins.
 Published files use `sonic-marvell-prestera-arm64-<customer>-<version>.bin`,
 for example `sonic-marvell-prestera-arm64-amazon-Wistron_M.1.0.2.bin`.
 The filename uses the verified image's `build_version`, whether default or
