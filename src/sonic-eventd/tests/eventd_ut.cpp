@@ -202,14 +202,39 @@ void run_sub(void *zctx, bool &term, string &read_source, internal_events_lst_t 
 
 void *init_pub(void *zctx)
 {
-    void *mock_pub = zmq_socket (zctx, ZMQ_PUB);
+    // XPUB lets the test wait for the proxy's subscription instead of guessing
+    // how long the asynchronous connection and subscription will take.
+    void *mock_pub = zmq_socket(zctx, ZMQ_XPUB);
     EXPECT_TRUE(NULL != mock_pub);
-    EXPECT_EQ(0, zmq_connect(mock_pub, get_config(XSUB_END_KEY).c_str()));
+    if (mock_pub == NULL) {
+        return NULL;
+    }
 
-    /* Provide time for async connect to complete */
-    this_thread::sleep_for(chrono::milliseconds(200));
+    const int timeout_ms = 10000;
+    const int linger_ms = 0;
+    int rc = zmq_setsockopt(mock_pub, ZMQ_LINGER, &linger_ms, sizeof(linger_ms));
+    EXPECT_EQ(0, rc);
+    if (rc == 0) {
+        rc = zmq_connect(mock_pub, get_config(XSUB_END_KEY).c_str());
+        EXPECT_EQ(0, rc);
+    }
+    if (rc == 0) {
+        zmq_pollitem_t item = {mock_pub, 0, ZMQ_POLLIN, 0};
+        rc = zmq_poll(&item, 1, timeout_ms);
+        EXPECT_EQ(1, rc) << "Timed out waiting for the proxy subscription";
+        if (rc == 1) {
+            unsigned char subscription = 0;
+            rc = zmq_recv(mock_pub, &subscription, sizeof(subscription), 0);
+            EXPECT_EQ(1, rc);
+            EXPECT_EQ(1, subscription);
+            if (rc == 1 && subscription == 1) {
+                return mock_pub;
+            }
+        }
+    }
 
-    return mock_pub;
+    zmq_close(mock_pub);
+    return NULL;
 }
 
 void run_pub(void *mock_pub, const string wr_source, internal_events_lst_t &lst)
@@ -558,14 +583,6 @@ TEST(eventd, captureCacheMax)
 
 TEST(eventd, service)
 {
-    /*
-     * Don't PUB/SUB events as main run_eventd_service itself
-     * is using zmq_message_read. Any PUB/SUB will cause
-     * eventd's do_capture running in another thread to call
-     * zmq_message_read, which will crash as boost:archive is
-     * not thread safe.
-     * TEST(eventd, capture) has already tested caching.
-     */
     printf("Service TEST started\n");
 
     /* startup strings; expected list & read list from capture */
@@ -586,10 +603,10 @@ TEST(eventd, service)
     }
 
     thread thread_service(&run_eventd_service);
-    this_thread::sleep_for(chrono::milliseconds(CAPTURE_SERVICE_POLLING_DURATION * CAPTURE_SERVICE_POLLING_RETRIES));
 
-    /* Need client side service to interact with server side */
-    EXPECT_EQ(0, service.init_client(zctx));
+    /* The echo is handled only after the startup cache has been initialized. */
+    EXPECT_EQ(0, service.init_client(zctx, 10000));
+    EXPECT_EQ(0, service.send_recv(EVENT_ECHO));
 
     {
         /* eventd_service starts cache too; Test this caching */
@@ -602,7 +619,7 @@ TEST(eventd, service)
         string wr_source("hello");
 
         /* Test service startup caching */
-        event_serialized_lst_t evts_start, evts_read, polled_events;
+        event_serialized_lst_t evts_start, evts_read;
 
         for(int i=0; i<wr_sz; ++i) {
             string evt_str;
@@ -616,32 +633,11 @@ TEST(eventd, service)
         /* Publish events. */
         run_pub(mock_pub, wr_source, wr_evts);
 
-        int max_polling_duration = 2000;
-        int polling_interval = 100;
-        auto poll_start_ts = chrono::steady_clock::now();
-
-        while(true) {
-            auto current_ts = chrono::steady_clock::now();
-            if(chrono::duration_cast<chrono::milliseconds>(current_ts - poll_start_ts).count() >= max_polling_duration) {
-                break;
-            }
-            event_serialized_lst_t read_events;
-            service.cache_read(read_events);
-            polled_events.insert(polled_events.end(), read_events.begin(), read_events.end());
-            if (!read_events.empty()) {
-                break;
-            }
-            this_thread::sleep_for(chrono::milliseconds(polling_interval));	    
-        }
-
+        // cache_stop drains in-flight events before returning. cache_read is
+        // only valid after stopping; polling it while capturing returns errors.
         EXPECT_EQ(0, service.cache_stop());
-
-        /* Read remaining events in cache, if any */
         EXPECT_EQ(0, service.cache_read(evts_read));
-
-        polled_events.insert(polled_events.end(), evts_read.begin(), evts_read.end());
-
-        EXPECT_EQ(polled_events, evts_start);
+        EXPECT_EQ(evts_read, evts_start);
 
         zmq_close(mock_pub);
     }
