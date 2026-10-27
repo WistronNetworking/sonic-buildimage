@@ -1,0 +1,232 @@
+diff --git a/src/sonic-eventd/src/eventd.cpp b/src/sonic-eventd/src/eventd.cpp
+index 67ee09ce1d21c9af48ae19a28826c2574b72ea4a..cb6e6434001be51bd19a1e7229c1676bcfd82ab6 100644
+--- a/src/sonic-eventd/src/eventd.cpp
++++ b/src/sonic-eventd/src/eventd.cpp
+@@ -127,9 +127,10 @@ stats_collector::set_heartbeat_interval(int val)
+     }
+     /* Any other value is ignored as invalid */
+ 
++    const int interval_count = m_heartbeats_interval_cnt.load();
+     SWSS_LOG_INFO("Set heartbeat: val=%d secs cnt=%d min=%d ms final=%d secs",
+-            val, m_heartbeats_interval_cnt, STATS_HEARTBEAT_MIN,
+-            (m_heartbeats_interval_cnt * STATS_HEARTBEAT_MIN / 1000));
++            val, interval_count, STATS_HEARTBEAT_MIN,
++            (interval_count * STATS_HEARTBEAT_MIN / 1000));
+ }
+ 
+ 
+@@ -257,8 +258,9 @@ stats_collector::run_collector()
+                         "event_receive failed with rc=%d; stats:published(%lu)", rc,
+                         m_lst_counters[INDEX_COUNTERS_EVENTS_PUBLISHED]);
+             }
+-            if (!m_pause_heartbeat && (m_heartbeats_interval_cnt > 0) &&
+-                    ++hb_cntr >= m_heartbeats_interval_cnt) {
++            const int interval_count = m_heartbeats_interval_cnt.load();
++            if (!m_pause_heartbeat && (interval_count > 0) &&
++                    ++hb_cntr >= interval_count) {
+                 rc = event_publish(pub_handle, EVENTD_HEARTBEAT_TAG);
+                 if (rc != 0) {
+                     SWSS_LOG_ERROR("Failed to publish heartbeat rc=%d", rc);
+diff --git a/src/sonic-eventd/src/eventd.h b/src/sonic-eventd/src/eventd.h
+index 960dfb8b8dc1de7573e8f0e87b93786ed25f120b..e138da1d28141745e92028bea73137c7e9973258 100644
+--- a/src/sonic-eventd/src/eventd.h
++++ b/src/sonic-eventd/src/eventd.h
+@@ -1,6 +1,7 @@
+ /*
+  * Header file for eventd daemon
+  */
++#include <atomic>
+ #include "table.h"
+ #include "events_service.h"
+ #include "events.h"
+@@ -145,7 +146,7 @@ class stats_collector
+ 
+         counters_t m_lst_counters[COUNTERS_EVENTS_TOTAL];
+ 
+-        bool m_shutdown;
++        std::atomic<bool> m_shutdown;
+ 
+         thread m_thr_collector;
+         thread m_thr_writer;
+@@ -153,11 +154,11 @@ class stats_collector
+         shared_ptr<swss::DBConnector> m_counters_db;
+         shared_ptr<swss::Table> m_stats_table;
+ 
+-        bool m_pause_heartbeat;
++        std::atomic<bool> m_pause_heartbeat;
+ 
+-        uint64_t m_heartbeats_published;
++        std::atomic<uint64_t> m_heartbeats_published;
+ 
+-        int m_heartbeats_interval_cnt;
++        std::atomic<int> m_heartbeats_interval_cnt;
+ };
+ 
+ /*
+diff --git a/src/sonic-eventd/tests/eventd_ut.cpp b/src/sonic-eventd/tests/eventd_ut.cpp
+index 6c2ddb11604350056fea15aced592601292ff831..77f9c4fad70db4c7d262126cfa721623bae7eb57 100644
+--- a/src/sonic-eventd/tests/eventd_ut.cpp
++++ b/src/sonic-eventd/tests/eventd_ut.cpp
+@@ -202,14 +202,39 @@ void run_sub(void *zctx, bool &term, string &read_source, internal_events_lst_t
+ 
+ void *init_pub(void *zctx)
+ {
+-    void *mock_pub = zmq_socket (zctx, ZMQ_PUB);
++    // XPUB lets the test wait for the proxy's subscription instead of guessing
++    // how long the asynchronous connection and subscription will take.
++    void *mock_pub = zmq_socket(zctx, ZMQ_XPUB);
+     EXPECT_TRUE(NULL != mock_pub);
+-    EXPECT_EQ(0, zmq_connect(mock_pub, get_config(XSUB_END_KEY).c_str()));
++    if (mock_pub == NULL) {
++        return NULL;
++    }
+ 
+-    /* Provide time for async connect to complete */
+-    this_thread::sleep_for(chrono::milliseconds(200));
++    const int timeout_ms = 10000;
++    const int linger_ms = 0;
++    int rc = zmq_setsockopt(mock_pub, ZMQ_LINGER, &linger_ms, sizeof(linger_ms));
++    EXPECT_EQ(0, rc);
++    if (rc == 0) {
++        rc = zmq_connect(mock_pub, get_config(XSUB_END_KEY).c_str());
++        EXPECT_EQ(0, rc);
++    }
++    if (rc == 0) {
++        zmq_pollitem_t item = {mock_pub, 0, ZMQ_POLLIN, 0};
++        rc = zmq_poll(&item, 1, timeout_ms);
++        EXPECT_EQ(1, rc) << "Timed out waiting for the proxy subscription";
++        if (rc == 1) {
++            unsigned char subscription = 0;
++            rc = zmq_recv(mock_pub, &subscription, sizeof(subscription), 0);
++            EXPECT_EQ(1, rc);
++            EXPECT_EQ(1, subscription);
++            if (rc == 1 && subscription == 1) {
++                return mock_pub;
++            }
++        }
++    }
+ 
+-    return mock_pub;
++    zmq_close(mock_pub);
++    return NULL;
+ }
+ 
+ void run_pub(void *mock_pub, const string wr_source, internal_events_lst_t &lst)
+@@ -558,14 +583,6 @@ TEST(eventd, captureCacheMax)
+ 
+ TEST(eventd, service)
+ {
+-    /*
+-     * Don't PUB/SUB events as main run_eventd_service itself
+-     * is using zmq_message_read. Any PUB/SUB will cause
+-     * eventd's do_capture running in another thread to call
+-     * zmq_message_read, which will crash as boost:archive is
+-     * not thread safe.
+-     * TEST(eventd, capture) has already tested caching.
+-     */
+     printf("Service TEST started\n");
+ 
+     /* startup strings; expected list & read list from capture */
+@@ -586,10 +603,10 @@ TEST(eventd, service)
+     }
+ 
+     thread thread_service(&run_eventd_service);
+-    this_thread::sleep_for(chrono::milliseconds(CAPTURE_SERVICE_POLLING_DURATION * CAPTURE_SERVICE_POLLING_RETRIES));
+ 
+-    /* Need client side service to interact with server side */
+-    EXPECT_EQ(0, service.init_client(zctx));
++    /* The echo is handled only after the startup cache has been initialized. */
++    EXPECT_EQ(0, service.init_client(zctx, 10000));
++    EXPECT_EQ(0, service.send_recv(EVENT_ECHO));
+ 
+     {
+         /* eventd_service starts cache too; Test this caching */
+@@ -602,7 +619,7 @@ TEST(eventd, service)
+         string wr_source("hello");
+ 
+         /* Test service startup caching */
+-        event_serialized_lst_t evts_start, evts_read, polled_events;
++        event_serialized_lst_t evts_start, evts_read;
+ 
+         for(int i=0; i<wr_sz; ++i) {
+             string evt_str;
+@@ -616,32 +633,11 @@ TEST(eventd, service)
+         /* Publish events. */
+         run_pub(mock_pub, wr_source, wr_evts);
+ 
+-        int max_polling_duration = 2000;
+-        int polling_interval = 100;
+-        auto poll_start_ts = chrono::steady_clock::now();
+-
+-        while(true) {
+-            auto current_ts = chrono::steady_clock::now();
+-            if(chrono::duration_cast<chrono::milliseconds>(current_ts - poll_start_ts).count() >= max_polling_duration) {
+-                break;
+-            }
+-            event_serialized_lst_t read_events;
+-            service.cache_read(read_events);
+-            polled_events.insert(polled_events.end(), read_events.begin(), read_events.end());
+-            if (!read_events.empty()) {
+-                break;
+-            }
+-            this_thread::sleep_for(chrono::milliseconds(polling_interval));	    
+-        }
+-
++        // cache_stop drains in-flight events before returning. cache_read is
++        // only valid after stopping; polling it while capturing returns errors.
+         EXPECT_EQ(0, service.cache_stop());
+-
+-        /* Read remaining events in cache, if any */
+         EXPECT_EQ(0, service.cache_read(evts_read));
+-
+-        polled_events.insert(polled_events.end(), evts_read.begin(), evts_read.end());
+-
+-        EXPECT_EQ(polled_events, evts_start);
++        EXPECT_EQ(evts_read, evts_start);
+ 
+         zmq_close(mock_pub);
+     }
+@@ -715,26 +711,16 @@ TEST(eventd, service)
+ 
+ 
+ void
+-wait_for_heartbeat(stats_collector &stats_instance, long unsigned int cnt,
+-        int wait_ms = 3000)
++wait_for_heartbeat(stats_collector &stats_instance, uint64_t count,
++        int wait_ms = 10000)
+ {
+-    int diff = 0;
+-
+-    auto st = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+-    while (stats_instance.heartbeats_published() == cnt) {
+-        auto en = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+-        diff = en - st;
+-        if (diff > wait_ms) {
+-            EXPECT_LE(diff, wait_ms);
+-            EXPECT_EQ(cnt, stats_instance.heartbeats_published());
+-            break;
+-        }
+-        else {
+-            stringstream ss;
+-            ss << (en -st);
+-        }
+-        this_thread::sleep_for(chrono::milliseconds(300));
++    const auto deadline = chrono::steady_clock::now() + chrono::milliseconds(wait_ms);
++    while (stats_instance.heartbeats_published() == count &&
++            chrono::steady_clock::now() < deadline) {
++        this_thread::sleep_for(chrono::milliseconds(100));
+     }
++    EXPECT_NE(count, stats_instance.heartbeats_published())
++        << "No heartbeat observed within " << wait_ms << " ms";
+ }
+ 
+ TEST(eventd, heartbeat)
+@@ -785,7 +771,7 @@ TEST(eventd, heartbeat)
+     stats_instance.heartbeat_ctrl();
+ 
+     /* Wait for heartbeat count to change from last count */
+-    wait_for_heartbeat(stats_instance, cnt, 2000);
++    wait_for_heartbeat(stats_instance, cnt);
+ 
+     stats_instance.stop();
+ 
