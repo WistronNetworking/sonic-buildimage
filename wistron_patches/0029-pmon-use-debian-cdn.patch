@@ -1,0 +1,17 @@
+diff --git a/dockers/docker-platform-monitor/Dockerfile.j2 b/dockers/docker-platform-monitor/Dockerfile.j2
+--- a/dockers/docker-platform-monitor/Dockerfile.j2
++++ b/dockers/docker-platform-monitor/Dockerfile.j2
+@@ -11,6 +11,13 @@
+
+ # Pass the image_version to container
+ ENV IMAGE_VERSION=$image_version
++
++# Use the Debian CDN instead of the Azure archive mirror, which can time out
++# when fetching packages from the WSL builder.
++RUN sed -i \
++        -e 's|http://debian-archive.trafficmanager.net/debian-security/|https://deb.debian.org/debian-security/|g' \
++        -e 's|http://debian-archive.trafficmanager.net/debian/|https://deb.debian.org/debian/|g' \
++        /etc/apt/sources.list
+
+ # Install required packages
+ RUN apt-get update &&   \
