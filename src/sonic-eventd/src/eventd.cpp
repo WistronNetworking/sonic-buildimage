@@ -127,9 +127,10 @@ stats_collector::set_heartbeat_interval(int val)
     }
     /* Any other value is ignored as invalid */
 
+    const int interval_count = m_heartbeats_interval_cnt.load();
     SWSS_LOG_INFO("Set heartbeat: val=%d secs cnt=%d min=%d ms final=%d secs",
-            val, m_heartbeats_interval_cnt, STATS_HEARTBEAT_MIN,
-            (m_heartbeats_interval_cnt * STATS_HEARTBEAT_MIN / 1000));
+            val, interval_count, STATS_HEARTBEAT_MIN,
+            (interval_count * STATS_HEARTBEAT_MIN / 1000));
 }
 
 
@@ -257,8 +258,9 @@ stats_collector::run_collector()
                         "event_receive failed with rc=%d; stats:published(%lu)", rc,
                         m_lst_counters[INDEX_COUNTERS_EVENTS_PUBLISHED]);
             }
-            if (!m_pause_heartbeat && (m_heartbeats_interval_cnt > 0) &&
-                    ++hb_cntr >= m_heartbeats_interval_cnt) {
+            const int interval_count = m_heartbeats_interval_cnt.load();
+            if (!m_pause_heartbeat && (interval_count > 0) &&
+                    ++hb_cntr >= interval_count) {
                 rc = event_publish(pub_handle, EVENTD_HEARTBEAT_TAG);
                 if (rc != 0) {
                     SWSS_LOG_ERROR("Failed to publish heartbeat rc=%d", rc);

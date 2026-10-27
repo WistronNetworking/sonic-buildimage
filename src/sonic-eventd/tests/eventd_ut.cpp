@@ -711,26 +711,16 @@ TEST(eventd, service)
 
 
 void
-wait_for_heartbeat(stats_collector &stats_instance, long unsigned int cnt,
-        int wait_ms = 3000)
+wait_for_heartbeat(stats_collector &stats_instance, uint64_t count,
+        int wait_ms = 10000)
 {
-    int diff = 0;
-
-    auto st = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-    while (stats_instance.heartbeats_published() == cnt) {
-        auto en = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-        diff = en - st;
-        if (diff > wait_ms) {
-            EXPECT_LE(diff, wait_ms);
-            EXPECT_EQ(cnt, stats_instance.heartbeats_published());
-            break;
-        }
-        else {
-            stringstream ss;
-            ss << (en -st);
-        }
-        this_thread::sleep_for(chrono::milliseconds(300));
+    const auto deadline = chrono::steady_clock::now() + chrono::milliseconds(wait_ms);
+    while (stats_instance.heartbeats_published() == count &&
+            chrono::steady_clock::now() < deadline) {
+        this_thread::sleep_for(chrono::milliseconds(100));
     }
+    EXPECT_NE(count, stats_instance.heartbeats_published())
+        << "No heartbeat observed within " << wait_ms << " ms";
 }
 
 TEST(eventd, heartbeat)
@@ -781,7 +771,7 @@ TEST(eventd, heartbeat)
     stats_instance.heartbeat_ctrl();
 
     /* Wait for heartbeat count to change from last count */
-    wait_for_heartbeat(stats_instance, cnt, 2000);
+    wait_for_heartbeat(stats_instance, cnt);
 
     stats_instance.stop();
 

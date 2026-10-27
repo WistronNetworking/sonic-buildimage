@@ -1,6 +1,7 @@
 /*
  * Header file for eventd daemon
  */
+#include <atomic>
 #include "table.h"
 #include "events_service.h"
 #include "events.h"
@@ -145,7 +146,7 @@ class stats_collector
 
         counters_t m_lst_counters[COUNTERS_EVENTS_TOTAL];
 
-        bool m_shutdown;
+        std::atomic<bool> m_shutdown;
 
         thread m_thr_collector;
         thread m_thr_writer;
@@ -153,11 +154,11 @@ class stats_collector
         shared_ptr<swss::DBConnector> m_counters_db;
         shared_ptr<swss::Table> m_stats_table;
 
-        bool m_pause_heartbeat;
+        std::atomic<bool> m_pause_heartbeat;
 
-        uint64_t m_heartbeats_published;
+        std::atomic<uint64_t> m_heartbeats_published;
 
-        int m_heartbeats_interval_cnt;
+        std::atomic<int> m_heartbeats_interval_cnt;
 };
 
 /*
