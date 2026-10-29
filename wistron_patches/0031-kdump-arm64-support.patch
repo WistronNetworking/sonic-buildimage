@@ -4,7 +4,6 @@ Enable kdump and vmcore capture on Wistron ARM64 platforms.
    using fixed upstream commit cecce00ab4f3, with epoch 1 and apt hold.
 2. Configure kdump-tools cmdline: remove irqpoll, add reset_devices, and
    set systemd.unit=kdump-tools-dump.service on ARM64 platforms.
-3. Reserve 512M crashkernel memory in U-Boot on ES1227 platforms.
 
 diff --git a/build_debian.sh b/build_debian.sh
 index 1d2db21f5..07ff9653d 100755
@@ -253,16 +252,3 @@ index 2fb39d81b..31dfa4f07 100644
  
  # ---------------------------------------------------------------------------
  # Additional Kdump environment settings used in SONiC
-diff --git a/platform/marvell-prestera/platform_arm64.conf b/platform/marvell-prestera/platform_arm64.conf
-index 7a53e9a7d..dd4bc4d82 100644
---- a/platform/marvell-prestera/platform_arm64.conf
-+++ b/platform/marvell-prestera/platform_arm64.conf
-@@ -271,7 +271,7 @@ prepare_boot_menu() {
-         fw_setenv ${FW_ARG} print_menu "$BORDER $BOOT1 $BOOT2 $BOOT3 $BORDER" > /dev/null
- 
-         if [ $PLATFORM_ES1227 -eq 1 ]; then
--            fw_setenv ${FW_ARG} linuxargs "net.ifnames=0 loopfstype=squashfs loop=$image_dir/$FILESYSTEM_SQUASHFS systemd.unified_cgroup_hierarchy=0 varlog_size=$VAR_LOG hugepagesz=2M hugepages=256 ${ONIE_PLATFORM_EXTRA_CMDLINE_LINUX}" > /dev/null
-+            fw_setenv ${FW_ARG} linuxargs "net.ifnames=0 loopfstype=squashfs loop=$image_dir/$FILESYSTEM_SQUASHFS systemd.unified_cgroup_hierarchy=0 varlog_size=$VAR_LOG hugepagesz=2M hugepages=256 crashkernel=0M-2G:0M,2G-64G:512M,64G-:512M ${ONIE_PLATFORM_EXTRA_CMDLINE_LINUX}" > /dev/null
-             fw_setenv ${FW_ARG} linuxargs_old "net.ifnames=0 loopfstype=squashfs loop=$image_dir_old/$FILESYSTEM_SQUASHFS systemd.unified_cgroup_hierarchy=0 varlog_size=$VAR_LOG hugepagesz=2M hugepages=256 ${ONIE_PLATFORM_EXTRA_CMDLINE_LINUX}" > /dev/null
-         else
-             fw_setenv ${FW_ARG} linuxargs "net.ifnames=0 loopfstype=squashfs loop=$image_dir/$FILESYSTEM_SQUASHFS varlog_size=$VAR_LOG ${ONIE_PLATFORM_EXTRA_CMDLINE_LINUX}" > /dev/null
