@@ -9,6 +9,7 @@
 try:
     import sys
     import os
+    import glob
     import time
     import subprocess
     from sonic_platform_base.chassis_base import ChassisBase
@@ -19,6 +20,7 @@ try:
     from sonic_platform.sfp import Sfp
     from sonic_platform.eeprom import Tlv
     from sonic_platform.fan_drawer import FanDrawer
+    from sonic_py_common import logger
 except ImportError as e:
     raise ImportError(str(e) + "- required module not found")
 
@@ -41,6 +43,8 @@ GET_HWSKU_CMD = "sonic-cfggen -d -v DEVICE_METADATA.localhost.hwsku"
 GET_PLATFORM_CMD = "sonic-cfggen -d -v DEVICE_METADATA.localhost.platform"
 GET_HOST_HWSKU_CMD = 'grep ^onie_machine= /host/machine.conf | cut -f2 -d"="'
 GET_HOST_PLATFORM_CMD = 'grep ^onie_platform /host/machine.conf | cut -f2 -d"="'
+
+sonic_logger = logger.Logger()
 
 class Chassis(ChassisBase):
     """Platform-specific Chassis class"""
@@ -294,8 +298,26 @@ class Chassis(ChassisBase):
         try:
             if self._watchdog is None:
                 from sonic_platform.watchdog import WatchdogImplBase
-                watchdog_device = "watchdog1"
-                self._watchdog = WatchdogImplBase(watchdog_device)
+                matches = []
+                for path in glob.glob("/sys/class/watchdog/watchdog[0-9]*"):
+                    name = os.path.basename(path)
+                    if not name[len("watchdog"):].isdigit():
+                        continue
+                    try:
+                        with open(os.path.join(path, "identity"), "r") as identity:
+                            value = identity.read().strip()
+                    except OSError as e:
+                        sonic_logger.log_warning(
+                            "Cannot read watchdog identity for {}: {}".format(name, e))
+                        return None
+                    if value == "SBSA Generic Watchdog":
+                        matches.append(name)
+                if len(matches) != 1:
+                    sonic_logger.log_warning(
+                        "Expected one SBSA Generic Watchdog, found {}: {}".format(
+                            len(matches), matches))
+                    return None
+                self._watchdog = WatchdogImplBase(matches[0])
         except Exception as e:
             sonic_logger.log_warning(" Fail to load watchdog {}".format(repr(e)))
 
