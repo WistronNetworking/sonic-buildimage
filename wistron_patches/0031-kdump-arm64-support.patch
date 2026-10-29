@@ -4,6 +4,8 @@ Enable kdump and vmcore capture on Wistron ARM64 platforms.
    using fixed upstream commit cecce00ab4f3, with epoch 1 and apt hold.
 2. Configure kdump-tools cmdline: remove irqpoll, add reset_devices, and
    set systemd.unit=kdump-tools-dump.service on ARM64 platforms.
+3. Update default KDUMP memory in init_cfg.json.j2 to
+   0M-2G:0M,2G-64G:512M,64G-:512M.
 
 diff --git a/build_debian.sh b/build_debian.sh
 index 1d2db21f5..07ff9653d 100755
@@ -252,3 +254,16 @@ index 2fb39d81b..31dfa4f07 100644
  
  # ---------------------------------------------------------------------------
  # Additional Kdump environment settings used in SONiC
+diff --git a/files/build_templates/init_cfg.json.j2 b/files/build_templates/init_cfg.json.j2
+index 1d1c1817b..7f09086a5 100644
+--- a/files/build_templates/init_cfg.json.j2
++++ b/files/build_templates/init_cfg.json.j2
+@@ -199,7 +199,7 @@
+ {% else %}
+             "enabled": "false",
+ {% endif %}
+-            "memory": "0M-2G:256M,2G-4G:320M,4G-8G:384M,8G-:448M",
++            "memory": "0M-2G:0M,2G-64G:512M,64G-:512M",
+             "num_dumps": "3"
+         }
+     },
