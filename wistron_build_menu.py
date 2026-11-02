@@ -1337,6 +1337,16 @@ class PayloadReader:
         return block
 
 
+def read_squashfs_file(squashfs, member, workdir):
+    """Read one regular file using squashfs-tools 4.4 or newer."""
+    dest = Path(tempfile.mkdtemp(prefix="unsquash-", dir=workdir)) / "root"
+    capture(["unsquashfs", "-no-progress", "-no-xattrs", "-d", str(dest),
+             str(squashfs), member])
+    path = dest / member
+    require(not path.is_symlink() and path.is_file(), f"The installer is missing {member}.")
+    return path.read_bytes()
+
+
 def verify_installer(installer, enabled, expected_version=None):
     # ONIE's shell launcher contains a bounded tar payload, whose fs.zip
     # contains the squashfs. Never execute the installer or extract paths
@@ -1383,11 +1393,10 @@ def verify_installer(installer, enabled, expected_version=None):
             squashfs = Path(temp) / "fs.squashfs"
             with archive.open(members[0]) as source, squashfs.open("wb") as dest:
                 shutil.copyfileobj(source, dest)
-            status_text = capture(["unsquashfs", "-cat", str(squashfs), "var/lib/dpkg/status"]).decode()
+            status_text = read_squashfs_file(squashfs, "var/lib/dpkg/status", temp).decode()
             listings = capture(["unsquashfs", "-ls", str(squashfs)]).decode()
             result = check_ztp_status(status_text, listings, enabled)
-            version_text = capture(["unsquashfs", "-cat", str(squashfs),
-                                    "etc/sonic/sonic_version.yml"]).decode()
+            version_text = read_squashfs_file(squashfs, "etc/sonic/sonic_version.yml", temp).decode()
             match = re.search(r"^build_version:\s*(.*?)\s*$", version_text, re.MULTILINE)
             require(match, "The installer is missing its build_version.")
             version = match.group(1)
