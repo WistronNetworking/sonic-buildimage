@@ -9,6 +9,13 @@
 #ifndef PMBUS_H
 #define PMBUS_H
 
+#include <linux/version.h>
+
+/* This private PMBus interface must match the target kernel source. */
+#if LINUX_VERSION_CODE != KERNEL_VERSION(6, 12, 41)
+#error "Wistron PMBus header requires review for this kernel version"
+#endif
+
 #include <linux/bitops.h>
 #include <linux/regulator/driver.h>
 
