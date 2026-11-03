@@ -14,7 +14,8 @@ load_kernel_drivers() {
     modprobe i2c_dev
     insmod /usr/lib/modules/$(uname -r)/kernel/extra/wistron_cpld.ko
     insmod /usr/lib/modules/$(uname -r)/kernel/extra/wistron_max31790.ko
-    insmod /usr/lib/modules/$(uname -r)/kernel/extra/wistron_psu.ko
+    # Load pmbus_core before registering the PSU driver.
+    modprobe wistron_psu
     insmod /usr/lib/modules/$(uname -r)/kernel/extra/mvcpss.ko
     modprobe optoe
     modprobe jc42
