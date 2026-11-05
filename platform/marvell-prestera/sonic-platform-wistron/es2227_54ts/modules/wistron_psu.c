@@ -34,7 +34,7 @@
 #include <linux/dmi.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#include "pmbus.h"
+#include "../../common/pmbus.h"
 
 static int pmbus_read_block_data(struct i2c_client *client, u8 command, u8 *data)
 {
