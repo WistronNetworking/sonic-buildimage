@@ -9,6 +9,7 @@
 try:
     import sys
     import os
+    import glob
     import time
     import subprocess
     from sonic_py_common import logger
@@ -311,8 +312,26 @@ class Chassis(ChassisBase):
         try:
             if self._watchdog is None:
                 from sonic_platform.watchdog import WatchdogImplBase
-                watchdog_device = "watchdog0"
-                self._watchdog = WatchdogImplBase(watchdog_device)
+                matches = []
+                for path in glob.glob("/sys/class/watchdog/watchdog[0-9]*"):
+                    name = os.path.basename(path)
+                    if not name[len("watchdog"):].isdigit():
+                        continue
+                    try:
+                        with open(os.path.join(path, "identity"), "r") as identity:
+                            value = identity.read().strip()
+                    except OSError as e:
+                        sonic_logger.log_warning(
+                            "Cannot read watchdog identity for {}: {}".format(name, e))
+                        return None
+                    if value == "SBSA Generic Watchdog":
+                        matches.append(name)
+                if len(matches) != 1:
+                    sonic_logger.log_warning(
+                        "Expected one SBSA Generic Watchdog, found {}: {}".format(
+                            len(matches), matches))
+                    return None
+                self._watchdog = WatchdogImplBase(matches[0])
         except Exception as e:
             sonic_logger.log_warning("Failed to load watchdog: {}".format(repr(e)))
 
