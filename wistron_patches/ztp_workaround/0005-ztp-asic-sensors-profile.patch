@@ -1,0 +1,13 @@
+diff --git a/src/sonic-ztp/src/usr/lib/ztp/templates/ztp-config.j2 b/src/sonic-ztp/src/usr/lib/ztp/templates/ztp-config.j2
+index 40fd1e0..cd76286 100644
+--- a/src/sonic-ztp/src/usr/lib/ztp/templates/ztp-config.j2
++++ b/src/sonic-ztp/src/usr/lib/ztp/templates/ztp-config.j2
+@@ -39,5 +39,8 @@
+ {%- endfor %}
+    },
++{% if ASIC_SENSORS is defined %}
++   "ASIC_SENSORS": {{ ASIC_SENSORS | tojson }},
++{% endif %}
+    "ZTP" : {
+     "mode" : {
+         "profile" : "active",

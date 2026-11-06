@@ -14,6 +14,7 @@ ZTP_PATCH_FILES=(
     "$ZTP_DIR/0002-ztp-workaround-mac-table-added.patch"
     "$ZTP_DIR/0003-ztp-restore-front-panel-hostifs.patch"
     "$ZTP_DIR/0004-ztp-vlan-dhcp-option67-race.patch"
+    "$ZTP_DIR/0005-ztp-asic-sensors-profile.patch"
 )
 
 # Parse arguments for simpler execution
