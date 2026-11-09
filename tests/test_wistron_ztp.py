@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(os.environ.get("SONIC_ZTP_SOURCE", ROOT / "src/sonic-ztp"))
 PROFILE = "src/sonic-ztp/src/usr/lib/ztp/ztp-profile.sh"
 HOOK = "src/sonic-ztp/src/usr/lib/ztp/dhcp/ztp"
+TEMPLATE = "src/sonic-ztp/src/usr/lib/ztp/templates/ztp-config.j2"
 
 
 def run(args, **kwargs):
@@ -36,7 +37,7 @@ class ZtpTests(unittest.TestCase):
         cls.addClassCleanup(cls.fixture_tmp.cleanup)
         cls.fixture = Path(cls.fixture_tmp.name)
         sha = run(["git", "rev-parse", "HEAD:src/sonic-ztp"], cwd=ROOT).stdout.strip()
-        for name in (PROFILE, HOOK):
+        for name in (PROFILE, HOOK, TEMPLATE):
             source_path = name[len("src/sonic-ztp/"):]
             result = run(["git", "show", sha + ":" + source_path], cwd=SOURCE)
             if result.returncode:
