@@ -111,7 +111,11 @@ class Thermal(ThermalBase):
             temp = 0
             try:
                 stateDB = DBConnector('STATE_DB', 0, True, '')
-                temp = int(stateDB.hget('ASIC_TEMPERATURE_INFO', 'temperature_0'))
+                val = stateDB.hget('ASIC_TEMPERATURE_INFO', 'maximum_temperature')
+                if val is None or int(float(val)) == 0:
+                    val = stateDB.hget('ASIC_TEMPERATURE_INFO', 'average_temperature')
+                if val is not None:
+                    temp = float(val)
             except Exception as E:
                 print("get_temperature (MAC) failed, cause by {}".format(E))
             return float("{:.3f}".format(temp))
