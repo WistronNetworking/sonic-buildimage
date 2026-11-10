@@ -1,0 +1,18 @@
+diff --git a/src/sonic-swss/orchagent/switchorch.cpp b/src/sonic-swss/orchagent/switchorch.cpp
+index 6cc2f36f..bd2b94a4 100644
+--- a/src/sonic-swss/orchagent/switchorch.cpp
++++ b/src/sonic-swss/orchagent/switchorch.cpp
+@@ -1682,6 +1682,13 @@ void SwitchOrch::doTask(SelectableTimer &timer)
+                 }
+                 m_asicSensorsTable->set("",values);
+             }
++            else if (status == SAI_STATUS_BUFFER_OVERFLOW)
++            {
++                /* SAI needs a longer list than the sensor count it reported,
++                 * so every retry fails the same way. Stop polling the list. */
++                m_numTempSensors = 0;
++                SWSS_LOG_ERROR("ASIC sensors : failed to get SAI_SWITCH_ATTR_TEMP_LIST: %d, stop polling it", status);
++            }
+             else
+             {
+                 SWSS_LOG_ERROR("ASIC sensors : failed to get SAI_SWITCH_ATTR_TEMP_LIST: %d", status);
