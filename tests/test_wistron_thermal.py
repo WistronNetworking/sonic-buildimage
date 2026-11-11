@@ -25,6 +25,47 @@ def load_classes(path, names, **namespace):
     return namespace
 
 
+class MacTemperatureTests(unittest.TestCase):
+    def test_mac_temperature_uses_maximum_then_average(self):
+        platforms = {
+            "es1227_36ts_p": 3,
+            "es1227_54ts": 7,
+            "es1227_54ts_p2": 8,
+            "es2227_54ts": 7,
+            "es2227_54ts_p": 8,
+        }
+        cases = (
+            ("55.125", "49.5", 55.125, False),
+            (None, "49.5", 49.5, True),
+            ("0", "49.5", 49.5, True),
+            (None, None, 0.0, True),
+            ("0", None, 0.0, True),
+        )
+        for sku, index in platforms.items():
+            path = PLATFORMS / sku / "sonic_platform/thermal.py"
+            thermal = load_classes(path, ["Thermal"], ThermalBase=object, Fan=mock.Mock())["Thermal"](index)
+            for maximum, average, expected, reads_average in cases:
+                with self.subTest(sku=sku, maximum=maximum, average=average):
+                    values = {"maximum_temperature": maximum, "average_temperature": average}
+                    database = mock.Mock()
+                    database.hget.side_effect = lambda table, field: values[field]
+                    connector = mock.Mock(return_value=database)
+                    swsscommon = types.ModuleType("swsscommon")
+                    swsscommon.__path__ = []
+                    swsscommon_module = types.ModuleType("swsscommon.swsscommon")
+                    swsscommon_module.DBConnector = connector
+                    with mock.patch.dict("sys.modules", {
+                        "swsscommon": swsscommon,
+                        "swsscommon.swsscommon": swsscommon_module,
+                    }):
+                        self.assertEqual(thermal.get_temperature(), expected)
+                    connector.assert_called_once_with("STATE_DB", 0, True, "")
+                    calls = [mock.call("ASIC_TEMPERATURE_INFO", "maximum_temperature")]
+                    if reads_average:
+                        calls.append(mock.call("ASIC_TEMPERATURE_INFO", "average_temperature"))
+                    self.assertEqual(database.hget.call_args_list, calls)
+
+
 class ThermalTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="wistron-thermal-test-")
