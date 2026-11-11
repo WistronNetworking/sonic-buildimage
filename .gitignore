@@ -8,6 +8,8 @@
 rules/config.user
 
 # Build artifacts
+/runs/
+/.build-menu/
 fsroot/
 fsroot-*/
 fs.*
