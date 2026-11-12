@@ -203,10 +203,15 @@ class SwitchPolicyAction(ThermalPolicyActionBase):
                     os.makedirs(os.path.dirname(path), exist_ok=True)
                     with open(path, 'w') as cause_file:
                         cause_file.write(reboot_msg + '\n')
+                        cause_file.flush()
+                        os.fsync(cause_file.fileno())
                 except OSError as error:
                     sonic_logger.log_error(
                         "Failed to record thermal cause in {}: {}".format(path, error))
-            os.sync()
+            try:
+                os.sync()
+            except OSError as error:
+                sonic_logger.log_error("Thermal shutdown sync failed: {}".format(error))
 
             chassis_info = thermal_info_dict.get(ChassisInfo.INFO_NAME)
             if isinstance(chassis_info, ChassisInfo):
