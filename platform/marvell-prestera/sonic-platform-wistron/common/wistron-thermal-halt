@@ -1,0 +1,44 @@
+#!/bin/sh
+
+request=/host/reboot-cause/.wistron-thermal-halt
+boot_id_file=/proc/sys/kernel/random/boot_id
+
+log_error() {
+    echo "wistron-thermal-halt: $*" >&2
+    logger -t wistron-thermal-halt -p daemon.err -- "$*" || true
+}
+
+if ! IFS= read -r request_boot_id < "$request"; then
+    log_error "cannot read thermal halt request"
+    rm -f -- "$request"
+    exit 1
+fi
+if ! rm -f -- "$request"; then
+    log_error "cannot consume thermal halt request"
+    exit 1
+fi
+if ! IFS= read -r boot_id < "$boot_id_file"; then
+    log_error "cannot read current boot ID"
+    exit 1
+fi
+if [ -z "$request_boot_id" ] || [ "$request_boot_id" != "$boot_id" ]; then
+    log_error "discarding stale or invalid thermal halt request"
+    exit 1
+fi
+
+platform=$(/usr/local/bin/sonic-cfggen -H -v DEVICE_METADATA.localhost.platform)
+case "$platform" in
+    arm64-wistron_es1227_36ts_p-r0) watchdog=es1227_36ts_p-watchdog.service ;;
+    arm64-wistron_es1227_54ts_p2-r0) watchdog=es1227_54ts_p2-watchdog.service ;;
+    *) watchdog=; log_error "unrecognized platform: $platform" ;;
+esac
+if [ -n "$watchdog" ] && ! systemctl stop "$watchdog"; then
+    log_error "could not stop $watchdog"
+fi
+if ! /usr/local/bin/watchdogutil disarm; then
+    log_error "could not disarm watchdog"
+fi
+if ! systemctl --no-block halt; then
+    log_error "host halt request failed"
+    exit 1
+fi

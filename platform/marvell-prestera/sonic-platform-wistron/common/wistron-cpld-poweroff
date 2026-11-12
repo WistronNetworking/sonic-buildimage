@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# systemd calls shutdown hooks for halt, poweroff, reboot, and kexec.
+[ "$1" = poweroff ] || exit 0
+
+power_down_path=/sys/bus/i2c/devices/0-0033/system_power_down
+message="wistron-cpld-poweroff: requesting CPLD poweroff"
+echo "$message" >&2
+printf '<4>%s\n' "$message" > /dev/kmsg 2>/dev/null || true
+if ! printf '0\n' > "$power_down_path"; then
+    message="wistron-cpld-poweroff: failed to write $power_down_path"
+    echo "$message" >&2
+    printf '<3>%s\n' "$message" > /dev/kmsg 2>/dev/null || true
+    exit 1
+fi

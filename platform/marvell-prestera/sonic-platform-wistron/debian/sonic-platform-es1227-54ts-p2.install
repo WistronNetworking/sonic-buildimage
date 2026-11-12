@@ -8,6 +8,10 @@ es1227_54ts_p2/service/es1227_54ts_p2-sysled.service etc/systemd/system
 es1227_54ts_p2/service/es1227_54ts_p2-rst_button.service etc/systemd/system
 es1227_54ts_p2/service/es1227_54ts_p2-psu-monitor.service etc/systemd/system
 es1227_54ts_p2/service/es1227_54ts_p2-watchdog.service etc/systemd/system
+common/wistron-thermal-halt.path lib/systemd/system
+common/wistron-thermal-halt.service lib/systemd/system
+common/wistron-thermal-halt usr/local/bin
+common/wistron-cpld-poweroff usr/lib/systemd/system-shutdown
 es1227_54ts_p2/sonic_platform-1.0-py3-none-any.whl usr/share/sonic/device/arm64-wistron_es1227_54ts_p2-r0
 es1227_54ts_p2/utils/poetool usr/local/bin
 es1227_54ts_p2/utils/es1227_54ts_p2_led.py usr/local/bin
