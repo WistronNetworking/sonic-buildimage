@@ -9,6 +9,10 @@ es1227_36ts_p/service/es1227_36ts_p-rst_button.service etc/systemd/system
 es1227_36ts_p/service/es1227_36ts_p-oob-led.service etc/systemd/system
 es1227_36ts_p/service/es1227_36ts_p-poe_lldp.service etc/systemd/system
 es1227_36ts_p/service/es1227_36ts_p-watchdog.service etc/systemd/system
+common/wistron-thermal-halt.path lib/systemd/system
+common/wistron-thermal-halt.service lib/systemd/system
+common/wistron-thermal-halt usr/local/bin
+common/wistron-cpld-poweroff usr/lib/systemd/system-shutdown
 es1227_36ts_p/sonic_platform-1.0-py3-none-any.whl usr/share/sonic/device/arm64-wistron_es1227_36ts_p-r0
 es1227_36ts_p/utils/poetool usr/local/bin
 es1227_36ts_p/utils/phytool usr/local/bin

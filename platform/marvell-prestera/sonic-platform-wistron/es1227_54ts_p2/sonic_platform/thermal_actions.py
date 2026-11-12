@@ -103,24 +103,8 @@ class SetFanSpeedAction(ThermalPolicyActionBase):
 
     @classmethod
     def power_down(cls):
-        # thermalctld runs inside pmon: there is no sudo/systemctl/poweroff there.
-        # Power down through SYSCPLD 0x41 bit0 (system_power_down, W0C: 0 = power down).
-        # Pure file I/O so it works in pmon; every failure is logged, never silent.
-        import os
-        from sonic_platform.chassis import CPLD_SYSFS_DIR
-        path = "{}/system_power_down".format(CPLD_SYSFS_DIR)
-        try:
-            os.sync()
-        except Exception as e:
-            sonic_logger.log_error("thermal shutdown: sync failed: {}".format(e))
-        try:
-            with open(path, 'w') as fd:
-                fd.write('0')
-            sonic_logger.log_warning("thermal shutdown: wrote 0 to {}".format(path))
-            return True
-        except Exception as e:
-            sonic_logger.log_error("thermal shutdown: write {} failed: {}".format(path, e))
-            return False
+        from .thermal_shutdown import request_thermal_halt
+        return request_thermal_halt()
 
     @classmethod
     def get_temp(cls, thermal_info_dict):
@@ -219,10 +203,8 @@ class SwitchPolicyAction(ThermalPolicyActionBase):
                 except Exception as e:
                     sonic_logger.log_error("thermal shutdown: write reboot-cause {} failed: {}".format(path, e))
 
-            # The watchdog service runs on the host; it cannot be stopped from pmon (no systemctl).
-            # Not needed: the CPLD power-down below cuts power before the watchdog can fire.
             if not SetFanSpeedAction.power_down():
-                sonic_logger.log_error("thermal shutdown: CPLD power down FAILED, system is still running")
+                sonic_logger.log_error("thermal shutdown: host halt request FAILED, system is still running")
         # import os
         # os.system('reboot')
 

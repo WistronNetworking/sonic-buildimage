@@ -102,14 +102,9 @@ class SetFanSpeedAction(ThermalPolicyActionBase):
         return fan_speed
 
     @classmethod
-    def power_down(cls, chassis):
-        try:
-            if chassis.power_down():
-                return True
-        except Exception as error:
-            sonic_logger.log_error("CPLD power-down raised an error: {}".format(error))
-        sonic_logger.log_error("Thermal shutdown failed; watchdog remains enabled")
-        return False
+    def power_down(cls):
+        from .thermal_shutdown import request_thermal_halt
+        return request_thermal_halt()
 
     @classmethod
     def get_temp(cls, thermal_info_dict):
@@ -165,7 +160,7 @@ class SwitchPolicyAction(ThermalPolicyActionBase):
         :param thermal_info_dict: A dictionary stores all thermal information.
         :return:
         """
-        from .thermal_infos import ChassisInfo, ThermalInfo
+        from .thermal_infos import ThermalInfo
         if ThermalInfo.INFO_NAME in thermal_info_dict and \
                 isinstance(thermal_info_dict[ThermalInfo.INFO_NAME], ThermalInfo):
 
@@ -213,20 +208,9 @@ class SwitchPolicyAction(ThermalPolicyActionBase):
             except OSError as error:
                 sonic_logger.log_error("Thermal shutdown sync failed: {}".format(error))
 
-            chassis_info = thermal_info_dict.get(ChassisInfo.INFO_NAME)
-            if isinstance(chassis_info, ChassisInfo):
-                chassis = chassis_info.get_chassis()
-            else:
-                chassis = None
-            if chassis is None:
-                chassis = self._get_chassis()
-            return SetFanSpeedAction.power_down(chassis)
+            return SetFanSpeedAction.power_down()
         # import os
         # os.system('reboot')
-
-    @staticmethod
-    def _get_chassis():
-        return sonic_platform.platform.Platform().get_chassis()
 
 @thermal_json_object('fan.set_speed')
 class SetAllFanSpeedAction(SetFanSpeedAction):
