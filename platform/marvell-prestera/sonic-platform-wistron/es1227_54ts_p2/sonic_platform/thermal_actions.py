@@ -103,11 +103,24 @@ class SetFanSpeedAction(ThermalPolicyActionBase):
 
     @classmethod
     def power_down(cls):
-        # Directly power off the DUT using systemctl, fallback to poweroff command
+        # thermalctld runs inside pmon: there is no sudo/systemctl/poweroff there.
+        # Power down through SYSCPLD 0x41 bit0 (system_power_down, W0C: 0 = power down).
+        # Pure file I/O so it works in pmon; every failure is logged, never silent.
         import os
-        # systemctl returns 0 on success; if it fails, try plain poweroff
-        if os.system('systemctl poweroff') != 0:
-            os.system('poweroff')
+        from sonic_platform.chassis import CPLD_SYSFS_DIR
+        path = "{}/system_power_down".format(CPLD_SYSFS_DIR)
+        try:
+            os.sync()
+        except Exception as e:
+            sonic_logger.log_error("thermal shutdown: sync failed: {}".format(e))
+        try:
+            with open(path, 'w') as fd:
+                fd.write('0')
+            sonic_logger.log_warning("thermal shutdown: wrote 0 to {}".format(path))
+            return True
+        except Exception as e:
+            sonic_logger.log_error("thermal shutdown: write {} failed: {}".format(path, e))
+            return False
 
     @classmethod
     def get_temp(cls, thermal_info_dict):
@@ -192,13 +205,24 @@ class SwitchPolicyAction(ThermalPolicyActionBase):
 
             host_path = HOST_REBOOT_CAUSE_PATH + REBOOT_CAUSE_FILE
             pmon_path = PMON_REBOOT_CAUSE_PATH + REBOOT_CAUSE_FILE
-            os.system(f"sudo sh -c 'echo \"{reboot_msg}\" > {host_path}'")
-            os.system(f"sudo sh -c 'echo \"{reboot_msg}\" > {pmon_path}'")
+            # Pure file I/O (no sudo in pmon). /host/reboot-cause is bind-mounted rw into pmon.
+            # fsync so the cause survives the CPLD power cut that follows.
+            for path in (host_path, pmon_path):
+                if not os.path.isdir(os.path.dirname(path)):
+                    continue
+                try:
+                    with open(path, 'w') as fd:
+                        fd.write(reboot_msg + "\n")
+                        fd.flush()
+                        os.fsync(fd.fileno())
+                    sonic_logger.log_warning("thermal shutdown: reboot-cause '{}' -> {}".format(reboot_msg, path))
+                except Exception as e:
+                    sonic_logger.log_error("thermal shutdown: write reboot-cause {} failed: {}".format(path, e))
 
-            os.system('sync')
-            # Stop watchdog service to avoid overwriting reboot-cause
-            os.system('systemctl stop es1227_54ts_p2-watchdog')
-            SetFanSpeedAction.power_down()
+            # The watchdog service runs on the host; it cannot be stopped from pmon (no systemctl).
+            # Not needed: the CPLD power-down below cuts power before the watchdog can fire.
+            if not SetFanSpeedAction.power_down():
+                sonic_logger.log_error("thermal shutdown: CPLD power down FAILED, system is still running")
         # import os
         # os.system('reboot')
 
