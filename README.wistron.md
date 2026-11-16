@@ -20,19 +20,18 @@ git checkout master-mrvl-prestera
 # or after fetching remote repo with submodule updates
 time make init
 
-# Execute `apply_patches.sh` for platform specific modifications and issue fixing.
-# Usage & options:
-# Default: Apply standard patches
-./apply_patches.sh
-# Enable ZTP workaround patches
-./apply_patches.sh -z
-# Revert ZTP workaround patches
-./apply_patches.sh ZTP=no
-# Show help options
-./apply_patches.sh -h
-
-# Execute make configure once to configure ASIC
+# Configure ARM64; regular Wistron patches are automatically applied before
+# the build containers are prepared.
 time make configure PLATFORM=marvell-prestera PLATFORM_ARCH=arm64
+
+# To also apply the optional ZTP workaround patches:
+# time make configure PLATFORM=marvell-prestera PLATFORM_ARCH=arm64 WISTRON_ZTP_PATCHES=y
+
+# Manual patch preparation remains available when needed:
+# ./apply_patches.sh
+# ./apply_patches.sh -z
+# Revert ZTP workaround patches explicitly; normal configure does not revert them:
+# ./apply_patches.sh ZTP=no
 
 # Build SONiC image with 3 jobs in parallel.
 # Note: You can set this higher, but 3 is a good number for most cases
@@ -42,3 +41,11 @@ time make NOJESSIE=1 NOSTRETCH=1 NOBUSTER=1 NOBULLSEYE=1 SONIC_BUILD_JOBS=8 \
      target/sonic-marvell-prestera-arm64.bin
 
 ```
+
+ARM64 builds use the tracked SAI `1.17.1-2` package and Wistron
+ES1227/ES2227 platform packages.
+
+Run `make init` before the first configure after cloning or updating submodules.
+Patch failures stop configure before a build starts. Repeated configure calls
+skip patches that are already applied; unresolved local edits must be reviewed
+if a patch cannot be applied or recognized as present.

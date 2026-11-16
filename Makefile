@@ -121,7 +121,13 @@ $(PLATFORM_PATH):
 	@echo "+++ Cheking $@ +++"
 	$(PLATFORM_CHECKOUT_CMD)
 
+# ZTP workarounds are opt-in, matching apply_patches.sh's default behavior.
+WISTRON_ZTP_PATCHES ?= n
+
 configure : $(PLATFORM_PATH)
+ifeq ($(PLATFORM):$(PLATFORM_ARCH),marvell-prestera:arm64)
+	$(Q)bash ./apply_patches.sh $(if $(filter y,$(WISTRON_ZTP_PATCHES)),-z,)
+endif
 	$(call make_work, $@)
 
 clean showtag docker-cleanup sonic-slave-build sonic-slave-bash :
