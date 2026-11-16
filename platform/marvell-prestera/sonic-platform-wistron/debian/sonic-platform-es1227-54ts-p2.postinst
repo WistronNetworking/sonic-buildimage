@@ -33,6 +33,8 @@ case "$1" in
 	systemctl start es1227_54ts_p2-init.service
 	systemctl enable es1227_54ts_p2-watchdog.service
 	systemctl start es1227_54ts_p2-watchdog.service
+	systemctl enable wistron-thermal-halt.path
+	systemctl start wistron-thermal-halt.path
 
     ;;
 

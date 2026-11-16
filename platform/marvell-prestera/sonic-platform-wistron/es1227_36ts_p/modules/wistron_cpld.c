@@ -1098,7 +1098,10 @@ static ssize_t power_down_write(struct device *dev, struct device_attribute *att
 
     mutex_unlock(&list_lock);
 
-    return res < 0 ? res : count;
+    if (res < 0)
+        return res;
+
+    return count;
 }
 
 static ssize_t sfp_port_ctrl_read(struct device *dev, struct device_attribute *attr, char *buf)

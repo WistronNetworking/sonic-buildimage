@@ -1,0 +1,7 @@
+[Unit]
+Description=Halt the host after a Wistron thermal shutdown request
+ConditionPathExists=/host/reboot-cause/.wistron-thermal-halt
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/wistron-thermal-halt
