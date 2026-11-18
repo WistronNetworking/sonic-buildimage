@@ -102,12 +102,14 @@ class SetFanSpeedAction(ThermalPolicyActionBase):
         return fan_speed
 
     @classmethod
-    def power_down(cls):
-        # Directly power off the DUT using systemctl, fallback to poweroff command
-        import os
-        # systemctl returns 0 on success; if it fails, try plain poweroff
-        if os.system('systemctl poweroff') != 0:
-            os.system('poweroff')
+    def power_down(cls, chassis):
+        try:
+            if chassis.power_down():
+                return True
+        except Exception as error:
+            sonic_logger.log_error("CPLD power-down raised an error: {}".format(error))
+        sonic_logger.log_error("Thermal shutdown failed; watchdog was not stopped")
+        return False
 
     @classmethod
     def get_temp(cls, thermal_info_dict):
@@ -163,12 +165,12 @@ class SwitchPolicyAction(ThermalPolicyActionBase):
         :param thermal_info_dict: A dictionary stores all thermal information.
         :return:
         """
-        from .thermal_infos import ThermalInfo
+        from .thermal_infos import ChassisInfo, ThermalInfo
         if ThermalInfo.INFO_NAME in thermal_info_dict and \
                 isinstance(thermal_info_dict[ThermalInfo.INFO_NAME], ThermalInfo):
 
             thermal_info_obj = thermal_info_dict[ThermalInfo.INFO_NAME]
-            temp_info = thermal_info_obj.get_temp_dict()
+            temp_info = thermal_info_obj.get_shutdown_temp_dict()
             for key in temp_info:
                 sonic_logger.log_warning(
                     "Temp is over high critical threshold, system shutdown {} temperature is {}".format(key, temp_info[key]))
@@ -192,13 +194,28 @@ class SwitchPolicyAction(ThermalPolicyActionBase):
 
             host_path = HOST_REBOOT_CAUSE_PATH + REBOOT_CAUSE_FILE
             pmon_path = PMON_REBOOT_CAUSE_PATH + REBOOT_CAUSE_FILE
-            os.system(f"sudo sh -c 'echo \"{reboot_msg}\" > {host_path}'")
-            os.system(f"sudo sh -c 'echo \"{reboot_msg}\" > {pmon_path}'")
+            for path in (host_path, pmon_path):
+                try:
+                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                    with open(path, 'w') as cause_file:
+                        cause_file.write(reboot_msg + '\n')
+                except OSError as error:
+                    sonic_logger.log_error(
+                        "Failed to record thermal cause in {}: {}".format(path, error))
+            try:
+                os.sync()
+            except OSError as error:
+                sonic_logger.log_error("Failed to sync thermal cause: {}".format(error))
 
-            os.system('sync')
-            # Stop watchdog service to avoid overwriting reboot-cause
-            os.system('systemctl stop es1227_54ts_p2-watchdog')
-            SetFanSpeedAction.power_down()
+            chassis_info = thermal_info_dict.get(ChassisInfo.INFO_NAME)
+            chassis = chassis_info.get_chassis() if isinstance(chassis_info, ChassisInfo) else None
+            if chassis is None:
+                try:
+                    chassis = sonic_platform.platform.Platform().get_chassis()
+                except Exception as error:
+                    sonic_logger.log_error("Failed to get chassis for thermal shutdown: {}".format(error))
+                    return False
+            return SetFanSpeedAction.power_down(chassis)
         # import os
         # os.system('reboot')
 

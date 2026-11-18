@@ -91,6 +91,7 @@ class ThermalInfo(ThermalPolicyInfoBase):
         self.critical_high_thres = False
         self.warm_up_thres = False
         self._temp_dict = {}
+        self._shutdown_temp_dict = {}
 
     def collect(self, chassis):
         """
@@ -111,6 +112,7 @@ class ThermalInfo(ThermalPolicyInfoBase):
         self.high_thres = False
         self.critical_high_thres = False
         self.warm_up_thres = False
+        self._shutdown_temp_dict = {}
 
         # Collect the information
         for index in range(num_of_thermals):
@@ -150,8 +152,16 @@ class ThermalInfo(ThermalPolicyInfoBase):
             if self._enter_warm_up_state[index]:
                 self.warm_up_thres = True
 
+            if self._state[index] == "critical" or (
+                    self._state[index] == "high" and self._enter_warm_up_state[index]):
+                self._shutdown_temp_dict[name] = temp
+
     def get_temp_dict(self):
         return self._temp_dict
+
+    def get_shutdown_temp_dict(self):
+        """Return the sensors that meet a thermal shutdown condition."""
+        return self._shutdown_temp_dict
 
     def is_over_high_threshold(self):
         """
