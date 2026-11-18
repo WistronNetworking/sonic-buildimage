@@ -1515,9 +1515,12 @@ static ssize_t power_down_write(struct device *dev, struct device_attribute *att
 
     val |= (res << bit);
 
-    i2c_smbus_write_byte_data(client, command, val);
+    res = i2c_smbus_write_byte_data(client, command, val);
 
     mutex_unlock(&list_lock);
+
+    if (res < 0)
+        return res;
 
     return count;
 }
