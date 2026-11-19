@@ -216,7 +216,7 @@ class Thermal(ThermalBase):
                 return os.path.isfile(temp_file_path)
             except Exception:
                 return False
-        return False
+        return True
 
     def get_position_in_parent(self):
         """Retrieve position in parent device."""

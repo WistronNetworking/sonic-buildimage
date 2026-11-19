@@ -245,7 +245,7 @@ class Chassis(ChassisBase):
 
         if timeout is None:
             raise ValueError("Timeout value is None, unable to convert to int")
-        return int(timeout)
+        timeout = int(timeout)
 
         if timeout == 0:
             forever = True
