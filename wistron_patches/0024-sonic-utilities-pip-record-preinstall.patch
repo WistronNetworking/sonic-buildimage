@@ -33,7 +33,7 @@ index 23d1d1520..32ab33f1c 100644
 +# a RECORD exists, then the wheel install can replace them. Same approach as
 +# files/build_templates/sonic_debian_extension.j2 for the final image rootfs.
 +$(SONIC_UTILITIES_PY3)_PIP_PREINSTALL = regex click natsort enlighten
-+$(SONIC_UTILITIES_PY3)_PIP_PREINSTALL_NODEPS = bcrypt paramiko scp requests
++$(SONIC_UTILITIES_PY3)_PIP_PREINSTALL_NODEPS = bcrypt paramiko scp requests pyroute2==0.7.12 six==1.16.0
  $(SONIC_UTILITIES_PY3)_NAME = $(SONIC_UTILITIES_PY3_NAME)
  $(SONIC_UTILITIES_PY3)_VERSION = $(SONIC_UTILITIES_PY3_VERSION)
  $(SONIC_UTILITIES_PY3)_DEPENDS += $(SONIC_PY_COMMON_PY3) \
