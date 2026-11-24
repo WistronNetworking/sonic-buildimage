@@ -1,12 +1,13 @@
 #!/bin/bash
 
-directories=(
-    # When both PSUs are plugged PSU1 is hwmon5 and PSU2 is hwmon4
-    # If only one PSU is plugged, it  is hwmon4
-    "/sys/bus/i2c/devices/3-0059/hwmon/hwmon5"
-    "/sys/bus/i2c/devices/3-0059/hwmon/hwmon4"
-    "/sys/bus/i2c/devices/3-0058/hwmon/hwmon4"
-)
+directories=()
+for dev in 3-0059 3-0058; do
+    for d in /sys/bus/i2c/devices/$dev/hwmon/hwmon*; do
+        if [ -d "$d" ]; then
+            directories+=("$d")
+        fi
+    done
+done
 
 # PSU corresponding parameters
 VOLTAGE_110V_MIN=90
@@ -72,7 +73,11 @@ fi
 #PSU_VSENSE_220V=1
 
 #value_watts=$(awk "BEGIN {print $min_value / 1000}")
-value_watts=$(printf "%.0f" $(awk "BEGIN {print $min_value / 1000}"))
+if [ -n "$min_value" ]; then
+    value_watts=$(printf "%.0f" "$(awk -v v="$min_value" 'BEGIN {print v / 1000}')")
+else
+    value_watts=0
+fi
 vsense_file_path="/sys/bus/i2c/devices/0-0033/psu_vsense"
 
 poetool mgmt set_power_banks 1 250 585 480 0xa
