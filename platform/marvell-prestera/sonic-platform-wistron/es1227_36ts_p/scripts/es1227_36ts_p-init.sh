@@ -73,10 +73,19 @@ done
 #    echo 80000 > /sys/class/hwmon/hwmon$i/temp1_max_hyst
 #done
 
-# Set additional temperature thresholds for hwmon4 (if it exists)
-if [ -e /sys/class/hwmon/hwmon4/temp1_max ]; then
-    echo 80000 > /sys/class/hwmon/hwmon4/temp1_max
-    echo 85000 > /sys/class/hwmon/hwmon4/temp1_crit
+# Set additional temperature thresholds for jc42 (0-001b) using dynamic hwmon lookup
+jc42_hwmon=""
+for d in /sys/bus/i2c/devices/0-001b/hwmon/hwmon*; do
+    if [ -d "$d" ]; then
+        jc42_hwmon="$d"
+        break
+    fi
+done
+if [ -n "$jc42_hwmon" ] && [ -e "$jc42_hwmon/temp1_max" ]; then
+    echo 80000 > "$jc42_hwmon/temp1_max"
+    echo 85000 > "$jc42_hwmon/temp1_crit"
+else
+    echo "WARNING: jc42 hwmon for 0-001b not found; skip threshold init" >&2
 fi
 
 # Enable auto LED control on ports (via CPLD)
