@@ -219,9 +219,9 @@ static ssize_t cpld_write_psu_status(struct device *dev, struct device_attribute
         return val;
     }
 
-    val &= ~(mask << bit);
-
-    val |= (~(res) << bit);
+    /* register bit is 1 = power off, so writing 1 (on) clears the bit */
+    val &= ~mask;
+    val |= ((res ? 0 : 1) << bit);
 
     i2c_smbus_write_byte_data(client, command, val);
 
