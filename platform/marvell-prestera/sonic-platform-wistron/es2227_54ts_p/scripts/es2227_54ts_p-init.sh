@@ -95,14 +95,37 @@ gpio_chip_base() {
         done
     fi
 
-    for i in {0..2};
-    do
-        echo 85000 > /sys/class/hwmon/hwmon$i/temp1_max
-        echo 80000 > /sys/class/hwmon/hwmon$i/temp1_max_hyst
+    # Kernel 6.12 may assign dynamic hwmon indices (e.g. MDIO PHY at hwmon0) —
+    # resolve each thermal sensor by fixed I2C bus/address instead of hwmon0..4.
+    for dev in 2-0049 2-004a 2-004b; do
+        hwmon_dir=""
+        for d in /sys/bus/i2c/devices/$dev/hwmon/hwmon*; do
+            if [ -d "$d" ]; then
+                hwmon_dir="$d"
+                break
+            fi
+        done
+        if [ -n "$hwmon_dir" ]; then
+            echo 85000 > "$hwmon_dir/temp1_max"
+            echo 80000 > "$hwmon_dir/temp1_max_hyst"
+        else
+            echo "WARNING: TMP75 hwmon for $dev not found; skip threshold init" >&2
+        fi
     done
 
-	echo 80000 > /sys/class/hwmon/hwmon4/temp1_max
-	echo 85000 > /sys/class/hwmon/hwmon4/temp1_crit
+    jc42_hwmon=""
+    for d in /sys/bus/i2c/devices/0-001b/hwmon/hwmon*; do
+        if [ -d "$d" ]; then
+            jc42_hwmon="$d"
+            break
+        fi
+    done
+    if [ -n "$jc42_hwmon" ]; then
+        echo 80000 > "$jc42_hwmon/temp1_max"
+        echo 85000 > "$jc42_hwmon/temp1_crit"
+    else
+        echo "WARNING: jc42 hwmon for 0-001b not found; skip threshold init" >&2
+    fi
 
     echo 1 > /sys/bus/i2c/devices/0-0033/port_led_auto
 
