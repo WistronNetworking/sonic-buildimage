@@ -161,11 +161,14 @@ static void eeprom_update_client(struct i2c_client *client, u8 slice)
         dev_dbg(&client->dev, "Starting eeprom update, slice %u\n", slice);
 
         if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
-            for (i = slice << 5; i < (slice + 1) << 5; i += 24)
+            for (i = slice << 5; i < (slice + 1) << 5; i += 24) {
+                int len = min_t(int, 24, ((slice + 1) << 5) - i);
+
                 if (i2c_smbus_read_i2c_block_data(client, i,
-                            24, data->data + i)
-                            != 24)
+                            len, data->data + i)
+                            != len)
                     goto exit;
+            }
         } else {
             for (i = slice << 5; i < (slice + 1) << 5; i += 2) {
                 int word = i2c_smbus_read_word_data(client, i);
